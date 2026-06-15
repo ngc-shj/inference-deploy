@@ -100,6 +100,12 @@ if [[ ! -f /etc/llama/llama-server.env ]]; then
 else
     say "/etc/llama/llama-server.env already exists; leaving it untouched"
 fi
+if [[ ! -f /etc/llama/models.ini ]]; then
+    sudo install -m 0644 "$HERE/models.ini.example" /etc/llama/models.ini
+    say "Wrote /etc/llama/models.ini — edit to define per-model router presets"
+else
+    say "/etc/llama/models.ini already exists; leaving it untouched"
+fi
 sudo systemctl daemon-reload
 
 cat <<EOF
@@ -109,8 +115,11 @@ Binaries : $PREFIX/bin/llama-server, $PREFIX/bin/llama-cli
 Models   : put GGUF files in /var/lib/llama/models  (created on first start)
 HF cache : /var/lib/llama/cache  (LLAMA_CACHE, for -hf downloads)
 
-Next:
-  1. Edit  /etc/llama/llama-server.env   (set -m <model> or -hf <repo>)
-  2. sudo systemctl enable --now llama-server
-  3. journalctl -u llama-server -f
+Next (router mode — clients pick the model per request):
+  1. Cache each model once:
+       sudo -u $SVC_USER LLAMA_CACHE=/var/lib/llama/cache \\
+           $PREFIX/bin/llama-server -hf <repo>:<tag> -ngl 0   # Ctrl-C after "model loaded"
+  2. Edit  /etc/llama/llama-server.env  and  /etc/llama/models.ini
+  3. sudo systemctl enable --now llama-server
+  4. journalctl -u llama-server -f
 EOF

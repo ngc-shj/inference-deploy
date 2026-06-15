@@ -1,0 +1,55 @@
+; Per-model presets for llama-server router mode (--models-preset).
+; Copy to /etc/llama/models.ini and edit, then:
+;   sudo systemctl restart llama-server
+;
+; Section name = the model ID the router exposes (what clients send in the
+; OpenAI "model" field). For -hf models it is "<repo>:<tag>". Confirm the exact
+; ID the server advertises with:
+;   curl -s localhost:8080/v1/models | jq -r '.data[].id'
+;
+; Keys are llama-server flags without leading dashes (long form, short form, or
+; the LLAMA_ARG_* env name): "--n-gpu-layers 8" -> "n-gpu-layers = 8" or "ngl = 8".
+; Precedence: CLI args (llama-server.env) > model section > [*] global section.
+; host / port / api-key / -hf / alias are router-controlled and ignored here.
+;
+; Models must be in the cache before the router can serve them. Download once:
+;   sudo -u llama LLAMA_CACHE=/var/lib/llama/cache /opt/llama/bin/llama-server \
+;       -hf unsloth/gpt-oss-20b-GGUF:F16 -ngl 0
+; wait for "model loaded", Ctrl-C, then restart llama-server.
+
+version = 1
+
+; Global defaults shared by all models (a section may override any key).
+[*]
+c = 8192
+
+; The MTP speculative-decoding flags below are specific to this model (they need
+; its multi-token-prediction head) — keep them per-section, NOT in [*], so a
+; non-MTP model like Qwopus below is safe.
+
+; --- Qwen3.6-35B-A3B UD-Q4_K_XL (~20GB) — big model, efficient quant -----------
+[unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_XL]
+c = 65536
+np = 1
+spec-type = draft-mtp
+spec-draft-n-max = 2
+load-on-startup = true
+
+; Qwopus3.5-9B-v3: a plain (non-MTP) 9B model — NO spec-type here. It inherits
+; c = 8192 from [*]. The repo also ships an mmproj for vision; to enable it add
+;   mmproj = /var/lib/llama/cache/<mmproj path>
+; (or convert/place it manually). Text-only by default.
+
+; --- Qwopus3.5-9B-v3 Q8 (Q8_0, ~9.5GB) — near-lossless, the sane default -------
+[Jackrong/Qwopus3.5-9B-v3-GGUF:Q8_0]
+
+; --- Qwopus3.5-9B-v3 Q4 (Q4_K_M, ~5.6GB) — enable only to compare quant loss ---
+;[Jackrong/Qwopus3.5-9B-v3-GGUF:Q4_K_M]
+
+; gpt-oss-20b: OpenAI MoE, natively MXFP4 — F16 keeps the experts at MXFP4 (so
+; it's only ~14GB, not ~26GB) and is effectively full quality; lower quants only
+; shrink the small dense part. NOT MTP, so no spec-type. The "gpt-oss" / Harmony
+; chat template is built in. Reasoning effort is set client-side, not here.
+
+; --- gpt-oss-20b F16 (~13.8GB) — non-Qwen family, adjustable reasoning ---------
+[unsloth/gpt-oss-20b-GGUF:F16]

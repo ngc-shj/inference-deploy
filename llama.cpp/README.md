@@ -11,6 +11,7 @@ service. Targeted at the GB10 (Grace Blackwell, sm_121) box but parameterized.
 | `/var/lib/llama/models` | manually-placed GGUF files (`-m ...`) |
 | `/var/lib/llama/cache` | `LLAMA_CACHE` — `-hf` auto-downloads land here |
 | `/etc/llama/llama-server.env` | runtime flags (`$LLAMA_SERVER_ARGS`) |
+| `/etc/llama/models.ini` | per-model router presets (`--models-preset`) |
 | `/etc/systemd/system/llama-server.service` | the unit |
 
 ## Install / upgrade
@@ -43,8 +44,54 @@ Override defaults via env: `SRC=/path CUDA_ARCH=121 PREFIX=/opt/llama ./install.
   nodes are left visible on purpose — `PrivateDevices=true` and
   `MemoryDenyWriteExecute=true` both break the CUDA runtime.
 
-## Current model
+## Router mode (switch models from the client)
 
-Qwen3.6-35B-A3B (MoE, ~20GB UD-Q4_K_XL) via `-hf`, with the model's built-in
-multi-token-prediction head driving speculative decoding
-(`--spec-type draft-mtp --spec-draft-n-max 2`). See `llama-server.env.example`.
+The default config runs `llama-server` in **router mode**: no model on the
+command line, so the router forwards each request to the matching model instance
+based on the OpenAI `model` field. Clients switch models without restarting the
+server.
+
+```jsonc
+// POST /v1/chat/completions
+{ "model": "Jackrong/Qwopus3.5-9B-v3-GGUF:Q8_0", "messages": [...] }
+```
+
+- **`llama-server.env`** holds *global* flags inherited by every instance
+  (`-ngl 999 -fa on`), plus `--models-max` (resident model cap) and
+  `--models-preset /etc/llama/models.ini`.
+- **`models.ini`** holds *per-model* flags. Model-specific options like
+  `--spec-type draft-mtp` (needs the MTP head) **must** live here, not in the
+  global args, or non-MTP models would break. Section name = the model ID the
+  router exposes; confirm it with `curl -s localhost:8080/v1/models | jq -r '.data[].id'`.
+- A model must be **in the cache before it can be served**. Download once, then
+  restart:
+  ```bash
+  sudo -u llama LLAMA_CACHE=/var/lib/llama/cache /opt/llama/bin/llama-server \
+      -hf Jackrong/Qwopus3.5-9B-v3-GGUF:Q8_0 -ngl 0   # Ctrl-C after "model loaded"
+  sudo systemctl restart llama-server
+  ```
+- **GGUF only.** Safetensors-only HF repos must be converted with
+  llama.cpp's `convert_hf_to_gguf.py` first, then placed under
+  `/var/lib/llama/models` and referenced from a preset section with
+  `model = /var/lib/llama/models/<file>.gguf`.
+
+To pin a single model instead (ignoring the `model` field), use a single-model
+`LLAMA_SERVER_ARGS` line — see the commented examples in
+`llama-server.env.example`.
+
+## Current models
+
+Served side by side via the router (clients pick one per request):
+
+| Model ID | Size | Notes |
+| --- | --- | --- |
+| `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_XL` | ~20GB | Qwen MoE, efficient quant, MTP spec-decode, autoloaded on startup |
+| `Jackrong/Qwopus3.5-9B-v3-GGUF:Q8_0` | ~9.5GB | Qwen3.5-9B finetune, near-lossless quant, no spec-decode; mmproj available for vision |
+| `unsloth/gpt-oss-20b-GGUF:F16` | ~13.8GB | OpenAI MoE (non-Qwen family), MXFP4-native, adjustable reasoning effort |
+
+Quant policy: big model → efficient quant (`UD-Q4_K_XL`), small Qwen finetune →
+high-quality quant (`Q8_0`), gpt-oss → `F16` (its experts are natively MXFP4, so
+F16 *is* near-full quality and lower quants gain little). All three fit resident
+at once (~43GB), so `--models-max 3` keeps them loaded with no reload on switch.
+`Qwopus...:Q4_K_M` (~5.6GB) is commented out in `models.ini.example` — enable it
+only to compare quantization quality.
