@@ -1,0 +1,53 @@
+# systemd unit for llama.cpp llama-server (local LLM HTTP API).
+#
+# Installed by install.sh to /etc/systemd/system/llama-server.service.
+# All runtime flags come from /etc/llama/llama-server.env ($LLAMA_SERVER_ARGS),
+# so this unit needs no edits to change model/host/port/ctx.
+
+[Unit]
+Description=llama.cpp llama-server (local LLM HTTP API)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+# Dedicated, unprivileged account created by install.sh.
+User=llama
+Group=llama
+
+# systemd creates and owns /var/lib/llama (0755, so a normal-user llama-cli can
+# read the models). Place GGUF models under /var/lib/llama/models; -hf downloads
+# land in $LLAMA_CACHE below.
+StateDirectory=llama
+StateDirectoryMode=0755
+WorkingDirectory=/var/lib/llama
+Environment=LLAMA_CACHE=/var/lib/llama/cache
+
+# Runtime arguments. systemd word-splits the unquoted variable.
+# stdbuf forces line-buffered stdio so download/load progress reaches journald
+# in real time instead of sitting in a block buffer until the port is up.
+EnvironmentFile=-/etc/llama/llama-server.env
+ExecStart=/usr/bin/stdbuf -oL -eL /opt/llama/bin/llama-server $LLAMA_SERVER_ARGS
+
+Restart=on-failure
+RestartSec=5
+
+# Model load is slow; allow a generous graceful-shutdown window.
+TimeoutStopSec=120
+KillSignal=SIGINT
+
+# Hardening. The binary lives in /opt and links only system libraries, so the
+# home directory can stay protected. NVIDIA device nodes (/dev/nvidia*) are
+# left visible on purpose: do NOT add PrivateDevices=true or
+# MemoryDenyWriteExecute=true, both break the CUDA runtime.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

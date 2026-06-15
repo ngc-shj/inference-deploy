@@ -1,0 +1,50 @@
+# systemd unit for ds4-server (DwarfStar local inference HTTP API).
+#
+# Installed by install.sh to /etc/systemd/system/ds4-server.service.
+# All runtime flags come from /etc/ds4/ds4-server.env ($DS4_SERVER_ARGS), so
+# this unit needs no edits to change model/host/port/ctx.
+
+[Unit]
+Description=DwarfStar ds4-server (DeepSeek V4 local inference HTTP API)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+
+# Dedicated, unprivileged account created by install.sh.
+User=ds4
+Group=ds4
+
+# systemd creates and owns /var/lib/ds4. install.sh pre-creates models/ (0755,
+# so the CLI can read GGUFs too) and kv/ (0750). WorkingDirectory there makes
+# relative runtime files resolve, so no --chdir flag is needed.
+StateDirectory=ds4
+StateDirectoryMode=0755
+WorkingDirectory=/var/lib/ds4
+
+# Runtime arguments. systemd word-splits the unquoted variable.
+EnvironmentFile=-/etc/ds4/ds4-server.env
+ExecStart=/opt/ds4/ds4-server $DS4_SERVER_ARGS
+
+Restart=on-failure
+RestartSec=5
+
+# Model load is slow; allow a generous graceful-shutdown window.
+TimeoutStopSec=120
+KillSignal=SIGINT
+
+# Hardening. The binary lives in /opt and the model in /var/lib, so the home
+# directory can stay protected. NVIDIA device nodes (/dev/nvidia*) are left
+# visible on purpose: do NOT add PrivateDevices=true or
+# MemoryDenyWriteExecute=true, both break the CUDA runtime.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

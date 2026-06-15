@@ -1,0 +1,5 @@
+# Local, machine-specific env files (the .env.example templates are tracked).
+*.env
+!*.env.example
+*.swp
+.DS_Store
