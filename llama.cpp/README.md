@@ -92,6 +92,27 @@ Served side by side via the router (clients pick one per request):
 Quant policy: big model → efficient quant (`UD-Q4_K_XL`), small Qwen finetune →
 high-quality quant (`Q8_0`), gpt-oss → `F16` (its experts are natively MXFP4, so
 F16 *is* near-full quality and lower quants gain little). All three fit resident
-at once (~43GB), so `--models-max 3` keeps them loaded with no reload on switch.
-`Qwopus...:Q4_K_M` (~5.6GB) is commented out in `models.ini.example` — enable it
-only to compare quantization quality.
+at once (see KV math below), so `--models-max 3` keeps them loaded with no reload
+on switch. `Qwopus...:Q4_K_M` (~5.6GB) is commented out in `models.ini.example` —
+enable it only to compare quantization quality.
+
+### Context length and KV cache
+
+All three are trained far beyond the configured context, so the `c = 131072` set
+per model in `models.ini` needs no rope scaling (YaRN — required only past a
+model's trained length, at a quality cost):
+
+| Model | Trained ctx | KV @ 131072 (f16) | Why |
+| --- | --- | --- | --- |
+| Qwen3.6-35B-A3B | 262144 | ~13GB | MoE, few KV heads (GQA) |
+| gpt-oss-20b | 131072 (native) | ~4GB | alternating sliding-window attention |
+| Qwopus3.5-9B | 262144 | ~19GB | dense, full attention on every layer |
+
+Counter-intuitively the 9B `Qwopus` carries the **heaviest** KV: dense
+full-attention spends more per token than the MoE models. Resident weights
+(~45GB) + KV (~36GB) ≈ **80GB**, well within the 128GB box.
+
+To trim KV: lower a model's `c`, or halve KV with `--cache-type-k q8_0
+--cache-type-v q8_0` (`-ctk/-ctv`, requires `-fa on`, negligible quality loss).
+Read a model's trained length and live KV size from
+`journalctl -u llama-server | grep -iE 'n_ctx_train|KV cache'`.

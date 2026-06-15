@@ -28,8 +28,9 @@ c = 8192
 ; non-MTP model like Qwopus below is safe.
 
 ; --- Qwen3.6-35B-A3B UD-Q4_K_XL (~20GB) — big model, efficient quant -----------
+; Trained context is 262144, so 131072 is well within native (no YaRN needed).
 [unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_XL]
-c = 65536
+c = 131072
 np = 1
 spec-type = draft-mtp
 spec-draft-n-max = 2
@@ -41,7 +42,11 @@ load-on-startup = true
 ; (or convert/place it manually). Text-only by default.
 
 ; --- Qwopus3.5-9B-v3 Q8 (Q8_0, ~9.5GB) — near-lossless, the sane default -------
+; Trained context 262144, so 131072 is native. Dense (full attention all layers)
+; makes its KV the heaviest of the three (~19GB at 131072) despite being 9B; drop
+; this lower, or add -ctk/-ctv q8_0, if you need the headroom.
 [Jackrong/Qwopus3.5-9B-v3-GGUF:Q8_0]
+c = 131072
 
 ; --- Qwopus3.5-9B-v3 Q4 (Q4_K_M, ~5.6GB) — enable only to compare quant loss ---
 ;[Jackrong/Qwopus3.5-9B-v3-GGUF:Q4_K_M]
@@ -52,4 +57,7 @@ load-on-startup = true
 ; chat template is built in. Reasoning effort is set client-side, not here.
 
 ; --- gpt-oss-20b F16 (~13.8GB) — non-Qwen family, adjustable reasoning ---------
+; Native 131072 context; alternating sliding-window attention keeps long-context
+; KV cheap (roughly half a full-attention model's).
 [unsloth/gpt-oss-20b-GGUF:F16]
+c = 131072
