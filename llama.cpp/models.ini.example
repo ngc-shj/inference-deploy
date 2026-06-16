@@ -29,7 +29,11 @@ c = 8192
 
 ; --- Qwen3.6-35B-A3B UD-Q4_K_XL (~20GB) — big model, efficient quant -----------
 ; Trained context is 262144, so 131072 is well within native (no YaRN needed).
-[unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_XL]
+; NOTE: the cached file is Qwen3.6-...-UD-Q4_K_XL.gguf, but the router DROPS the
+; Unsloth "UD-" prefix when deriving the model ID, advertising it as :Q4_K_XL.
+; The section name must match that advertised ID (NOT :UD-Q4_K_XL) or these
+; settings attach to nothing. Always verify: curl -s localhost:8080/v1/models.
+[unsloth/Qwen3.6-35B-A3B-MTP-GGUF:Q4_K_XL]
 c = 131072
 np = 1
 spec-type = draft-mtp

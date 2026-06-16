@@ -85,7 +85,7 @@ Served side by side via the router (clients pick one per request):
 
 | Model ID | Size | Notes |
 | --- | --- | --- |
-| `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:UD-Q4_K_XL` | ~20GB | Qwen MoE, efficient quant, MTP spec-decode, autoloaded on startup |
+| `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:Q4_K_XL` | ~20GB | Qwen MoE, UD-Q4_K_XL file (router drops the `UD-` prefix), MTP spec-decode, autoloaded on startup |
 | `Jackrong/Qwopus3.5-9B-v3-GGUF:Q8_0` | ~9.5GB | Qwen3.5-9B finetune, near-lossless quant, no spec-decode; mmproj available for vision |
 | `unsloth/gpt-oss-20b-GGUF:F16` | ~13.8GB | OpenAI MoE (non-Qwen family), MXFP4-native, adjustable reasoning effort |
 
