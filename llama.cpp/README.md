@@ -98,19 +98,20 @@ enable it only to compare quantization quality.
 
 ### Context length and KV cache
 
-All three are trained far beyond the configured context, so the `c = 131072` set
-per model in `models.ini` needs no rope scaling (YaRN — required only past a
-model's trained length, at a quality cost):
+Each `c` in `models.ini` stays within the model's trained length, so no rope
+scaling (YaRN — required only past a model's trained length, at a quality cost):
 
-| Model | Trained ctx | KV @ 131072 (f16) | Why |
-| --- | --- | --- | --- |
-| Qwen3.6-35B-A3B | 262144 | ~13GB | MoE, few KV heads (GQA) |
-| gpt-oss-20b | 131072 (native) | ~4GB | alternating sliding-window attention |
-| Qwopus3.5-9B | 262144 | ~19GB | dense, full attention on every layer |
+| Model | Trained ctx | Configured `c` | KV (f16) | Why |
+| --- | --- | --- | --- | --- |
+| Qwen3.6-35B-A3B | 262144 | 262144 | ~26GB | MoE, few KV heads (GQA) |
+| gpt-oss-20b | 131072 (native) | 131072 | ~4GB | alternating sliding-window attention |
+| Qwopus3.5-9B | 262144 | 131072 | ~19GB | dense, full attention on every layer |
 
-Counter-intuitively the 9B `Qwopus` carries the **heaviest** KV: dense
-full-attention spends more per token than the MoE models. Resident weights
-(~45GB) + KV (~36GB) ≈ **80GB**, well within the 128GB box.
+Qwen runs at full native 262144 (it routinely sees >131k-token prompts). The 9B
+`Qwopus` still carries a heavy KV for its size — dense full-attention spends more
+per token than the MoE models. Resident weights (~45GB) + KV (~49GB) ≈ **93GB**,
+within the 128GB box. If it gets tight, halve a model's KV with
+`cache-type-k = q8_0` / `cache-type-v = q8_0` (needs `-fa on`).
 
 To trim KV: lower a model's `c`, or halve KV with `--cache-type-k q8_0
 --cache-type-v q8_0` (`-ctk/-ctv`, requires `-fa on`, negligible quality loss).

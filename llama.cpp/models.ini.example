@@ -28,13 +28,15 @@ c = 8192
 ; non-MTP model like Qwopus below is safe.
 
 ; --- Qwen3.6-35B-A3B UD-Q4_K_XL (~20GB) — big model, efficient quant -----------
-; Trained context is 262144, so 131072 is well within native (no YaRN needed).
+; Runs at full native 262144 context (no YaRN). KV ~26GB at this length; the
+; 3-model resident set then totals ~93GB, within the 128GB box. If memory gets
+; tight, add `cache-type-k = q8_0` / `cache-type-v = q8_0` here to halve KV.
 ; NOTE: the cached file is Qwen3.6-...-UD-Q4_K_XL.gguf, but the router DROPS the
 ; Unsloth "UD-" prefix when deriving the model ID, advertising it as :Q4_K_XL.
 ; The section name must match that advertised ID (NOT :UD-Q4_K_XL) or these
 ; settings attach to nothing. Always verify: curl -s localhost:8080/v1/models.
 [unsloth/Qwen3.6-35B-A3B-MTP-GGUF:Q4_K_XL]
-c = 131072
+c = 262144
 np = 1
 spec-type = draft-mtp
 spec-draft-n-max = 2
