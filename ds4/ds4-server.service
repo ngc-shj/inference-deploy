@@ -9,6 +9,13 @@ Description=DwarfStar ds4-server (DeepSeek V4 local inference HTTP API)
 After=network-online.target
 Wants=network-online.target
 
+# DeepSeek V4 Flash alone is ~86GB of weights; with KV it cannot share the 128GB
+# unified pool with the llama.cpp router (~93GB resident) or a vLLM instance.
+# These three are mutually exclusive — starting ds4 stops the others (Conflicts=
+# is bidirectional in systemd). So this is an ON-DEMAND engine: do NOT `enable`
+# it; `systemctl start ds4-server` evicts llama-server/vllm-server first.
+Conflicts=llama-server.service vllm-server.service
+
 [Service]
 Type=simple
 

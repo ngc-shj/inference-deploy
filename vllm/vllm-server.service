@@ -16,12 +16,13 @@ Wants=network-online.target
 Requires=docker.service
 
 # This box runs llama-server resident at up to ~93GB of the 128GB unified pool,
-# leaving no room for vLLM. vLLM here is an ON-DEMAND comparison engine, not a
-# resident service — do NOT `enable` it. Conflicts= makes systemd stop
-# llama-server automatically when this starts (and vice-versa), so the two never
-# fight for memory. `start vllm-server` frees the pool; `start llama-server`
-# hands it back. With llama.cpp stopped, --gpu-memory-utilization can go high.
-Conflicts=llama-server.service
+# and ds4-server (DeepSeek V4 Flash) is ~86GB — none of the three can share the
+# pool. vLLM here is an ON-DEMAND comparison engine, not a resident service — do
+# NOT `enable` it. Conflicts= makes systemd stop the others when this starts (and
+# vice-versa), so they never fight for memory. `start vllm-server` frees the
+# pool; `start llama-server` hands it back. With the others stopped,
+# --gpu-memory-utilization can go high.
+Conflicts=llama-server.service ds4-server.service
 
 [Service]
 Type=simple

@@ -19,13 +19,24 @@ service. Targeted at the GB10 (Grace Blackwell, sm_121) box but parameterized.
 ```bash
 MODEL_MOVE=1 ./install.sh    # build (make) -> /opt/ds4 -> create user -> relocate GGUFs -> install unit
 sudoedit /etc/ds4/ds4-server.env
-sudo systemctl enable --now ds4-server
+sudo systemctl start ds4-server   # ON-DEMAND — do NOT enable (see below)
 journalctl -u ds4-server -f
+...
+sudo systemctl start llama-server # done — restore the llama.cpp router
 ```
 
 Run as a normal user (NOT root); privileged steps call `sudo` themselves so the
 build does not run as root. Re-running rebuilds (incremental), reinstalls, and
 `daemon-reload`s. After a unit change, `sudo systemctl restart ds4-server`.
+
+### On-demand only — do NOT `enable` this service
+
+DeepSeek V4 Flash is ~86GB of weights; with KV it cannot share the 128GB unified
+memory with the llama.cpp router (~93GB resident) or a vLLM instance. The unit
+declares `Conflicts=llama-server.service vllm-server.service`, so
+`systemctl start ds4-server` evicts the other engines first and gives ds4 the
+pool; `systemctl start llama-server` hands it back. The three are mutually
+exclusive — run one at a time, and never `enable` ds4-server.
 
 Override defaults via env: `SRC=/path MAKE_TARGET=cuda-generic ./install.sh`
 (`cuda-spark`/`cuda-generic`/`cpu`); `NO_BUILD=1` skips the build.
