@@ -1,0 +1,62 @@
+# systemd unit for vllm-server (vLLM OpenAI API via the NVIDIA NGC container).
+#
+# Installed by install.sh to /etc/systemd/system/vllm-server.service.
+# All runtime settings come from /etc/vllm/vllm-server.env, so this unit needs no
+# edits to change image/model/host/port.
+#
+# Unlike llama.cpp/ds4 this is a CONTAINER unit: ExecStart runs `docker run` in
+# the foreground (--rm, no -d) so systemd supervises the container directly and
+# journald captures vLLM's logs. Model load is slow; load progress shows up in
+# journald, not as a `systemctl start` that blocks until ready.
+
+[Unit]
+Description=vLLM OpenAI API server (NVIDIA NGC container)
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+# This box runs llama-server resident at up to ~93GB of the 128GB unified pool,
+# leaving no room for vLLM. vLLM here is an ON-DEMAND comparison engine, not a
+# resident service — do NOT `enable` it. Conflicts= makes systemd stop
+# llama-server automatically when this starts (and vice-versa), so the two never
+# fight for memory. `start vllm-server` frees the pool; `start llama-server`
+# hands it back. With llama.cpp stopped, --gpu-memory-utilization can go high.
+Conflicts=llama-server.service
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/vllm/vllm-server.env
+
+# Fixed container name so ExecStop/ExecStopPost can target it. A stale container
+# from an unclean shutdown would make `docker run --name` fail, so remove it first.
+ExecStartPre=-/usr/bin/docker rm -f vllm-server
+
+# --shm-size: vLLM's multiprocess workers exchange tensors over /dev/shm; the
+#   docker default (64MB) deadlocks engine startup. 8g is ample for one model.
+# --gpus all + NVIDIA container toolkit exposes the GB10; the image is built for
+#   sm_121 so no arch flags are needed.
+# HF cache is bind-mounted so weights survive container/image churn and are
+#   shared with any host-side `huggingface-cli`.
+ExecStart=/usr/bin/docker run --rm --name vllm-server \
+    --gpus all \
+    --shm-size=8g \
+    -p ${VLLM_HOST}:${VLLM_PORT}:8000 \
+    -v /var/lib/vllm/cache:/root/.cache/huggingface \
+    -e HF_HOME=/root/.cache/huggingface \
+    -e HF_TOKEN=${HF_TOKEN} \
+    ${VLLM_IMAGE} \
+    vllm serve ${VLLM_MODEL} --host 0.0.0.0 --port 8000 ${VLLM_SERVE_ARGS}
+
+# Graceful container stop (SIGTERM, then SIGKILL after the timeout).
+ExecStop=/usr/bin/docker stop vllm-server
+ExecStopPost=-/usr/bin/docker rm -f vllm-server
+
+Restart=on-failure
+RestartSec=5
+
+# Model load + image pull are slow; allow generous start/stop windows.
+TimeoutStartSec=1800
+TimeoutStopSec=120
+
+[Install]
+WantedBy=multi-user.target
