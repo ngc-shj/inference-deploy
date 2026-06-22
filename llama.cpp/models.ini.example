@@ -12,6 +12,12 @@
 ; Precedence: CLI args (llama-server.env) > model section > [*] global section.
 ; host / port / api-key / -hf / alias are router-controlled and ignored here.
 ;
+; Sampling (temperature / top_p / top_k / penalties) is NOT set here — it is a
+; per-request, client-side choice, not a load-time flag. The recommended values
+; per model are noted as comments on each section below for reference; pass them
+; in the OpenAI request body. See EVALUATIONS.md for sources and the note that
+; throughput is independent of sampling.
+;
 ; Models must be in the cache before the router can serve them. Download once:
 ;   sudo -u llama LLAMA_CACHE=/var/lib/llama/cache /opt/llama/bin/llama-server \
 ;       -hf unsloth/gpt-oss-20b-GGUF:F16 -ngl 0
@@ -35,6 +41,9 @@ c = 8192
 ; Unsloth "UD-" prefix when deriving the model ID, advertising it as :Q4_K_XL.
 ; The section name must match that advertised ID (NOT :UD-Q4_K_XL) or these
 ; settings attach to nothing. Always verify: curl -s localhost:8080/v1/models.
+; Client-side sampling (send in the request, not here): instruct/non-thinking
+;   temp=0.7 top_p=0.8 top_k=20; thinking temp=0.6 top_p=0.95 top_k=20.
+;   Add presence_penalty=1.5 for long sessions to curb repetition.
 [unsloth/Qwen3.6-35B-A3B-MTP-GGUF:Q4_K_XL]
 c = 262144
 np = 1
@@ -51,6 +60,8 @@ load-on-startup = true
 ; Trained context 262144, so 131072 is native. Dense (full attention all layers)
 ; makes its KV the heaviest of the three (~19GB at 131072) despite being 9B; drop
 ; this lower, or add -ctk/-ctv q8_0, if you need the headroom.
+; Sampling: a Qwen3.5 finetune — start from the Qwen instruct defaults
+;   (temp=0.7 top_p=0.8 top_k=20); the finetune card may suggest otherwise.
 [Jackrong/Qwopus3.5-9B-v3-GGUF:Q8_0]
 c = 131072
 
@@ -61,6 +72,8 @@ c = 131072
 ; it's only ~14GB, not ~26GB) and is effectively full quality; lower quants only
 ; shrink the small dense part. NOT MTP, so no spec-type. The "gpt-oss" / Harmony
 ; chat template is built in. Reasoning effort is set client-side, not here.
+; Sampling: recommended temp=1.0 with top_p=1.0 (or 0.95) — tune one, not both.
+; Control verbosity via the reasoning-effort field (low/medium/high), not temp.
 
 ; --- gpt-oss-20b F16 (~13.8GB) — non-Qwen family, adjustable reasoning ---------
 ; Native 131072 context; alternating sliding-window attention keeps long-context

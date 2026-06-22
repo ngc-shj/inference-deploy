@@ -81,12 +81,15 @@ To pin a single model instead (ignoring the `model` field), use a single-model
 
 ## Current models
 
+Model comparisons and throughput numbers measured on this box live in
+[EVALUATIONS.md](EVALUATIONS.md).
+
 Served side by side via the router (clients pick one per request):
 
 | Model ID | Size | Notes |
 | --- | --- | --- |
 | `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:Q4_K_XL` | ~20GB | Qwen MoE, UD-Q4_K_XL file (router drops the `UD-` prefix), MTP spec-decode, autoloaded on startup |
-| `Jackrong/Qwopus3.5-9B-v3-GGUF:Q8_0` | ~9.5GB | Qwen3.5-9B finetune, near-lossless quant, no spec-decode; mmproj available for vision |
+| `Jackrong/Qwopus3.5-9B-v3-GGUF:Q8_0` | ~9.5GB | Qwen3.5 (`qwen35`) hybrid-SSM **Qwen-VL** finetune, near-lossless quant, no spec-decode; multimodal (mmproj loaded) |
 | `unsloth/gpt-oss-20b-GGUF:F16` | ~13.8GB | OpenAI MoE (non-Qwen family), MXFP4-native, adjustable reasoning effort |
 
 Quant policy: big model → efficient quant (`UD-Q4_K_XL`), small Qwen finetune →
@@ -101,19 +104,28 @@ enable it only to compare quantization quality.
 Each `c` in `models.ini` stays within the model's trained length, so no rope
 scaling (YaRN — required only past a model's trained length, at a quality cost):
 
-| Model | Trained ctx | Configured `c` | KV (f16) | Why |
+| Model | Trained ctx | Configured `c` | KV (f16) | Memory type |
 | --- | --- | --- | --- | --- |
-| Qwen3.6-35B-A3B | 262144 | 262144 | ~26GB | MoE, few KV heads (GQA) |
+| Qwen3.6-35B-A3B | 262144 | 262144 | ~26GB | hybrid linear attn — only some layers cache KV (see EVALUATIONS.md) |
 | gpt-oss-20b | 131072 (native) | 131072 | ~4GB | alternating sliding-window attention |
-| Qwopus3.5-9B | 262144 | 131072 | ~19GB | dense, full attention on every layer |
+| Qwopus3.5-9B | 262144 | 131072 | light | `qwen35` hybrid SSM: state-space (Mamba-style) layers + a full-attention layer every `full_attention_interval`; only the full-attn layers cache KV |
 
-Qwen runs at full native 262144 (it routinely sees >131k-token prompts). The 9B
-`Qwopus` still carries a heavy KV for its size — dense full-attention spends more
-per token than the MoE models. Resident weights (~45GB) + KV (~49GB) ≈ **93GB**,
-within the 128GB box. If it gets tight, halve a model's KV with
-`cache-type-k = q8_0` / `cache-type-v = q8_0` (needs `-fa on`).
+None of these use plain full attention: Qwen3.6 and Qwopus (`qwen35`) interleave
+state-space / linear-attention layers with periodic full-attention layers,
+gpt-oss uses sliding-window attention — so only a fraction of layers cache
+context-growing KV and it stays far below a dense model's. Qwen runs at full
+native 262144 (it routinely sees >131k-token prompts). Resident weights (~45GB) +
+KV total well under the 128GB pool. (Architectures confirmed from GGUF
+`general.architecture` + per-arch `ssm.*` / `full_attention_interval` keys.)
 
-To trim KV: lower a model's `c`, or halve KV with `--cache-type-k q8_0
---cache-type-v q8_0` (`-ctk/-ctv`, requires `-fa on`, negligible quality loss).
+**Prompt-cache caveat.** Because of SWA / hybrid-recurrent memory, llama.cpp
+cannot reuse cross-request prompt KV for these models — the log shows
+`forcing full prompt re-processing due to lack of cache data` ([PR 13194](https://github.com/ggml-org/llama.cpp/pull/13194)).
+Every turn re-encodes the whole prompt, so multi-turn latency grows with context
+length (most visible on Qwen at high `c`). This is a model-architecture
+limitation, not a config bug.
+
+To trim KV when tight: lower a model's `c`, or halve KV with `cache-type-k = q8_0`
+/ `cache-type-v = q8_0` (`-ctk/-ctv`, requires `-fa on`, negligible quality loss).
 Read a model's trained length and live KV size from
 `journalctl -u llama-server | grep -iE 'n_ctx_train|KV cache'`.
