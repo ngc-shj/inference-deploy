@@ -13,10 +13,11 @@ with CUDA 13 / aarch64 wheels. The systemd unit just runs `docker run`.
 
 | Path | Purpose |
 | --- | --- |
-| `nvcr.io/nvidia/vllm:<tag>` | the container image (pulled on first start) |
+| `nvcr.io/nvidia/vllm:<tag>` or `vllm/vllm-openai:<tag>` | the container image (pulled on first start) |
 | `/var/lib/vllm/cache` | `HF_HOME` bind mount — model weights download here |
 | `/etc/vllm/vllm-server.env` | runtime config (image tag, model, host/port, flags) |
-| `/etc/systemd/system/vllm-server.service` | the unit (runs `docker run`) |
+| `/opt/vllm/vllm-run.sh` | launch wrapper — `ExecStart` runs this so a shell (not systemd) builds the `docker run` argv, preserving JSON flags like `--speculative-config` |
+| `/etc/systemd/system/vllm-server.service` | the unit (runs the wrapper) |
 
 ## Install
 
@@ -85,16 +86,26 @@ ever deliberately run both at once, drop it hard (`0.20`) or the box OOMs.
   LAN (then firewall it — vLLM has no auth unless you add `--api-key`).
 - **Pin the image tag.** Tags are monthly (`YY.MM-py3`). Use an explicit tag,
   not `:latest`, so restarts are reproducible. DGX Spark / GB10 support landed in
-  `26.01-py3`; use that or newer.
+  `26.01-py3`; use that or newer. **But the NGC stable tag lags vLLM main** — a
+  brand-new quant/loader (e.g. ModelOpt NVFP4 MoE) may need `vllm/vllm-openai:nightly`
+  from Docker Hub instead. NGC `26.05-py3` (vLLM 0.20.1) cannot load
+  `nvidia/Qwen3.6-35B-A3B-NVFP4` (`KeyError: ...experts.w2_input_scale`); the
+  nightly (0.23.1rc1+) does. See [`../llama.cpp/EVALUATIONS.md`](../llama.cpp/EVALUATIONS.md).
+- **Entrypoint is normalized to `--entrypoint vllm`.** The unit forces the
+  container entrypoint to the `vllm` CLI and passes `serve …`. This works for
+  both image families: NGC's entrypoint is a plain shell, while Docker Hub's
+  `vllm/vllm-openai` bakes in `vllm serve` (so without the override, `serve <model>`
+  doubles to `vllm serve serve <model>` → `unrecognized arguments: <model>`).
 - **No GGUF.** vLLM serves Hugging Face `safetensors` repos directly (and many
-  pre-quantized formats: FP8, AWQ, GPTQ). Point `VLLM_MODEL` at the HF handle;
-  the GGUF files under `/var/lib/llama/models` are for llama.cpp only.
+  pre-quantized formats: FP8, AWQ, GPTQ, NVFP4). Point `VLLM_MODEL` at the HF
+  handle; the GGUF files under `/var/lib/llama/models` are for llama.cpp only.
 
 ## Current model
 
 | Model | Format | Notes |
 | --- | --- | --- |
 | `openai/gpt-oss-20b` | MXFP4 (HF) | OpenAI MoE; ~14GB weights, NVIDIA's Spark vLLM example. Deliberately the **same** 20B that llama.cpp serves (as GGUF) and Ollama serves (as a blob) — so this instance is a like-for-like cross-engine comparison. Served at `--gpu-memory-utilization 0.60`, `--max-model-len 32768`. |
+| `nvidia/Qwen3.6-35B-A3B-NVFP4` | NVFP4 (~19GB) | The **same 35B-A3B** llama.cpp serves as Q4_K_XL GGUF — cross-engine FP4 comparison. Needs `vllm/vllm-openai:nightly` (NGC stable can't load it). Blackwell-native FP4 + MTP spec-decode hits 94–112 tok/s, matching/beating the GGUF. Full DGX-Spark serve flags are on the HF model card; measured in [`../llama.cpp/EVALUATIONS.md`](../llama.cpp/EVALUATIONS.md). |
 
 The 20B weights exist in three formats on this box on purpose (Ollama blob,
 llama.cpp GGUF, vLLM safetensors) — they are not shareable across engines, and

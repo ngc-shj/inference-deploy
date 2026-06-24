@@ -127,6 +127,52 @@ when a task genuinely needs frontier coding quality.
 
 ---
 
+## 2026-06-25 — vLLM NVFP4 vs llama.cpp GGUF (same 35B-A3B, cross-engine)
+
+Compared the resident llama.cpp `Qwen3.6-35B-A3B-MTP:Q4_K_XL` (GGUF) against
+`nvidia/Qwen3.6-35B-A3B-NVFP4` (safetensors, ModelOpt NVFP4, ~19GB) served by
+vLLM on the on-demand vllm deployment. Same model, two engines / quant formats.
+GB10 has native FP4 (`BLACKWELL_NATIVE_FP4=1`), so NVFP4 is the format the
+hardware can compute on directly. Same no-think coding tasks; warm tok/s.
+
+| Engine / quant | merge | refactor | bugfix | Quality | MTP |
+| --- | --- | --- | --- | --- | --- |
+| llama.cpp Q4_K_XL (GGUF) | — | 77.8 | 63.3 | 3/3 ✓ | draft-mtp |
+| vLLM NVFP4, minimal flags | 75.9 | 73.1 | 69.7 | 3/3 ✓ | off |
+| **vLLM NVFP4, full DGX-Spark flags** | **112.3** | **77.5** | **93.8** | 3/3 ✓ | mtp spec-decode |
+
+**Findings**
+
+- **NVFP4 matches GGUF even without MTP**, and with the full official flags
+  (MTP spec-decode + marlin MoE + flashinfer + fp8 KV + prefix-cache) it pulls
+  clearly ahead on templated outputs (merge 112, bugfix 94 tok/s). Quality is
+  identical (doctests 3/3, bugfix all edge cases). Blackwell-native FP4 + MTP is
+  a real win on this box.
+- **TTFT is better than llama.cpp** — vLLM pre-captures cudagraphs, so there's no
+  cold first-call penalty (llama.cpp's first call warmed up at ~11 tok/s).
+
+**Operational gotchas (cost most of the session — see also the unit comments):**
+
+- **Image matters.** NGC `nvcr.io/nvidia/vllm:26.05-py3` (vLLM 0.20.1) **cannot
+  load** this checkpoint: `KeyError: layers.0.mlp.experts.w2_input_scale` — its
+  loader doesn't map the MoE per-expert FP4 scales (same class as vllm#38980).
+  Use `vllm/vllm-openai:nightly` (0.23.1rc1+), as the HF card says.
+- **Entrypoint differs by image.** The Docker-Hub `vllm/vllm-openai` ENTRYPOINT
+  already includes `vllm serve`, so passing `serve <model>` doubles it
+  (`unrecognized arguments: <model>`). Run it with `--entrypoint vllm` then
+  `serve <model> …`. NGC's entrypoint does not — there you write `vllm serve …`.
+- **systemd `$VAR` vs `${VAR}`.** The vllm unit used `${VLLM_SERVE_ARGS}`, which
+  systemd passes as ONE argv (no word-split) → vLLM argparse `IndexError`. Fixed
+  to bare `$VLLM_SERVE_ARGS` (matches the llama.cpp/ds4 units). Single-value vars
+  keep `${...}`.
+
+**Verdict**: NVFP4 on vLLM is the faster way to serve this exact model on GB10,
+once you pin the nightly image and the right entrypoint. The llama.cpp GGUF stays
+the *resident* daily driver (vLLM is on-demand, `Conflicts=` with llama-server);
+NVFP4 is the option to spin up when you want max throughput for this model.
+
+---
+
 ## Sampling parameters (validation)
 
 Sampling is a **client-side, per-request** choice — not a `models.ini` load

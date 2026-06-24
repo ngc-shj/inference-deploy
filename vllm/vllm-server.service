@@ -38,15 +38,16 @@ ExecStartPre=-/usr/bin/docker rm -f vllm-server
 #   sm_121 so no arch flags are needed.
 # HF cache is bind-mounted so weights survive container/image churn and are
 #   shared with any host-side `huggingface-cli`.
-ExecStart=/usr/bin/docker run --rm --name vllm-server \
-    --gpus all \
-    --shm-size=8g \
-    -p ${VLLM_HOST}:${VLLM_PORT}:8000 \
-    -v /var/lib/vllm/cache:/root/.cache/huggingface \
-    -e HF_HOME=/root/.cache/huggingface \
-    -e HF_TOKEN=${HF_TOKEN} \
-    ${VLLM_IMAGE} \
-    vllm serve ${VLLM_MODEL} --host 0.0.0.0 --port 8000 ${VLLM_SERVE_ARGS}
+# ExecStart calls a wrapper script instead of inlining `docker run`, because some
+# vLLM flags take a JSON value (--speculative-config '{"method":"mtp",...}') that
+# systemd's EnvironmentFile mangles: it strips the inner double-quotes, so the
+# JSON reaches vLLM as {method:mtp,...} and json.loads rejects it. A shell quotes
+# correctly, so the wrapper — not systemd — assembles the docker argv. It reads
+# the same /etc/vllm/vllm-server.env (passed through via EnvironmentFile above),
+# including $VLLM_SPEC_CONFIG (the JSON, kept whole) and $VLLM_SERVE_ARGS (the
+# plain flags). The wrapper also forces --entrypoint vllm to normalize NGC vs
+# Docker-Hub images. See vllm-run.sh for details.
+ExecStart=/opt/vllm/vllm-run.sh
 
 # Graceful container stop (SIGTERM, then SIGKILL after the timeout).
 ExecStop=/usr/bin/docker stop vllm-server

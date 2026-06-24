@@ -18,6 +18,7 @@ set -euo pipefail
 CONF="${CONF:-/etc/vllm}"
 STATE="${STATE:-/var/lib/vllm}"
 CACHE="${CACHE:-$STATE/cache}"
+OPT="${OPT:-/opt/vllm}"          # holds the ExecStart wrapper (vllm-run.sh)
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
@@ -42,7 +43,15 @@ fi
 say "Preparing $CACHE"
 sudo install -d -m 0755 "$STATE" "$CACHE"
 
-# --- 3. systemd unit + env ----------------------------------------------------
+# --- 3. launch wrapper --------------------------------------------------------
+# ExecStart runs this wrapper (not `docker run` inline) so a shell — not systemd
+# — assembles the docker argv. systemd's EnvironmentFile mangles JSON-valued
+# flags like --speculative-config; the shell quotes them correctly. See the unit.
+say "Installing launch wrapper to $OPT/vllm-run.sh"
+sudo install -d -m 0755 "$OPT"
+sudo install -m 0755 "$HERE/vllm-run.sh" "$OPT/vllm-run.sh"
+
+# --- 4. systemd unit + env ----------------------------------------------------
 say "Installing systemd unit and env template"
 sudo install -m 0644 "$HERE/vllm-server.service" /etc/systemd/system/vllm-server.service
 sudo install -d -m 0755 "$CONF"
