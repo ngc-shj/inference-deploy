@@ -42,8 +42,9 @@ c = 8192
 ; The section name must match that advertised ID (NOT :UD-Q4_K_XL) or these
 ; settings attach to nothing. Always verify: curl -s localhost:8080/v1/models.
 ; Client-side sampling (send in the request, not here): instruct/non-thinking
-;   temp=0.7 top_p=0.8 top_k=20; thinking temp=0.6 top_p=0.95 top_k=20.
-;   Add presence_penalty=1.5 for long sessions to curb repetition.
+;   temp=0.7 top_p=0.8 top_k=20 min_p=0; thinking temp=0.6 top_p=0.95 top_k=20
+;   min_p=0 (Qwen3-family generation_config defaults). Add presence_penalty=1.5
+;   for long sessions to curb repetition.
 [unsloth/Qwen3.6-35B-A3B-MTP-GGUF:Q4_K_XL]
 c = 262144
 np = 1
@@ -60,8 +61,10 @@ load-on-startup = true
 ; Trained context 262144, so 131072 is native. Dense (full attention all layers)
 ; makes its KV the heaviest of the three (~19GB at 131072) despite being 9B; drop
 ; this lower, or add -ctk/-ctv q8_0, if you need the headroom.
-; Sampling: a Qwen3.5 finetune — start from the Qwen instruct defaults
-;   (temp=0.7 top_p=0.8 top_k=20); the finetune card may suggest otherwise.
+; Sampling: a Qwen3.5 finetune — same Qwen3-family values as the 35B above:
+;   instruct/non-thinking temp=0.7 top_p=0.8 top_k=20 min_p=0;
+;   thinking temp=0.6 top_p=0.95 top_k=20 min_p=0. presence_penalty=1.5 for
+;   long sessions to curb repetition. (The finetune card may override these.)
 [Jackrong/Qwopus3.5-9B-v3-GGUF:Q8_0]
 c = 131072
 

@@ -186,6 +186,15 @@ values used in the evals above were checked against each vendor's recommendation
 | Qwen3.6-27B | 0.2 (all, prior eval) | coding: 0.6 / 0.95 / 20 · instruct: 0.7 / 0.8 / 20 | ⚠ low, but uniform |
 | gpt-oss-20b | n/a | 1.0 / top_p 1.0 (or 0.95) — tune one, not both | — |
 
+Recommended values for the **resident router models** (send these client-side;
+`min_p=0` for all; `presence_penalty=1.5` for long sessions):
+
+| Resident model | instruct / non-thinking | thinking |
+| --- | --- | --- |
+| Qwen3.6-35B-A3B | 0.7 / 0.8 / 20 | 0.6 / 0.95 / 20 |
+| Qwopus3.5-9B (qwen35) | 0.7 / 0.8 / 20 | 0.6 / 0.95 / 20 |
+| gpt-oss-20b | temp 1.0 / top_p 1.0 — tune one; control depth via reasoning-effort | — |
+
 (format: temperature / top_p / top_k)
 
 **Notes**
