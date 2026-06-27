@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 #
-# Install vllm-server (vLLM OpenAI API) as a systemd service backed by the
-# NVIDIA NGC container nvcr.io/nvidia/vllm.
+# Install vllm-server (vLLM OpenAI API) as a systemd service backed by a
+# pre-built container — the NVIDIA NGC image nvcr.io/nvidia/vllm by default, or
+# vllm/vllm-openai (Docker Hub) for newer vLLM; selected via VLLM_IMAGE.
 #
 # No build: the container is pre-built for DGX Spark / GB10 (aarch64, sm_121).
 # This installs the systemd unit + env template and pre-creates the HF cache.

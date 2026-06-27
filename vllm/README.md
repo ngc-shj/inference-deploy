@@ -1,13 +1,16 @@
-# vLLM vllm-server — systemd deployment (NGC container)
+# vLLM vllm-server — systemd deployment (container)
 
-Runs vLLM's OpenAI-compatible API as a hardened systemd service, backed by the
-NVIDIA NGC container `nvcr.io/nvidia/vllm`. Targeted at the GB10 (Grace
-Blackwell, sm_121) box but parameterized.
+Runs vLLM's OpenAI-compatible API as a hardened systemd service from a
+**pre-built container**. The default image is the NVIDIA NGC container
+`nvcr.io/nvidia/vllm` (NVIDIA ships and QA's it for DGX Spark / GB10), but the
+unit is image-agnostic — set `VLLM_IMAGE` to the Docker-Hub `vllm/vllm-openai`
+(e.g. `:nightly`) when you need a newer vLLM than the NGC stable tag carries
+(see the NVFP4 note below). Targeted at GB10 (Grace Blackwell, sm_121) but
+parameterized.
 
 Unlike the `llama.cpp` and `ds4` deployments here (bare-metal binaries built from
-source), vLLM runs from a **pre-built container**: NVIDIA ships and QA's the NGC
-image for DGX Spark / GB10 (aarch64, sm_121), so there is no source build to fight
-with CUDA 13 / aarch64 wheels. The systemd unit just runs `docker run`.
+source), there is no source build to fight with CUDA 13 / aarch64 wheels — the
+systemd unit just runs a container via a small launch wrapper.
 
 ## Layout
 

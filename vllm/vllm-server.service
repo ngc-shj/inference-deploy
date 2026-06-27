@@ -1,8 +1,9 @@
-# systemd unit for vllm-server (vLLM OpenAI API via the NVIDIA NGC container).
+# systemd unit for vllm-server (vLLM OpenAI API from a pre-built container).
 #
 # Installed by install.sh to /etc/systemd/system/vllm-server.service.
 # All runtime settings come from /etc/vllm/vllm-server.env, so this unit needs no
-# edits to change image/model/host/port.
+# edits to change image/model/host/port. VLLM_IMAGE selects the container: the
+# NGC image (nvcr.io/nvidia/vllm) by default, or vllm/vllm-openai for nightlies.
 #
 # Unlike llama.cpp/ds4 this is a CONTAINER unit: ExecStart runs `docker run` in
 # the foreground (--rm, no -d) so systemd supervises the container directly and
@@ -10,7 +11,7 @@
 # journald, not as a `systemctl start` that blocks until ready.
 
 [Unit]
-Description=vLLM OpenAI API server (NVIDIA NGC container)
+Description=vLLM OpenAI API server (container)
 After=network-online.target docker.service
 Wants=network-online.target
 Requires=docker.service

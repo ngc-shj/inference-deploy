@@ -11,7 +11,7 @@ Three engines are packaged here; they share the one memory pool and are run
 | --- | --- | --- | --- |
 | [`llama.cpp/`](llama.cpp/) | llama.cpp `llama-server` | **Resident** — the default, always-on router serving several GGUF models at once | from source (CUDA) |
 | [`ds4/`](ds4/) | DwarfStar `ds4-server` | On-demand — disk-KV-cache experiments | from source (`make`) |
-| [`vllm/`](vllm/) | vLLM (OpenAI API) | On-demand — comparison/benchmarking | NGC container (`nvcr.io/nvidia/vllm`) |
+| [`vllm/`](vllm/) | vLLM (OpenAI API) | On-demand — comparison/benchmarking | container (`nvcr.io/nvidia/vllm` or `vllm/vllm-openai`) |
 
 All three target the GB10 but are parameterized (`CUDA_ARCH`, `PREFIX`, env
 files). Each subdirectory has its own README with full install/upgrade steps.
