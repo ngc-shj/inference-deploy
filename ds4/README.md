@@ -38,7 +38,10 @@ declares `Conflicts=llama-server.service vllm-server.service`, so
 pool; `systemctl start llama-server` hands it back. The three are mutually
 exclusive — run one at a time, and never `enable` ds4-server.
 
-Override defaults via env: `SRC=/path MAKE_TARGET=cuda-generic ./install.sh`
+The ds4 source is cloned from `REPO` (default
+`https://github.com/antirez/ds4.git`) into `SRC` when the checkout is absent; an
+existing `SRC` is reused untouched. Override defaults via env:
+`SRC=/path MAKE_TARGET=cuda-generic ./install.sh`
 (`cuda-spark`/`cuda-generic`/`cpu`); `NO_BUILD=1` skips the build.
 
 ## Design notes (the non-obvious bits)

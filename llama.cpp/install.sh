@@ -2,14 +2,17 @@
 #
 # Build llama.cpp with CUDA and install llama-server as a systemd service.
 #
-# Run as a normal user (NOT root); privileged steps call sudo themselves so the
-# CUDA build does not run as root. Override any setting via environment, e.g.
+# The llama.cpp source is cloned from REPO into SRC if absent (GitHub is the
+# source of truth); an existing checkout is reused as-is. Run as a normal user
+# (NOT root); privileged steps call sudo themselves so the CUDA build does not
+# run as root. Override any setting via environment, e.g.
 #   SRC=/path/to/llama.cpp CUDA_ARCH=121 ./install.sh
 #
 set -euo pipefail
 
 # --- configuration ------------------------------------------------------------
-SRC="${SRC:-$HOME/ghq/github.com/ggerganov/llama.cpp}"
+REPO="${REPO:-https://github.com/ggml-org/llama.cpp.git}"   # upstream source of truth
+SRC="${SRC:-$HOME/ghq/github.com/ggml-org/llama.cpp}"
 BUILD="${BUILD:-$SRC/build-cuda}"
 PREFIX="${PREFIX:-/opt/llama}"
 SVC_USER="${SVC_USER:-llama}"
@@ -29,7 +32,14 @@ say() { printf '\033[1;32m==>\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
 [[ $EUID -ne 0 ]] || die "run as a normal user, not root (sudo is used per-step)"
-[[ -f "$SRC/CMakeLists.txt" ]] || die "llama.cpp source not found at SRC=$SRC"
+
+# Clone the upstream source of truth if the checkout is missing. An existing
+# $SRC is left untouched (pull/update is the user's call, not the installer's).
+if [[ ! -d "$SRC" ]]; then
+    say "Cloning $REPO -> $SRC"
+    git clone "$REPO" "$SRC"
+fi
+[[ -f "$SRC/CMakeLists.txt" ]] || die "llama.cpp source not found at SRC=$SRC (clone of $REPO failed?)"
 [[ -x "$CUDA_HOME/bin/nvcc" ]] || die "nvcc not found at $CUDA_HOME/bin/nvcc"
 
 # --- 1. system libcurl (so the binary does not depend on /home/linuxbrew) ------

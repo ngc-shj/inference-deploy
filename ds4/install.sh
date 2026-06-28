@@ -2,8 +2,10 @@
 #
 # Build ds4-server (DwarfStar) and install it as a systemd service.
 #
-# Run as a normal user (NOT root); privileged steps call sudo themselves so the
-# CUDA/make build does not run as root. Override any setting via environment, e.g.
+# The ds4 source is cloned from REPO into SRC if absent (GitHub is the source of
+# truth); an existing checkout is reused as-is. Run as a normal user (NOT root);
+# privileged steps call sudo themselves so the CUDA/make build does not run as
+# root. Override any setting via environment, e.g.
 #   SRC=/path/to/ds4 MAKE_TARGET=cuda-generic ./install.sh
 #
 # Models: a GGUF under $HOME (typically 0750) is unreadable to the service user,
@@ -13,7 +15,8 @@
 set -euo pipefail
 
 # --- configuration ------------------------------------------------------------
-SRC="${SRC:-/home/noguchi/ghq/github.com/antirez/ds4}"   # ds4 source checkout
+REPO="${REPO:-https://github.com/antirez/ds4.git}"       # upstream source of truth
+SRC="${SRC:-$HOME/ghq/github.com/antirez/ds4}"           # local checkout (cloned if absent)
 PREFIX="${PREFIX:-/opt/ds4}"
 SVC_USER="${SVC_USER:-ds4}"
 STATE="${STATE:-/var/lib/ds4}"
@@ -29,7 +32,14 @@ say() { printf '\033[1;32m==>\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
 [[ $EUID -ne 0 ]] || die "run as a normal user, not root (sudo is used per-step)"
-[[ -f "$SRC/Makefile" ]] || die "ds4 source not found at SRC=$SRC"
+
+# Clone the upstream source of truth if the checkout is missing. An existing
+# $SRC is left untouched (pull/update is the user's call, not the installer's).
+if [[ ! -d "$SRC" ]]; then
+    say "Cloning $REPO -> $SRC"
+    git clone "$REPO" "$SRC"
+fi
+[[ -f "$SRC/Makefile" ]] || die "ds4 source not found at SRC=$SRC (clone of $REPO failed?)"
 
 # Relocate a GGUF into $MODELS and echo its final path (progress -> stderr).
 relocate_model() {
