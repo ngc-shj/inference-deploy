@@ -26,7 +26,10 @@ journalctl -u llama-server -f
 Re-running `install.sh` rebuilds (ccache-less but incremental), reinstalls, and
 `daemon-reload`s. After a unit change, `sudo systemctl restart llama-server`.
 
-Override defaults via env: `SRC=/path CUDA_ARCH=121 PREFIX=/opt/llama ./install.sh`.
+The llama.cpp source is cloned from `REPO` (default
+`https://github.com/ggml-org/llama.cpp.git`) into `SRC` when the checkout is
+absent; an existing `SRC` is reused untouched. Override defaults via env:
+`SRC=/path CUDA_ARCH=121 PREFIX=/opt/llama ./install.sh`.
 
 ## Design notes (the non-obvious bits)
 
