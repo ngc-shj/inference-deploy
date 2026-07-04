@@ -30,7 +30,12 @@ NO_BUILD=1 ./install.sh      # re-render plist + reload after editing the env
 
 Run as your normal user (NOT root, NO sudo) — a LaunchAgent lives in your login
 session. Re-running rebuilds (incremental), re-renders the plist, and reloads the
-agent. `RunAtLoad` starts it now and at every login.
+agent, then waits for the server to log its `listening on` line before reporting
+done. `RunAtLoad` starts it now and at every login.
+
+Directory overrides (`KVDIR=`, `CONFDIR=`, `LOGDIR=`) only take effect on the
+first install — an existing env file is left untouched, so its `--kv-disk-dir` is
+frozen at first seed. To move the KV path later, edit the env file directly.
 
 The ds4 source is cloned from `REPO` (default
 `https://github.com/antirez/ds4.git`) into `SRC` when the checkout is absent; an

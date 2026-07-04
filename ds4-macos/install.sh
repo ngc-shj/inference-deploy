@@ -60,8 +60,13 @@ fi
 [[ -x "$SRC/ds4-server" ]] || die "$SRC/ds4-server not found; build it or unset NO_BUILD"
 
 # --- 2. directories -----------------------------------------------------------
+# Own-only (700) on config/cache/logs: the env file may carry a bind address and
+# the cache/logs hold inference-derived data. Matches the Linux sibling's 0750
+# intent. Cheap defense-in-depth on a shared-account Mac; a no-op on a single-user
+# one. $HOME/Library/LaunchAgents is a macOS-standard dir — leave its mode alone.
 say "Preparing config=$CONFDIR cache=$KVDIR state=$LOGDIR"
 mkdir -p "$CONFDIR" "$KVDIR" "$LOGDIR" "$HOME/Library/LaunchAgents"
+chmod 700 "$CONFDIR" "$KVDIR" "$LOGDIR"
 
 # --- 3. env file --------------------------------------------------------------
 # Seed the env file from the template on first run; leave an existing one alone.
@@ -89,7 +94,12 @@ check_model_path() {
 set -- $DS4_SERVER_ARGS
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        -m|--model|--mtp) [[ -n "${2:-}" ]] && check_model_path "$2"; shift 2 ;;
+        # A value-less trailing flag would make `shift 2` overrun the args and,
+        # under `set -e`, abort with no context. die() with the real cause instead.
+        -m|--model|--mtp)
+            [[ -n "${2:-}" ]] || die "$1 has no value in $ENVFILE"
+            check_model_path "$2"
+            shift 2 ;;
         *) shift ;;
     esac
 done
@@ -100,14 +110,17 @@ done
 # -v var, whose backslash/newline handling would mangle a multi-line block) and
 # streamed in when the placeholder line is reached.
 args_file="$(mktemp)"
+tmp_plist="$(mktemp)"
+# Clean up temp files on any exit path (die, plutil failure, awk/sed error).
+trap 'rm -f "${args_file:-}" "${tmp_plist:-}"' EXIT
 for tok in $DS4_SERVER_ARGS; do
     esc="${tok//&/&amp;}"; esc="${esc//</&lt;}"; esc="${esc//>/&gt;}"
     printf '        <string>%s</string>\n' "$esc" >> "$args_file"
 done
 
 say "Rendering $PLIST"
-# Use a temp file so a failed render does not truncate an existing plist.
-tmp_plist="$(mktemp)"
+# tmp_plist gives us a staging file so a failed render never truncates an
+# existing $PLIST; mv into place only after plutil validates it.
 # __DS4_SERVER_ARGS__ sits alone on a line; swap that whole line for the block.
 awk -v argsfile="$args_file" '
     /__DS4_SERVER_ARGS__/ {
@@ -122,13 +135,12 @@ awk -v argsfile="$args_file" '
         -e "s#__WORKDIR__#$SRC#g" \
         -e "s#__LOGDIR__#$LOGDIR#g" \
     > "$tmp_plist"
-rm -f "$args_file"
 
 plutil -lint "$tmp_plist" >/dev/null || die "generated plist failed validation"
 mv "$tmp_plist" "$PLIST"
 
 # --- 5. (re)load the agent ----------------------------------------------------
-# bootout is idempotent-ish: ignore "not loaded". Then bootstrap + kickstart.
+# bootout is idempotent-ish: ignore "not loaded", then bootstrap.
 domain="gui/$UID_NUM"
 say "Reloading LaunchAgent in $domain"
 # bootout is asynchronous: it returns before the old service (which has ~93GB of
@@ -144,12 +156,36 @@ if launchctl print "$domain/$LABEL" >/dev/null 2>&1; then
     launchctl print "$domain/$LABEL" >/dev/null 2>&1 \
         && die "old service still attached after 60s; run: launchctl bootout $domain/$LABEL"
 fi
+# Truncate the log first so the readiness poll below matches THIS boot's
+# "listening on" line, not a stale one from a previous run.
+: > "$LOGDIR/ds4-server.err.log" 2>/dev/null || true
+# bootstrap loads the plist; RunAtLoad starts it. No `kickstart -k` here — that
+# would kill the just-started process and reload the ~93GB model a second time.
 launchctl bootstrap "$domain" "$PLIST"
-launchctl kickstart -k "$domain/$LABEL"
+
+# --- 6. wait for readiness ----------------------------------------------------
+# kickstart/bootstrap return once launchd has SPAWNED the process, not when the
+# server is serving. Without this gate a crash-on-boot (missing model, port in
+# use, Metal init failure) is invisible: KeepAlive + ThrottleInterval respawn it
+# every 30s and the installer would still print "Done.". Poll the server's own
+# "listening on" ready line in the log, bounded, and die with the log path on
+# timeout. Model load can take minutes, so the window is generous.
+ready_log="$LOGDIR/ds4-server.err.log"
+say "Waiting for ds4-server to report ready (model load can take minutes)"
+ready=""
+for _ in $(seq 1 300); do
+    if grep -q 'listening on' "$ready_log" 2>/dev/null; then ready=1; break; fi
+    # If launchd gave up (no pid) the process is crash-looping, not still loading.
+    if ! launchctl print "$domain/$LABEL" 2>/dev/null | grep -q 'pid = '; then
+        sleep 1; continue   # between respawns; keep waiting within the budget
+    fi
+    sleep 1
+done
+[[ -n "$ready" ]] || die "ds4-server did not report ready within 300s; check $ready_log and: launchctl print $domain/$LABEL"
 
 cat <<EOF
 
-$(say "Done.")
+$(say "Done — ds4-server is listening.")
 Binary : $SRC/ds4-server
 Model  : resolved against $SRC (see -m in $ENVFILE)
 Config : $ENVFILE
