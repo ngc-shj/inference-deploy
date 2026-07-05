@@ -173,6 +173,171 @@ NVFP4 is the option to spin up when you want max throughput for this model.
 
 ---
 
+## 2026-06-30 — Ornith-1.0-35B (DeepReinforce agentic-coding MoE) vs resident 35B-A3B
+
+[deepreinforce-ai/Ornith-1.0-35B](https://huggingface.co/deepreinforce-ai/Ornith-1.0-35B)
+is an MIT-licensed, **reasoning** coding MoE (post-trained on Qwen3.5/Gemma4,
+active ~3B) trained with a self-scaffolding RL method — it learns its own agent
+harness, not just solutions. Vendor benchmarks claim SWE-bench Verified 75.6 (vs
+Qwen3.5-35B 70.0) and Terminal-Bench 2.1 64.2 (vs 41.4), even beating
+Qwen3.5-397B on Terminal-Bench. Evaluated the GGUF
+`deepreinforce-ai/Ornith-1.0-35B-GGUF:Q4_K_M` (21.2 GB) on the router at
+`c = 65536`, NOT MTP. Same 3 coding tasks as prior evals, vendor sampling
+(temp 0.6 / top_p 0.95 / top_k 20). First call was load+warmup; numbers below are
+warm.
+
+| Model | Quant (size) | refactor | bugfix | merge | Quality |
+| --- | --- | --- | --- | --- | --- |
+| `deepreinforce-ai/Ornith-1.0-35B` *(think)* | Q4_K_M (21.2 GB) | 63.5 tok/s | 63.7 tok/s | 63.4 tok/s | merge 5/5 ✓, bugfix ✓, refactor ✓ |
+| `deepreinforce-ai/Ornith-1.0-35B` *(no-think)* | Q4_K_M (21.2 GB) | — | 64.2 tok/s | — | bugfix ✓ |
+| `unsloth/Qwen3.6-35B-A3B-MTP` *(ref, no-think)* | Q4_K_XL (20 GB) | **77.8** | **63.3** | — | merge 3/3 ✓, bugfix ✓ |
+
+**Findings**
+
+- **Throughput ~63 tok/s, rock-steady** across all tasks and both think/no-think
+  (variance < 1 tok/s) — confirms the active-~3B MoE profile. Comparable to the
+  resident 35B-A3B on raw decode, but the 35B keeps an edge on templated output
+  (refactor 77.8 vs 63.5) because it runs **MTP spec-decode**; Ornith's GGUF has
+  no MTP head, so no draft acceleration here.
+- **Quality is on par** for these short tasks: merge doctests 5/5 (empty, single,
+  full-overlap, touching endpoints, disjoint), bugfix returns None for `[5]` /
+  `[3,3]` / `[]` and 2 for `[1,2,3]`, refactor adds type hints + docstring with
+  behavior unchanged. No measurable coding edge over the 35B-A3B on this tiny set
+  — the vendor SWE-bench/Terminal-Bench gap doesn't show on toy tasks.
+- **It is a reasoning model, thinking-on by default.** llama.cpp splits the
+  chain-of-thought into `reasoning_content`; even trivial tasks spent 2.3k–7k
+  chars of thinking before the code (merge nearly hit an 8k-token budget). That's
+  many extra decoded tokens per answer vs the resident 35B (measured no-think).
+  **`chat_template_kwargs: {enable_thinking: false}`** cleanly disables it
+  (reasoning 0 chars, still correct) — use it for latency-sensitive agent loops.
+- **Memory co-resides fine.** Ornith (21 GB) + 35B-A3B (20 GB) + gpt-oss both
+  `loaded` at once: used 81 GB / available 39 GB. No `--models-max` change needed.
+
+**Verdict**: a credible local coding model — same speed class and on-par quality
+vs the resident 35B-A3B, MIT-licensed, fits alongside it. Two caveats before
+adopting: (1) no MTP, so it's a touch slower than the 35B on this box despite
+equal active params; (2) reasoning-on by default burns tokens — pin
+`enable_thinking=false` for agent use. Its claimed advantage is **agentic**
+(self-scaffolding, SWE-bench/Terminal-Bench), which toy tasks can't surface;
+worth a real agent-loop trial (e.g. via an OpenAI-compatible coding CLI) before
+deciding whether it beats the 35B-A3B where it counts. For now: keep as an
+on-demand option, not a resident-set change.
+
+### Agent-loop trial (read → edit → run → verify)
+
+Pointed an OpenAI-compatible coding CLI at the router endpoint (`localhost:8080/v1`,
+provider = `@ai-sdk/openai-compatible`) and gave it a real tool-using task: a
+buggy RPN calculator (`calc.py`) whose `*` operator was unimplemented, with a
+runner (`test_calc.py`) that failed (4 cases, mul + chain error out with
+`IndexError`). Instruction: run the tests, fix `calc.py`, re-run to confirm, don't
+touch the tests.
+
+- **opencode** (1.17.10) connected and drove Ornith through the loop;
+  **codex** (0.130.0) could NOT be used — it now requires `wire_api = "responses"`
+  (OpenAI Responses API), which llama.cpp doesn't speak (`wire_api = "chat"` is
+  rejected). For llama.cpp-served models, use a CLI that speaks plain chat
+  completions (opencode, aider, …), not current codex.
+- **Result: pass.** Ornith ran the tests, saw the failures, patched `calc.py` with
+  the correct `else: stack.append(a * b)` branch, re-ran, and left
+  `test_calc.py` untouched. All 4 tests pass. It completed the multi-step
+  read→edit→run→verify loop autonomously.
+- This is where Ornith earns its pitch: on toy *generation* it tied the 35B-A3B,
+  but it **does carry a real agent loop to completion** end-to-end. (Latency note:
+  reasoning-on, so a single agent turn took minutes of wall-clock — the long CoT
+  that helps the agent also makes each step slow on this box. A `> 10 min` task
+  needs to run detached, not in a 10-min-capped foreground shell.)
+
+**Net**: credible local agentic-coding model, MIT, fits alongside the 35B-A3B.
+Adopt it as the **on-demand agent endpoint** (point opencode/aider at it) rather
+than a resident-set swap; the resident 35B-A3B stays the fast interactive driver.
+
+### Quant choice: Q4_K_M vs Q5_K_M on GB10 — Q4 wins here
+
+Prompted by [note.com/zephel01](https://note.com/zephel01/n/nb64f1495778b), who ran
+40 pytest coding tasks on **EVO-X2 + RTX 5090** and found Q5_K_M best: **97.5%
+(39/40) vs Q4_K_M 92.5% (37/40)**, at near-identical speed (259 vs 265 tok/s). We
+re-checked on GB10 — and the speed story does NOT carry over.
+
+| Quant | Size | GB10 warm tok/s | RTX 5090 (article) |
+| --- | --- | --- | --- |
+| Q4_K_M | 21.2 GB | **63–78** | 265 |
+| Q5_K_M | 24.7 GB | **32–38** | 259 |
+
+**Findings**
+
+- **On GB10, Q5_K_M runs ~half the tok/s of Q4_K_M** (33 vs 63, re-confirmed
+  across repeats), where on the RTX 5090 the two were within 2%. The article's
+  premise — Q5 is "free quality" because speed is unchanged — is a
+  **wide-bandwidth-GPU result** and does not hold on this box. The RTX 5090 has
+  ~1.8 TB/s VRAM; GB10 is ~273 GB/s **bandwidth-bound**, so the heavier Q5_K
+  weights (and its costlier dequant vs the well-optimized Q4_K path) show up
+  directly as decode latency. This is the same active-bytes ÷ bandwidth law as the
+  27B/Coder-Next evals above — quant format, not just param count, moves it.
+- **Q4 + Q5 do NOT co-reside** — with both Ornith quants in `models.ini`, loading
+  the second on top of Q5 + 35B-A3B + gpt-oss **CUDA-OOMs** and hangs in
+  `ensure_model: waiting…` (same failure class as Coder-Next + 35B at
+  `--models-max 3`). Keep exactly ONE Ornith quant registered.
+- **Fewer residents → faster.** After dropping Q5 and gpt-oss, Q4 alongside just
+  the 35B-A3B measured **78 tok/s** (up from 63 with the full 3-model set) —
+  resident GB, not active params, sets the ceiling on this box.
+
+**Verdict**: **stay on Q4_K_M** on GB10. The +5 pt quality (2 of 40 tasks, on
+different hardware/tasks, unverified here) doesn't justify halving throughput for
+an agent model that makes dozens of calls per task and already escalates hard
+cases to a hosted API. Q5 is the right pick only on a wide-bandwidth GPU where it
+costs nothing; here it costs 2×. Kept Q4_K_M registered; removed the Q5_K_M
+preset and deleted its 24.7 GB cache blob.
+
+---
+
+## 2026-07-05 — Qwopus3.6-35B-A3B-Coder-MTP vs resident 35B-A3B and Ornith
+
+[Jackrong/Qwopus3.6-35B-A3B-Coder-MTP](https://huggingface.co/Jackrong/Qwopus3.6-35B-A3B-Coder-MTP-GGUF)
+is an Apache-2.0 **coding finetune of the same Qwen3.6-35B-A3B base as our
+resident model**, by the same author as the resident Qwopus3.5-9B. Crucially it
+ships an **embedded MTP head** (unlike Ornith) and is a **thinking-off,
+token-efficient** agentic-coding finetune. Vendor: SWE-bench 62.4% (300-case,
+thinking-off, Q5). Evaluated `…:Q4_K_M` (21.7 GB) on the router at `c = 65536`
+with `spec-type = draft-mtp` (works with the flag alone, same as the resident —
+MTP is in the GGUF). Sampling: Qwen3-family instruct 0.7 / 0.8 / 20.
+
+| Model (Q4, warm) | think | no-think | MTP | Quality |
+| --- | --- | --- | --- | --- |
+| **Qwopus3.6-Coder-MTP** | 84–92 (but overthinks → length cap) | **95–100 tok/s** | ✓ accept 0.76–1.0 | merge 5/5 ✓, bugfix ✓, refactor ✓ (best docstrings) |
+| `Ornith-1.0-35B` | 63 | 64 | ✗ | on par |
+| `Qwen3.6-35B-A3B` *(resident ref)* | — | 63–78 | ✓ | on par |
+
+**Findings**
+
+- **Fastest local coding model measured on this box: 95–100 tok/s no-think**,
+  beating even the resident 35B-A3B — because it's the *same* base + MTP + a
+  finetune tuned for short outputs. The llama.cpp log confirms MTP is live:
+  **draft acceptance 0.76–1.00** (1.00 on templated code), the exact win Ornith
+  lacks (Ornith has no MTP → capped at 63).
+- **Must run it no-think.** Despite the "thinking-off" branding, at default
+  (thinking-on) it *over-thinks* — refactor/merge blew 25k–32k reasoning chars and
+  hit the token cap with **empty code** (same failure as Ornith). With
+  `chat_template_kwargs:{enable_thinking:false}` it emits code immediately,
+  correctly, and fastest. Pin thinking-off for this model.
+- **Quality on par or better.** merge doctests 5/5, bugfix all edge cases, and the
+  most thorough refactor (typed `list[int]` + full Args/Returns/Raises docstring).
+- **Agent loop: pass.** opencode (local provider → router) drove it through the
+  same RPN-calc fix task — ran tests, added the correct `elif tok == "*"` branch,
+  re-verified, left tests untouched, 4/4 pass. Finished faster than Ornith (no
+  multi-minute CoT per turn).
+
+**Verdict**: this is the first genuine **resident-set upgrade candidate** for local
+coding. Same base as the resident 35B-A3B, so it drops into the identical
+`spec-type=draft-mtp` slot; it's *faster* (95–100 vs 63–78) and coding-specialized,
+where Ornith was slower (no MTP) and reasoning-heavy. Next step before promoting:
+run it head-to-head with the resident 35B-A3B on a harder multi-file agent task
+(SWE-bench-style), and decide whether it *replaces* the resident 35B-A3B for
+coding or rides alongside as the on-demand coding endpoint. Registered on-demand
+for now (thinking-off, Qwen3-family sampling). Note: repo also ships an mmproj
+(vision) — text-only unless `mmproj=` is added.
+
+---
+
 ## Sampling parameters (validation)
 
 Sampling is a **client-side, per-request** choice — not a `models.ini` load
@@ -183,6 +348,7 @@ values used in the evals above were checked against each vendor's recommendation
 | --- | --- | --- | --- |
 | Qwen3.6-35B-A3B (instruct) | 0.7 / 0.8 / 20 | instruct: 0.7 / 0.8 / 20 · thinking: 0.6 / 0.95 / 20 | ✅ |
 | Qwen3-Coder-Next | 1.0 / 0.95 / 40 | 1.0 / 0.95 / 40 | ✅ |
+| Ornith-1.0-35B | 0.6 / 0.95 / 20 | 0.6 / 0.95 / 20 (reasoning) | ✅ |
 | Qwen3.6-27B | 0.2 (all, prior eval) | coding: 0.6 / 0.95 / 20 · instruct: 0.7 / 0.8 / 20 | ⚠ low, but uniform |
 | gpt-oss-20b | n/a | 1.0 / top_p 1.0 (or 0.95) — tune one, not both | — |
 
