@@ -3,3 +3,6 @@
 !*.env.example
 *.swp
 .DS_Store
+
+# Local Claude Code settings (machine-specific, not shared).
+.claude/
