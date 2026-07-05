@@ -83,3 +83,25 @@ c = 131072
 ; KV cheap (roughly half a full-attention model's).
 [unsloth/gpt-oss-20b-GGUF:F16]
 c = 131072
+
+; Qwopus3.6-35B-A3B-Coder-MTP: an optional coding-first model. Same
+; Qwen3.6-35B-A3B base as the resident model above + an embedded MTP head, so
+; `spec-type = draft-mtp` works with the flag alone (no sidecar). Apache-2.0
+; agentic-coding finetune (Jackrong). Measured fastest local coder on GB10 —
+; 95-100 tok/s no-think, beating the resident 35B-A3B; see EVALUATIONS.md and
+; CODING_MODEL_STUDY.md. Not loaded on startup here; point opencode/aider at it.
+
+; --- Qwopus3.6-35B-A3B-Coder-MTP Q4_K_M (~21.7GB) — coding first pick ----------
+; Trained ctx 262144 (same as the resident 35B-A3B); hybrid linear attn keeps KV
+; light, so full native fits in the 128GB pool. Halve KV with cache-type q8_0 if
+; memory gets tight.
+; MUST be run thinking-off: send `chat_template_kwargs:{enable_thinking:false}`
+; in the request, or it over-thinks and can hit the token cap with empty code.
+; Sampling (client-side): Qwen3-family instruct temp=0.7 top_p=0.8 top_k=20
+; min_p=0. The repo also ships an mmproj (vision) — text-only unless you add
+;   mmproj = /var/lib/llama/cache/<mmproj path>
+[Jackrong/Qwopus3.6-35B-A3B-Coder-MTP-GGUF:Q4_K_M]
+c = 262144
+np = 1
+spec-type = draft-mtp
+spec-draft-n-max = 2
