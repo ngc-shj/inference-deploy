@@ -338,6 +338,56 @@ for now (thinking-off, Qwen3-family sampling). Note: repo also ships an mmproj
 
 ---
 
+## 2026-07-11 — Unsloth "Dynamic NVFP4" vs nvidia NVFP4 (same 35B-A3B, vLLM)
+
+Unsloth published [NVFP4 quants](https://huggingface.co/collections/unsloth/nvfp4)
+of Qwen3.6-35B-A3B claiming **1.56× (std) / 1.79× (Fast) throughput vs other
+NVFP4 quants** plus better accuracy (calibrated on Unsloth + UltraChat data).
+Verified against `nvidia/Qwen3.6-35B-A3B-NVFP4` on the on-demand vLLM
+deployment — all three on the same `vllm/vllm-openai:nightly` image, same flags
+as the 2026-06-25 eval (MTP spec-decode `num_speculative_tokens=3`, fp8 KV,
+flashinfer, marlin MoE, ctx 262144, `--gpu-memory-utilization 0.4`).
+Single-stream streaming decode, no-think, 2 runs each: a code prompt (LRU cache
++ tests, 1500 tok) and a prose prompt (~700 tok). nvidia re-benched the same day
+as a fresh baseline.
+
+| Checkpoint | Size | code tok/s | prose tok/s | MTP accept |
+| --- | --- | --- | --- | --- |
+| `nvidia/Qwen3.6-35B-A3B-NVFP4` | 22 GB | **116–122** | **82–84** | 0.69 |
+| `unsloth/Qwen3.6-35B-A3B-NVFP4-Fast` | 23 GB | 104–107 | 72–74 | 0.70 |
+| `unsloth/Qwen3.6-35B-A3B-NVFP4` | 25 GB | 99–104 | 71–75 | 0.72 |
+
+**Findings**
+
+- **The 1.56×/1.79× claim does not transfer to GB10 — it inverts.** Unsloth's
+  numbers are **1×B200 at 128-request concurrency** (batch throughput); on GB10
+  single-stream the Unsloth quants are **~15% slower** than nvidia's.
+- **The size column explains it** — same active-bytes ÷ bandwidth law as every
+  eval above. Checkpoint anatomy (from `quantization_config`): nvidia
+  (ModelOpt) keeps only `linear_attn` in FP8; Unsloth (compressed-tensors)
+  keeps **all attention + `lm_head`** in FP8, and the std variant additionally
+  the **last-8-layers' MoE experts** → 25/23 GB resident vs 22 GB, and the extra
+  bytes show up directly as decode latency on the ~273 GB/s pool.
+- **MTP is intact in all three** (19 `mtp.*` tensors; Unsloth excludes them from
+  quantization too). Acceptance is marginally *higher* on Unsloth (0.72 vs
+  0.69) — the calibration does help the draft head — but not enough to offset
+  the bandwidth cost.
+- **Compatibility is clean**: both Unsloth checkpoints load on the nightly with
+  the exact `vllm-server.env` flags (quant_method `compressed-tensors` vs
+  nvidia's `modelopt` — no flag changes). Output sanity-checked (fizzbuzz, LRU
+  cache): correct code, no-think honored.
+- **nvidia baseline moved up since 2026-06-25** (112 → 122 tok/s peak) — newer
+  nightly, same flags. Worth re-benching baselines when the image tag is a
+  moving nightly.
+
+**Verdict**: **stay on `nvidia/Qwen3.6-35B-A3B-NVFP4`** for single-user GB10
+serving. Unsloth's pitch is batch-concurrency throughput on datacenter parts
+plus accuracy (MMLU-Pro 85.85 etc., unverified here); revisit the Unsloth
+quants only if quality issues surface on the nvidia quant — they are a drop-in
+swap when that day comes.
+
+---
+
 ## Sampling parameters (validation)
 
 Sampling is a **client-side, per-request** choice — not a `models.ini` load

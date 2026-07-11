@@ -108,7 +108,7 @@ ever deliberately run both at once, drop it hard (`0.20`) or the box OOMs.
 | Model | Format | Notes |
 | --- | --- | --- |
 | `openai/gpt-oss-20b` | MXFP4 (HF) | OpenAI MoE; ~14GB weights, NVIDIA's Spark vLLM example. Deliberately the **same** 20B that llama.cpp serves (as GGUF) and Ollama serves (as a blob) — so this instance is a like-for-like cross-engine comparison. Served at `--gpu-memory-utilization 0.60`, `--max-model-len 32768`. |
-| `nvidia/Qwen3.6-35B-A3B-NVFP4` | NVFP4 (~19GB) | The **same 35B-A3B** llama.cpp serves as Q4_K_XL GGUF — cross-engine FP4 comparison. Needs `vllm/vllm-openai:nightly` (NGC stable can't load it). Blackwell-native FP4 + MTP spec-decode hits 94–112 tok/s, matching/beating the GGUF. Full DGX-Spark serve flags are on the HF model card; measured in [`../llama.cpp/EVALUATIONS.md`](../llama.cpp/EVALUATIONS.md). |
+| `nvidia/Qwen3.6-35B-A3B-NVFP4` | NVFP4 (~19GB) | The **same 35B-A3B** llama.cpp serves as Q4_K_XL GGUF — cross-engine FP4 comparison. Needs `vllm/vllm-openai:nightly` (NGC stable can't load it). Blackwell-native FP4 + MTP spec-decode hits 94–122 tok/s (nightly-dependent), matching/beating the GGUF. Full DGX-Spark serve flags are on the HF model card; measured in [`../llama.cpp/EVALUATIONS.md`](../llama.cpp/EVALUATIONS.md) — which also covers why the Unsloth NVFP4 variants are ~15% slower here. |
 
 The 20B weights exist in three formats on this box on purpose (Ollama blob,
 llama.cpp GGUF, vLLM safetensors) — they are not shareable across engines, and
