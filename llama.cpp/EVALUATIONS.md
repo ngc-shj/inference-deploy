@@ -1,7 +1,9 @@
 # Model evaluations (GB10 / DGX Spark)
 
 Measured on the resident llama.cpp router (`localhost:8080`), GB10 / 128 GB
-unified memory, ~273 GB/s. Linked from [README.md](README.md).
+unified memory, ~273 GB/s. Linked from [README.md](README.md). For the same
+models on Apple Silicon (MLX), see [EVALUATIONS-macos.md](EVALUATIONS-macos.md)
+— where the 4-bit format ranking inverts because there is no NVFP4 hardware path.
 
 ## Why throughput is what it is on this box
 

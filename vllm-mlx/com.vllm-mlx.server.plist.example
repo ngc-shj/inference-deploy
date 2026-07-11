@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  LaunchAgent for vllm-mlx serve (OpenAI-compatible MLX inference server) on
+  macOS / Apple Silicon.
+
+  install.sh substitutes the __UPPERCASE__ tokens (__VLLM_MLX_BIN__,
+  __VLLM_MLX_MODEL__, __LOGDIR__, and the __VLLM_MLX_ARGS__ line) and writes the
+  result to ~/Library/LaunchAgents/com.vllm-mlx.server.plist. Runtime flags live
+  in vllm-mlx-server.env (VLLM_MLX_ARGS); install.sh expands them into the
+  ProgramArguments array below, because launchd does NOT word-split env vars the
+  way systemd's ExecStart does.
+
+  This is a LaunchAgent (per-user, login session), not a LaunchDaemon: MLX uses
+  Metal, which requires a logged-in GUI session. A boot-time daemon cannot reach
+  the GPU.
+-->
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.vllm-mlx.server</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__VLLM_MLX_BIN__</string>
+        <string>serve</string>
+        <string>__VLLM_MLX_MODEL__</string>
+__VLLM_MLX_ARGS__
+    </array>
+
+    <!-- Start at login. -->
+    <key>RunAtLoad</key>
+    <true/>
+
+    <!-- Restart on crash, but not on a clean exit (a manual `launchctl kickstart`
+         stop or SIGINT shutdown stays down until asked to start again). -->
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <!-- Back off before relaunch so a crash-loop does not thrash the GPU. -->
+    <key>ThrottleInterval</key>
+    <integer>30</integer>
+
+    <!-- Model load is slow; give a generous graceful-shutdown window (SIGTERM
+         then SIGKILL after this many seconds). -->
+    <key>ExitTimeOut</key>
+    <integer>120</integer>
+
+    <key>StandardOutPath</key>
+    <string>__LOGDIR__/vllm-mlx-server.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>__LOGDIR__/vllm-mlx-server.err.log</string>
+
+    <!-- Keep the GPU duty cycle at foreground priority. -->
+    <key>ProcessType</key>
+    <string>Interactive</string>
+</dict>
+</plist>

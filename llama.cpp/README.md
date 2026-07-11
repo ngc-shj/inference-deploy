@@ -85,7 +85,8 @@ To pin a single model instead (ignoring the `model` field), use a single-model
 ## Current models
 
 Model comparisons and throughput numbers measured on this box live in
-[EVALUATIONS.md](EVALUATIONS.md).
+[EVALUATIONS.md](EVALUATIONS.md). The same models measured on Apple Silicon
+(MLX) are in [EVALUATIONS-macos.md](EVALUATIONS-macos.md).
 
 Served side by side via the router (clients pick one per request):
 
