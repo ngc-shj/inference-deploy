@@ -16,6 +16,24 @@ Three engines are packaged here; they share the one memory pool and are run
 All three target the GB10 but are parameterized (`CUDA_ARCH`, `PREFIX`, env
 files). Each subdirectory has its own README with full install/upgrade steps.
 
+### macOS / Apple Silicon (Metal)
+
+Two engines are also packaged as per-user **LaunchAgents** for Apple Silicon
+Macs — the Metal counterparts of the GB10 units. launchd has no `Conflicts=`, so
+this Mac is expected to run one engine at a time (the installers warn, they do
+not auto-evict).
+
+| Dir | Engine | Build |
+| --- | --- | --- |
+| [`ds4-macos/`](ds4-macos/) | DwarfStar `ds4-server` (`--metal`) | from source (`make metal`) |
+| [`vllm-mlx/`](vllm-mlx/) | vllm-mlx `serve` (OpenAI API, MLX backend) | pip (dedicated venv) |
+
+Measured numbers for Apple Silicon — MLX 4-bit format ranking, vllm-mlx thinking
+control, and vllm-mlx vs a Metal-built llama.cpp — are in
+[`llama.cpp/EVALUATIONS-macos.md`](llama.cpp/EVALUATIONS-macos.md). Headline:
+on Apple Silicon the bandwidth law flips the GB10 ranking — MLX `mxfp4` beats
+both MLX `nvfp4` and a Metal llama.cpp GGUF at equal bit width.
+
 ## Mutual exclusion — run one engine at a time
 
 The 128 GB pool fits only one engine's working set at a time. The on-demand
