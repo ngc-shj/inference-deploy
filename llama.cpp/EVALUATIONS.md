@@ -55,6 +55,56 @@ no-thinking agent/tool-calling option where instruction-following beats tok/s;
 
 ---
 
+## 2026-07-20 — Ternary-Bonsai-27B (1.6-bit) — does extreme quant beat bandwidth?
+
+`prism-ml/Ternary-Bonsai-27B` is a Qwen3.6-27B VLM quantized end-to-end to
+**ternary (~1.6 bit/weight)** — the same 27B dense+hybrid backbone as the
+2026-06-21 row above, but with the weights shrunk ~9× (Q4_K_XL 17.9 GB →
+Q2_0 6.7 GB). The GB10 is bandwidth-bound, so the hypothesis worth testing was:
+if decode is `bandwidth ÷ active-parameter *bytes*`, a 9× lighter weight set
+should decode several times faster. It does **not**.
+
+Requires the **PrismML fork** of llama.cpp (`PrismML-Eng/llama.cpp`, branch
+`prism`) — its custom `Q1_0`/`Q2_0` low-bit kernels are not in mainline. Built
+here for GB10 with `-DCMAKE_CUDA_ARCHITECTURES=121` (CMake auto-promotes to
+`121a`; server logs `BLACKWELL_NATIVE_FP4=1`, `ARCHS=1210`). The Hopper-only
+`Q1_0` wgmma path (`mmq-hopper-q1.cu`) is opt-in (`env GGML_HOPPER_Q1`) and
+explicitly excludes Blackwell, so GB10 falls back to the normal mmvq/mmq path.
+Run on a **separate instance (`:8090`)**, not the resident router — the fork is
+a different binary. Same `merge_intervals` prompt, temp 0.2, warm single-shot.
+
+| Model | Quant | thinking OFF | thinking ON | + dspark draft | Code (doctest) | Notes |
+| --- | --- | --- | --- | --- | --- | --- |
+| `prism-ml/Ternary-Bonsai-27B` | Q2_0 (6.7 GB, ~1.6-bit) | 25.7 tok/s | 27.5 tok/s | 28.6 tok/s | 3/3 ✓ | ternary; same 27B backbone |
+| `unsloth/Qwen3.6-27B-MTP` *(ref, 06-21)* | Q4_K_XL (17.9 GB) | 24.4 tok/s | — | — | 3/3 ✓ | mainline; Q4 of the same base |
+
+**Findings**
+
+- **Extreme quant does not buy speed here.** 9× lighter weights → **~1.05×**
+  faster (24.4 → 25.7 tok/s). If decode were weight-bandwidth-bound the ternary
+  build would be multiples faster; it is flat. On GB10 the 27B dense+hybrid is
+  bound by **per-token compute / attention seriality and low-bit dequant
+  overhead**, not weight traffic — the opposite regime from the MoE models,
+  whose small *active* set genuinely is bandwidth-limited (35B-A3B → 90 tok/s).
+- **The dspark speculative drafter gives nothing measurable** (+1 tok/s). The
+  fork logs `no implementations specified for speculative decoding` — the
+  advertised 1.34× is a CUDA-serving/batch result, not single-stream on GB10.
+  (Note the flag rename in this fork: `--draft-max` → `--spec-draft-n-max`.)
+- **Quality holds at ternary**: doctests 3/3, concise think-off output — on par
+  with the Q4 27B. The claimed ~95% of FP16 is plausible for this task.
+- **Memory win is real but irrelevant here**: 6.7 GB resident is tiny, but the
+  27B was never memory-constrained on this box (its hybrid KV is light too).
+
+**Verdict**: no reason to adopt. It is the same speed class as every other 27B
+dense on GB10 (~25 tok/s), i.e. ~3.5× slower than the resident 35B-A3B at
+comparable quality, and it needs a non-mainline fork + separate binary to run.
+The value was the *measurement*: it confirms GB10's 27B-dense ceiling is
+compute/attention-bound, so no quant — however aggressive — moves it. Extreme
+low-bit quant pays off for *footprint* (edge/phone, the model's actual target),
+not for throughput on this bandwidth-rich, compute-modest box.
+
+---
+
 ## 2026-06-21 — Survey: coding-specialized models for DGX Spark
 
 Goal: agentic-coding models that actually run on GB10. Filtered by **active**
