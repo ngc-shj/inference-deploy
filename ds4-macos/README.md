@@ -1,6 +1,6 @@
 # ds4-server (DwarfStar) — macOS LaunchAgent deployment
 
-Builds DwarfStar with `make metal` and runs `ds4-server` as a per-user
+Builds DwarfStar with `make` and runs `ds4-server` as a per-user
 **LaunchAgent** on Apple Silicon (Metal). This is the macOS counterpart of
 [`../ds4/`](../ds4/), which targets a Linux/CUDA box with systemd.
 
@@ -23,7 +23,7 @@ directory with `CONFDIR=`, `KVDIR=`, or `LOGDIR=`.
 ## Install / upgrade
 
 ```bash
-./install.sh                 # build (make metal) -> render plist -> load agent
+./install.sh                 # build (make) -> render plist -> load agent
 $EDITOR "${XDG_CONFIG_HOME:-$HOME/.config}/ds4/ds4-server.env"
 NO_BUILD=1 ./install.sh      # re-render plist + reload after editing the env
 ```
@@ -62,6 +62,11 @@ option for the Metal backend.
 
 ## Design notes (the non-obvious bits)
 
+- **There is no `make metal` target.** On Darwin the Metal build is the
+  Makefile's default target; `metal` names only the `metal/` shader directory in
+  the checkout, so `make metal` matches that directory and exits "Nothing to be
+  done" — a silent no-op that leaves a stale binary in place while the installer
+  reports success. `MAKE_TARGET` therefore defaults to `all`.
 - **Flags are baked into the plist, not read at launch.** systemd word-splits
   `$DS4_SERVER_ARGS` in `ExecStart`; launchd does not split env vars into
   `ProgramArguments`. So `install.sh` expands each flag from

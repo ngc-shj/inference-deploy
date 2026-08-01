@@ -13,13 +13,16 @@
 #
 # The ds4 source is cloned from REPO into SRC if absent; an existing checkout is
 # reused as-is. Override any setting via environment, e.g.
-#   SRC=/path/to/ds4 MAKE_TARGET=metal ./install.sh
+#   SRC=/path/to/ds4 MAKE_TARGET=all ./install.sh
 set -euo pipefail
 
 # --- configuration ------------------------------------------------------------
 REPO="${REPO:-https://github.com/antirez/ds4.git}"       # upstream source of truth
 SRC="${SRC:-$HOME/ghq/github.com/antirez/ds4}"           # local checkout (cloned if absent)
-MAKE_TARGET="${MAKE_TARGET:-metal}"                      # metal | cpu
+# On Darwin the Metal build IS the default target; there is no `metal` target.
+# A `metal/` directory exists in the checkout, so `make metal` matches that
+# directory and silently succeeds without building anything.
+MAKE_TARGET="${MAKE_TARGET:-all}"                        # all (Metal) | cpu
 
 # XDG Base Directory layout, split by file kind (each dir overridable via env):
 #   config -> ds4-server.env   (user configuration)

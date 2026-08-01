@@ -25,7 +25,7 @@ not auto-evict).
 
 | Dir | Engine | Build |
 | --- | --- | --- |
-| [`ds4-macos/`](ds4-macos/) | DwarfStar `ds4-server` (`--metal`) | from source (`make metal`) |
+| [`ds4-macos/`](ds4-macos/) | DwarfStar `ds4-server` (`--metal`) | from source (`make`) |
 | [`vllm-mlx/`](vllm-mlx/) | vllm-mlx `serve` (OpenAI API, MLX backend) | pip (dedicated venv) |
 
 Measured numbers for Apple Silicon — MLX 4-bit format ranking, vllm-mlx thinking
