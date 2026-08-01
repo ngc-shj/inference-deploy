@@ -88,8 +88,28 @@ option for the Metal backend.
 
 ## Current model
 
-DeepSeek V4 Flash (see [`../ds4/`](../ds4/) and the repo's `download_model.sh`),
-optionally with the MTP draft head for speculative decoding
-(`--mtp <file> --mtp-draft 2`). MTP helps predictable output (code, structured
-lists); on divergent free-form text its draft-acceptance rate is low and it can
-be marginally slower. See `ds4-server.env.example`.
+DeepSeek V4 Flash **0731**, q2 quant
+(`IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731`, 86.7 GB), with the
+MTP draft head for speculative decoding (`--mtp <file> --mtp-draft 2`). MTP
+helps predictable output (code, structured lists); on divergent free-form text
+its draft-acceptance rate is low and it can be marginally slower — measured at
+a 40% penalty on reasoning-heavy prompts, see below. See
+`ds4-server.env.example`.
+
+`download_model.sh` in the ds4 checkout has no `-0731` target as of `54b36ed`;
+its filenames are hardcoded and not env-overridable, so the 0731 GGUFs have to
+be pulled directly from
+[antirez/deepseek-v4-gguf](https://huggingface.co/antirez/deepseek-v4-gguf) and
+the `ds4flash.gguf` symlink repointed by hand. Use `curl -C -` with
+`--speed-limit 1024 --speed-time 60`: without the stall timeout a network change
+mid-transfer leaves a half-open connection that `--retry` never notices, and the
+download hangs silently.
+
+## Measured throughput
+
+Numbers, protocol and what was ruled out are in
+[EVALUATIONS.md](EVALUATIONS.md). The short version: the first one or two
+requests after a load run at 27–36 tok/s, then everything settles at 9–15 tok/s
+and a restart does not reliably bring the fast phase back. Quantization, MTP,
+swap, and the KV disk cache were each excluded as the cause. Quote the sustained
+number, not the opening one.
