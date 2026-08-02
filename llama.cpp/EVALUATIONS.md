@@ -440,6 +440,72 @@ swap when that day comes.
 
 ---
 
+## 2026-07-23 — Poolside Laguna S 2.1 (118B-A8B + DFlash) — the "made for DGX Spark" coder
+
+[poolside/Laguna-S-2.1](https://huggingface.co/poolside/Laguna-S-2.1) (OpenMDW-1.1)
+is Poolside's coding MoE — 118B total / 8B active, 1M-token context, explicitly
+marketed as "runs on a single DGX Spark". Vendor: Terminal-Bench 2.1 **70.2%**
+(thinking) / 60.4% (no-think), DeepSWE v1.1 40.4% — the strongest agentic-coding
+numbers of any local-scale model to date. Ships a 2.2 GB **DFlash block-draft
+model** for speculative decoding. Evaluated `Q4_K_M` (70.0 GiB, imatrix) from
+[Laguna-S-2.1-GGUF](https://huggingface.co/poolside/Laguna-S-2.1-GGUF).
+
+**Requires Poolside's llama.cpp fork** (github.com/poolsideai/llama.cpp, branch
+`laguna`, same pattern as Bonsai's PrismML fork). Built at 04b2b72 with
+`-DCMAKE_CUDA_ARCHITECTURES=121`; HEAD had a build break (`std::isfinite`
+without `<cmath>` in `common/speculative.cpp`, introduced by the DFlash
+sanitize commit cf7fe54) — one-line include fix, worth upstreaming. Note the
+fork's flag is `--chat-template-kwargs`, not `--default-chat-template-kwargs`
+as the model card says.
+
+Serve: `llama-server -m laguna-s-2.1-Q4_K_M.gguf -md laguna-s-2.1-DFlash-BF16.gguf
+--spec-type draft-dflash --spec-draft-n-max 4 -fa on --jinja
+--chat-template-kwargs '{"enable_thinking": true}' --reasoning-format deepseek`.
+Model is ~70 GB resident — **cannot co-reside with the router set**; the
+llama-server router must be stopped first (~86 GB → 20 GB used).
+
+| Workload (Q4_K_M, warm) | gen tok/s | DFlash accept |
+| --- | --- | --- |
+| llama-bench tg128 (no draft) | 22.4 | — |
+| pure code generation | **32–35** | 0.50–0.55 |
+| bugfix w/ thinking | 26 | 0.36 |
+| natural-language (summarize) | 16.5 | 0.20 |
+| pp2048 (bench) / 8k-prompt server pp | 679 / 565 | — |
+
+**Findings**
+
+- **DFlash draft-n-max sweep: 4 is the sweet spot** (35.1 tok/s), not the
+  model-card 15 (22.0, accept 0.17) — at accept ~0.5 the expected accepted run
+  is ~2 tokens, so long blocks just burn draft compute. Card's vLLM
+  recommendation (7) is also worse here (32.4). Per-request override via
+  `"speculative.n_max": 4` works, so clients can tune without a server restart.
+- **DFlash is code-shaped.** Acceptance collapses on natural-language output
+  (0.20 → 16.5 tok/s, *below* baseline) and sags during thinking (0.36). The
+  draft was clearly trained on code continuation. Fine for the intended use.
+- **Thinking behaves.** ~1.9k chars of reasoning on a bugfix, then correct
+  code — none of the Ornith/Qwopus-MTP over-thinking failure mode. Poolside
+  recommends thinking **on** for agentic work (opposite of Qwopus-MTP).
+- **Quality spot-checks clean**: LRU cache (typed, `__slots__`, correct DLL),
+  merge-sort bugfix (found the leftover-elements bug precisely). Native tool
+  calling works (`finish_reason: tool_calls`, well-formed JSON args).
+- **pp is healthy** — the scary 35 tok/s pp on short prompts is fixed
+  per-request overhead; at 8k prompt it's 565 tok/s, so agent-turn TTFT is
+  ~14 s at 8k, ~1 min at 32k. Not measured: opencode agent loop (pending).
+
+**Verdict**: the throughput story is exactly the [Why throughput...] law — 70 GB
+resident lands it at 27B-dense speed (22 tok/s), and DFlash claws back +57% on
+code to ~35 tok/s. That's **1/3 of Coder-MTP (95–100)** and below the resident
+35B-A3B (63–78), so it does not displace anything for interactive coding. Its
+claim to a slot is *quality*: Terminal-Bench 70.2% is in a different league
+from anything else on this box, and 1M context + sane thinking make it the
+candidate for **hard, long-horizon agent tasks where 35 tok/s is acceptable**.
+Kept as an on-demand, stop-the-router special (like a big-gun escalation
+target), not registered in `models.ini` while it requires a separate fork
+binary. Next step: opencode agent loop on a multi-file task, and a
+head-to-head vs Coder-MTP on a task Coder-MTP fails.
+
+---
+
 ## Sampling parameters (validation)
 
 Sampling is a **client-side, per-request** choice — not a `models.ini` load
