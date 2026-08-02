@@ -68,6 +68,15 @@ existing `SRC` is reused untouched. Override defaults via env:
 
 ## Current model
 
-DeepSeek V4 Flash, IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8 (~86GB), with the optional
-MTP draft head (`DeepSeek-V4-Flash-MTP-Q4K-Q8_0-F32`, ~3.8GB) driving
+DeepSeek V4 Flash **0731**, IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8 (~86GB), with the
+optional MTP draft head (`DeepSeek-V4-Flash-MTP-Q4K-Q8_0-F32`, ~3.8GB) driving
 speculative decoding via `--mtp ... --mtp-draft 2`. See `ds4-server.env.example`.
+
+0731 reasons noticeably longer than the Preview quant it replaced, so raise the
+client's `max_tokens` (2500+ for prose, 3000+ for code) — at the older budgets
+answers arrive truncated, or never start. Measured numbers, plus why the engine
+is pinned to e34a808 and DSpark is off, are in [EVALUATIONS.md](EVALUATIONS.md).
+
+`--ctx 1048576` in `ds4-server.env.example` no longer loads on a 128GB box (it
+needs ~135GB with the model and context buffers); 131072 fits with margin and
+avoids the degraded managed-KV path.
