@@ -74,21 +74,51 @@ Decode rate, completion tokens ÷ wall-clock, `--ctx 131072`:
   speed.
 - **Not MTP.** Dropping `--mtp` leaves the collapse intact, so speculative
   decoding is not what degrades.
-- **Not swap.** During the q2 run swap went 9246 → 9206 → 9198 MB — it *fell*
-  while throughput was collapsing. An earlier reading of 14.3/15.36 GB is not
-  comparable: macOS resizes the swap file, and total had dropped to 10.24 GB by
-  the later run.
 - **Not the KV disk cache filling up.** `~/.cache/ds4/server-kv` was already at
   its 16 GB budget before pass 1, evicting on every request throughout, so its
   fullness is not what changes between the passes.
 - **Not thermal, as far as can be seen.** `pmset -g therm` recorded no warning —
   which is weak evidence, since it only logs warnings that did fire.
+- **Not the July Metal rework.** Built `80ebbc3` (Jun 17, the last revision
+  before any of it) and ran the same set: 12.8 → 7.9 → 6.1 → 6.6 tok/s. It
+  collapses too, from a lower starting point — in the same machine state the
+  newer build is 1.5-2x faster throughout, so `427e281` "Optimize Metal prefill
+  and decode kernels" is a win, not the cause.
+- **It *is* contention for physical memory** — see below. An earlier revision of
+  this file ruled that out because `vm.swapusage` held flat at ~9.2 GB through a
+  collapse. Wrong instrument: `vm.swapusage` reports the size of the swap
+  *file*, which macOS grows and shrinks on its own, and says nothing about the
+  compressor or about free pages.
 
-The shape is consistent with the Metal residency requested at load
-(`residency requested in 15557 ms` in the startup log) being given up and the
-weights falling back to mmap reads, but nothing here observes residency
-directly, so that remains a hypothesis. Worth reporting upstream with these
-numbers rather than bisected further from the deployment side.
+### It is contention for physical memory
+
+The decisive test: quit Docker (7.92 GB resident, the largest non-ds4 consumer)
+and re-send the prompt that had just run at 4.2 tok/s.
+
+| | free | compressor | same prompt |
+| --- | --- | --- | --- |
+| before | 0.17 GB | 12.45 GB | 4.2 tok/s |
+| after quitting Docker | 7.82 GB | 7.02 GB | **30.7 tok/s** |
+
+A 7x recovery from freeing 8 GB, with nothing about ds4 touched. At the low
+point `vm_stat` showed 151 MB free, 38.2 GB of application data squeezed into
+13.4 GB of compressor, and 168 GB of cumulative swapouts since boot.
+
+The mechanism follows. ds4 wires ~90 GB for the model — Activity Monitor counts
+it under *wired*, not against the process, so the `ds4-server` row showing ~5 GB
+is misleading and should not be used to judge headroom. That leaves ~35 GB for
+everything else on a 128 GB machine. Once the desktop working set grows past it
+the compressor engages, model pages get evicted, and weight reads start hitting
+the SSD. Nothing re-wires them afterwards, which is why the slow state persists,
+why restarting the server does not clear it, and why idling does: idle time lets
+the OS compress and evict *other* applications and hand the physical pages back.
+
+This is a capacity finding, not an engine defect — a ~90 GB working set and a
+normal desktop session do not both fit in 128 GB. Keep heavy applications
+(Docker especially) closed while serving, and read `vm_stat` free/compressor
+rather than `vm.swapusage` when throughput drops. The one question still worth
+putting upstream is whether Metal residency, once lost, is ever re-requested;
+the startup log's `residency requested in 15557 ms` happens exactly once.
 
 ### MTP costs throughput on reasoning-heavy prompts
 

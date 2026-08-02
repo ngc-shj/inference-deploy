@@ -107,9 +107,14 @@ download hangs silently.
 
 ## Measured throughput
 
-Numbers, protocol and what was ruled out are in
-[EVALUATIONS.md](EVALUATIONS.md). The short version: the first one or two
-requests after a load run at 27–36 tok/s, then everything settles at 9–15 tok/s
-and a restart does not reliably bring the fast phase back. Quantization, MTP,
-swap, and the KV disk cache were each excluded as the cause. Quote the sustained
-number, not the opening one.
+Numbers and protocol are in [EVALUATIONS.md](EVALUATIONS.md). The short version:
+decode runs at ~30 tok/s with memory to spare and falls to 4–15 tok/s when the
+rest of the desktop crowds it out, and a server restart does not clear it —
+**quitting Docker took the same prompt from 4.2 back to 30.7 tok/s.**
+
+The model wires ~90 GB, leaving ~35 GB for everything else. Keep heavy
+applications closed while serving. When throughput drops, read `vm_stat` free
+pages and compressor size — *not* `vm.swapusage`, which reports a file macOS
+resizes on its own and stays flat through a collapse. Activity Monitor's
+`ds4-server` row is misleading for the same reason: the model is counted under
+wired memory, not against the process.

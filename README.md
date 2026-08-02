@@ -37,8 +37,8 @@ both MLX `nvfp4` and a Metal llama.cpp GGUF at equal bit width.
 DeepSeek V4 Flash on ds4 is measured separately in
 [`ds4-macos/EVALUATIONS.md`](ds4-macos/EVALUATIONS.md): the 0731 weights are not
 distinguishable from their predecessor on single-shot coding tasks, and decode
-drops from ~30 tok/s to ~10–15 after the first couple of requests for reasons
-that are neither the quant, MTP, swap, nor the KV cache.
+falls from ~30 tok/s to 4–15 once the rest of the desktop competes with the
+model's ~90 GB wired working set — quitting Docker alone restored 4.2 → 30.7.
 
 ## Mutual exclusion — run one engine at a time
 
