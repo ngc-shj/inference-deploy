@@ -187,13 +187,17 @@ q2 warms too, and by more than expected: 20.01 tok/s over 128 tokens against
 
 ### The cost is the streaming path, not MXFP4
 
-All at ctx 2048, 2048 decode tokens:
+All at ctx 2048, 2048 decode tokens, `--ctx-alloc` left at its default of 4,097:
 
 | Configuration | steady | prefill | first token |
 | --- | --- | --- | --- |
 | q2 0731, full residency | **34.53** | 497.8 | 30 ms |
 | q2 0731, `--ssd-streaming` | 17.99 | 230.4 | 6,091 ms |
 | MXFP4 0731, `--ssd-streaming` | **18.61** | 117.7 | 10,989 ms |
+
+The allocation matters for the streamed rows and is not what the LaunchAgent
+runs — at the deployed 131,072 the MXFP4 figure is 14.00, not 18.61. See
+"Context allocation" below. The residency row is unaffected.
 
 **Findings**
 
@@ -259,27 +263,39 @@ than annotated.
 of the allocation alone, measured at the same 2048-token frontier and 2048
 decode tokens so only the allocation changes:
 
-| Configuration | KV | buffers | planned | steady |
-| --- | --- | --- | --- | --- |
-| q2, residency, default alloc | 1.36 | 1.00 | 83.12 GiB | 34.53 |
-| q2, residency, 1M alloc | 8.39 | 8.00 | 97.15 GiB | **34.63** |
-| MXFP4, streaming, default alloc | 1.36 | 1.00 | 79.28 GiB | **18.61** |
-| MXFP4, streaming, 1M alloc, auto budget | 8.39 | 8.00 | 95.18 GiB | 4.50 |
-| MXFP4, streaming, 1M alloc, 60 GiB budget | 8.39 | 8.00 | 77.37 GiB | 7.88 |
+| Configuration | ctx-alloc | KV | buffers | planned | steady |
+| --- | --- | --- | --- | --- | --- |
+| q2, residency | 4,097 | 1.36 | 1.00 | 83.12 GiB | 34.53 |
+| q2, residency | **131,072** | 1.36 | 1.00 | 83.12 GiB | **35.59** |
+| q2, residency | 1,048,576 | 8.39 | 8.00 | 97.15 GiB | 34.63 |
+| MXFP4, streaming, auto budget | 4,097 | 1.36 | 1.00 | 79.28 GiB | 18.61 |
+| MXFP4, streaming, auto budget | **131,072** | 1.36 | 1.00 | 81.16 GiB | **14.00** |
+| MXFP4, streaming, auto budget | 1,048,576 | 8.39 | 8.00 | 95.18 GiB | 4.50 |
+| MXFP4, streaming, 60 GiB budget | 1,048,576 | 8.39 | 8.00 | 77.37 GiB | 7.88 |
 
-- **1M costs ~14 GiB, and only half of it is KV.** Graph buffers go 1.00 → 8.00
-  GiB alongside KV's 1.36 → 8.39. The env file's old note blamed KV alone.
-- **Full residency pays nothing in speed.** 34.53 → 34.63 is noise. The cost is
-  the 97.15 GiB plan, which leaves ~31 GB for the desktop — the regime where the
-  08-02 collapse begins.
-- **Streaming breaks, and capping the budget does not fix it.** The auto budget
-  ignores the context allocation entirely: it still asks for 77.81 GiB of
-  experts on top of a KV that grew by 7 GiB, and MXFP4 falls to 4.50 tok/s.
-  Capping at 60 GiB brings the plan back down to 77.37 GiB and recovers only to
-  7.88, because the cache now holds 4306 experts instead of 5737 and misses
-  more. Raise the budget and memory thrashes; lower it and the hit rate falls.
-  There is no setting on this machine that gets 1M streaming near 18.61.
+131,072 is what the LaunchAgent runs. `ds4-bench` defaults `--ctx-alloc` to
+`ctx-max + gen-tokens + 1`, which for this sweep is 4,097 — so a benchmark left
+on its default is not measuring the deployed configuration, and every MXFP4
+figure elsewhere on this page was taken there.
 
-So 128K is not a conservative default to be raised when convenient — it is the
-right ceiling for a streamed model on 128 GB. For q2 at full residency 1M is
-available at no throughput cost, if the desktop can live in 31 GB.
+- **Full residency is indifferent to the allocation.** 34.53 / 35.59 / 34.63
+  across three orders of magnitude. Only the plan grows, to 97.15 GiB at 1M,
+  which leaves ~31 GB for the desktop — the regime where the 08-02 collapse
+  begins.
+- **Streaming degrades monotonically with it.** 18.61 → 14.00 → 4.50. The
+  automatic expert budget does not account for the context allocation: it asks
+  for the same 77.81 GiB at every size, so KV and buffer growth comes straight
+  out of the room the cache actually needs. Even the 1.9 GiB step from 4,097 to
+  131,072 costs a quarter of the throughput.
+- **1M costs ~14 GiB, and only half of it is KV.** Buffers go 1.00 → 8.00 GiB
+  alongside KV's 1.36 → 8.39.
+- **Capping the budget does not rescue 1M.** 60 GiB brings the plan down to
+  77.37 GiB and recovers only to 7.88, because the cache holds 4306 experts
+  instead of 5737 and misses more. Raise the budget and memory thrashes; lower
+  it and the hit rate falls. No setting on this machine gets 1M streaming near
+  14.
+
+So 128K is not a conservative default to be raised when convenient — it is
+already costing a streamed model 25% against a small allocation, and 1M is out
+of the question. For q2 at full residency the allocation is free, and 1M is
+available if the desktop can live in 31 GB.
