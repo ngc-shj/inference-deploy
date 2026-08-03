@@ -28,9 +28,15 @@
 __VLLM_MLX_ARGS__
     </array>
 
-    <!-- Start at login. -->
+    <!-- On-demand, NOT at login. This Mac has no declarative mutual exclusion
+         (launchd has no systemd `Conflicts=`), and ds4 wires ~90 GB for
+         DeepSeek V4 Flash. Starting both at login puts ~109 GB of weights on a
+         128 GB machine and leaves ~26 GB for the OS and the desktop — enough
+         until it isn't, and crossing that line costs ds4 7x. Start this when
+         you want it:
+             launchctl kickstart gui/$(id -u)/com.vllm-mlx.server -->
     <key>RunAtLoad</key>
-    <true/>
+    <false/>
 
     <!-- Restart on crash, but not on a clean exit (a manual `launchctl kickstart`
          stop or SIGINT shutdown stays down until asked to start again). -->

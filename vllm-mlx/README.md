@@ -38,7 +38,14 @@ NO_BUILD=1 ./install.sh      # re-render plist + reload after editing the env
 Run as your normal user (NOT root, NO sudo) — a LaunchAgent lives in your login
 session. Re-running upgrades the package (unless `NO_BUILD=1`), re-renders the
 plist, and reloads the agent, then waits for the server to log its `Uvicorn
-running` line before reporting done. `RunAtLoad` starts it now and at every login.
+running` line before reporting done.
+
+`RunAtLoad` is **false**: the installer starts the server for you, but it does
+not come back at the next login. Start it when you want it:
+
+```bash
+launchctl kickstart gui/$(id -u)/com.vllm-mlx.server
+```
 
 The venv uses `python3.12` by default (`PYTHON=python3.13 ./install.sh` to
 override). `NO_BUILD=1` skips the pip step and just re-renders/reloads.
@@ -84,13 +91,19 @@ option for the Metal backend.
 - **`KeepAlive` only on failure.** `SuccessfulExit=false` relaunches a crash
   (after `ThrottleInterval` seconds) but a clean stop or a `launchctl bootout`
   stays down. `ExitTimeOut=120` gives the model unload a graceful window.
-- **No declarative mutual exclusion.** The Linux units time-share one pool via
-  systemd `Conflicts=`; launchd has no equivalent. This Mac is expected to run a
-  single engine at a time, so `install.sh` only *warns* if the ds4-macos agent
-  is loaded. Both default to port **8000**, but they can still co-exist if they
-  bind different addresses (e.g. ds4 on the Tailscale/LAN IP, vllm-mlx on
-  `127.0.0.1`) — the real constraint is the shared unified-memory pool, not the
-  port. To truly free the memory, stop the other:
+- **No declarative mutual exclusion, which is why this agent is on-demand.** The
+  Linux units time-share one pool via systemd `Conflicts=`; launchd has no
+  equivalent, and `install.sh` can only *warn* if the ds4-macos agent is loaded.
+  When both had `RunAtLoad`, both started at every login and quietly shared the
+  pool — ~90 GB of ds4 plus ~19 GB here on a 128 GB machine, leaving ~26 GB for
+  the OS and desktop. That is survivable until the desktop grows, at which point
+  ds4 drops about 7x (measured in
+  [`../ds4-macos/EVALUATIONS.md`](../ds4-macos/EVALUATIONS.md)). Setting
+  `RunAtLoad` false makes the standing cost zero and the co-tenancy a decision
+  rather than a default. Both default to port **8000**, but the port is not the
+  real constraint — the shared unified-memory pool is; they can co-exist on
+  different addresses (e.g. ds4 on the Tailscale/LAN IP, vllm-mlx on
+  `127.0.0.1`). To free the memory, stop the other:
   `launchctl bootout gui/$(id -u)/com.antirez.ds4-server`.
 - **No auth by default.** `--host 127.0.0.1` keeps the API local. Binding to
   `0.0.0.0` exposes an unauthenticated API unless you add `--api-key`; firewall
