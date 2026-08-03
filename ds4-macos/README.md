@@ -80,9 +80,15 @@ option for the Metal backend.
   relaunched (after `ThrottleInterval` seconds) but a clean stop or a
   `launchctl bootout` stays down. `ExitTimeOut=120` gives the slow model unload a
   graceful window before SIGKILL.
-- **No mutual-exclusion.** The Linux box time-shares one 128GB pool between
-  llama.cpp / vLLM / ds4 via systemd `Conflicts=`. This Mac runs ds4 as the sole
-  engine, so there is nothing to evict.
+- **No mutual-exclusion, and nothing enforces the convention.** The Linux box
+  time-shares one 128GB pool between llama.cpp / vLLM / ds4 via systemd
+  `Conflicts=`; launchd has no equivalent. [`../vllm-mlx/`](../vllm-mlx/)
+  installs its own `RunAtLoad` agent, so both engines start at login and sit on
+  the pool together — ~90 GB for ds4 plus ~19 GB for vllm-mlx was the actual
+  state during a day of benchmarking here, undetected because free memory looks
+  the same either way. Before measuring anything, check:
+  `launchctl print gui/$(id -u)/com.vllm-mlx.server`. It costs streamed models
+  ~14% and residency nothing (see [EVALUATIONS.md](EVALUATIONS.md)).
 - **`--host 0.0.0.0` exposes an unauthenticated API.** The default is
   `127.0.0.1`. If you bind to the LAN, firewall the port — the server has no auth.
 

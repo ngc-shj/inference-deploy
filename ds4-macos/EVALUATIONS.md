@@ -266,17 +266,59 @@ not appear in it.
 Expert cache counters at 50 GiB budget, for reference: `hit_rate=0.863` with
 uniform per-layer rates, against the ~91% the write-up reports.
 
+### A second engine was resident the whole time — and it was not the cause
+
+Everything above was measured with **vllm-mlx also running**, serving
+Qwen3.6-35B-A3B-mxfp4 from `com.vllm-mlx.server.plist`. It starts at login, so
+it survived the reboot taken specifically to get a clean machine, and it held
+~19 GB throughout — which is why free memory never left 0.1–0.4 GB no matter
+which desktop applications were quit. `README.md` says this Mac runs one engine
+at a time; launchd has no equivalent of systemd's `Conflicts=`, so both agents
+simply start and nothing enforces it.
+
+Stopping it and re-running the three headline configurations:
+
+| Configuration | with vllm-mlx | vllm-mlx stopped |
+| --- | --- | --- |
+| q2, full residency (control) | 34.53 / 35.59 / 34.63 | 34.97 |
+| q2, `--ssd-streaming` | 17.99 | **20.57** |
+| MXFP4, `--ssd-streaming` | ~11 (10.4–17.8) | **11.70** |
+
+- **The control does not move, so the comparison is sound.** Residency wires its
+  ~90 GB at load and is indifferent to what else is on the machine.
+- **q2 streaming gains 14%.** Its routed weights are 72.56 GiB and the auto
+  budget caches 10496 of 11008 experts, so nearly everything fits — extra room
+  helps it stay resident.
+- **MXFP4 does not move at all.** 11.70 lands mid-range of what it was already
+  doing. Its 137 GiB of routed weights cannot fit a 71 GiB cache whatever else
+  is freed; 19 GB moves coverage from ~52% to ~55% and the miss rate barely
+  changes.
+
+This also corrects a claim made earlier on this page. "MXFP4 under streaming is
+slightly faster than q2" came from MXFP4's 18.61 against q2's 17.99 — one
+favourable draw against one ordinary one. Measured on a quiet machine the
+ordering is the other way and not close: 20.57 against 11.70.
+
+Freed memory does not stay free, incidentally: the compressor went 6.06 → 13.37
+GB during the q2 streaming run. Streaming takes what it can get, which is
+another reason free-page counts say nothing useful here.
+
 ### Practical upshot
 
-q2 0731 with full residency remains the default: 34.5 tok/s and a 30 ms first
-token beat anything streaming can offer, and it fits. MXFP4 is the choice when
-the priority is weight fidelity over latency — it gives up 1.9x throughput and
-11 seconds of first-token latency, but not because of MXFP4; the same bill comes
-with q2 if you stream it.
+q2 0731 with full residency remains the default: ~35 tok/s and a 30 ms first
+token beat anything streaming can offer, and it fits. Streaming costs 1.7x even
+for q2, and MXFP4 — which has no choice but to stream — runs at a third of
+residency with an 11 second first token. Its argument is weight fidelity, not
+speed.
 
-Measure with at least 1000 decode tokens. Nothing on this page from a shorter
-run should be trusted, which is why the earlier figures have been removed rather
-than annotated.
+Two rules for measuring on this box:
+
+- **At least 1000 decode tokens.** Nothing on this page from a shorter run
+  should be trusted, which is why the earlier figures have been removed rather
+  than annotated.
+- **Check what else is resident**, including the other engine's LaunchAgent.
+  `free` will not tell you; `launchctl print gui/$(id -u)/com.vllm-mlx.server`
+  and the swap total will.
 
 ### Context allocation: free for residency, ruinous for streaming
 
