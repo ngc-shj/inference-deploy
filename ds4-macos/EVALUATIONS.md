@@ -142,3 +142,69 @@ KV is only 1.36 GiB of that at 128K context (0.36 raw + 1.00 compressed), so
 lowering `--ctx` is not a meaningful lever on this engine — the resident model
 dominates. Dropping to the q2 quant is the only footprint lever that matters,
 and it costs nothing measurable in quality on the tasks above.
+
+---
+
+## 2026-08-03 — MXFP4 0731 and `--ssd-streaming`
+
+Trigger: [a write-up of this exact setup](https://qiita.com/sukimaengineer/items/c97f3e6aafdc63b7ac17)
+— M5 Max 128 GB, ds4, SSD streaming — reports 18–20.55 tok/s on the MXFP4 build
+and makes a claim worth chasing: DeepSeek V4 Flash was trained QAT-native in
+MXFP4 for its routed experts (~90% of the parameters), so the published MXFP4
+weights carry no post-hoc quantization error where almost all the model lives.
+
+Two things had to be corrected before measuring. The 156 GB MXFP4 file was
+dismissed in the 08-02 entry as too large for 128 GB — true only under full
+residency; `--ssd-streaming` exists precisely for this. And `main` cannot read
+the file at all (`tensor blk.0.ffn_gate_exps.weight has type 39 (unknown)`) —
+MXFP4 lives on the `ds4f-mxfp4` branch, built here at `4893e0c` (2026-08-01).
+
+Also: `--ssd-streaming` refuses to start alongside `--mtp`
+("not compatible with --mtp yet"), so streaming runs have no speculative
+decoding. The q2 reference numbers below do have it.
+
+### Result: ~4 tok/s steady, against 30–31 for q2
+
+Same prompt throughout (the `merge_intervals` task), `stream: true`, one server
+lifetime per row unless noted.
+
+| Configuration | planned | measured |
+| --- | --- | --- |
+| q2, full residency, MTP | 83.12 GiB | **30–31 tok/s** |
+| MXFP4, streaming, auto budget | 81.16 GiB | 7.4 → 4.6 → 3.3 → 3.6 → 2.8 → 3.6 → 4.6 → 4.3 → 4.2 → 3.8 |
+| MXFP4, streaming, `--ssd-streaming-cache-experts 50GB` | 53.34 GiB | 6.0, 6.2 (stable) |
+
+**Findings**
+
+- **Warming does not rescue it.** The write-up's 18–20 tok/s is a warm figure
+  resting on a ~91% expert-cache hit rate, and every earlier measurement here
+  restarted the server and so measured a cold cache. Ten requests in one
+  lifetime settle the question: the rate falls from 7.4 and then oscillates
+  between 2.8 and 4.6 with no upward trend. Free memory sits at 0.06 GB from the
+  first request onward.
+- **The auto budget saves no memory at all.** 81.16 GiB planned against full
+  residency's 83.12 GiB — it asks for the same machine and then reads the SSD
+  per token, which is strictly worse. `--ssd-streaming` only becomes a memory
+  lever when the budget is capped explicitly.
+- **Capping helps, and reverses the ordering.** At 50 GiB the collapse stops
+  (6.0 → 6.2) — smaller cache, but enough page cache left to stream a 145 GiB
+  file. Slower on the first request than auto, faster by the second, and it does
+  not decay.
+- **The real trade is 30 GiB for 5x.** Capped streaming leaves ~75 GiB to the
+  desktop instead of ~45, at 6 tok/s instead of 30. There is also an asymmetry
+  in how each recovers: q2 comes back when you quit an application (4.2 → 30.7
+  tok/s on the 08-02 Docker test), while MXFP4 under the auto budget does not —
+  quitting Docker and then Edge moved it from 6.5/2.9/2.2 to 3.0/2.8/2.6 to
+  7.4/3.3/0.2.
+- **18–20 tok/s did not reproduce, and the gap is unexplained.** The
+  configuration matched exactly — the auto budget resolved to the same
+  6.38 GiB + 71.43 GiB / 5737 experts at 12.75 MiB the write-up reports — so it
+  is not a settings difference. Machine headroom is the obvious suspect and was
+  not eliminated: even freshly rebooted with applications quit, the compressor
+  held ~20 GB of restored session state and free never exceeded 1.9 GB.
+
+MXFP4 is not the default here. Its argument is real — no quantization error in
+90% of the weights — but 5x is too much to pay for it on this box, and the
+capped configuration that behaves is also the one furthest from the write-up's
+numbers. Worth revisiting if the streaming cache policy changes; the branch is
+young.
