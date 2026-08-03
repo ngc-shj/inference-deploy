@@ -61,10 +61,13 @@ Decode rate, completion tokens ÷ wall-clock, `--ctx 131072`:
 
 **Findings**
 
-- **There is a fast phase and a slow phase, and only the slow one is
-  representative.** The first one or two requests after a load run at 27–36
-  tok/s; everything after settles at 9–15 tok/s. Sustained throughput on this
-  box is the second number.
+- **There is a fast phase and a slow phase.** The first one or two requests
+  after a load run at 27–36 tok/s; everything after settles at 9–15. This entry
+  originally called the second number the representative one. It is not — it is
+  what the machine does under memory contention, as the Docker test below
+  shows, and with the desktop quiet `ds4-bench` measures 34.5 tok/s sustained
+  over 2048 decode tokens (see the 08-03 entry). Quote 34.5 for a quiet machine
+  and 9–15 for a crowded one.
 - **Restarting the server does not reliably restore the fast phase.** Both the
   previous-build load and a mid-session reload of 0731 started out already slow.
   The fast phase reappeared only after the machine had been idle overnight,
@@ -148,179 +151,104 @@ and it costs nothing measurable in quality on the tasks above.
 ## 2026-08-03 — MXFP4 0731 and `--ssd-streaming`
 
 Trigger: [a write-up of this exact setup](https://qiita.com/sukimaengineer/items/c97f3e6aafdc63b7ac17)
-— M5 Max 128 GB, ds4, SSD streaming — reports 18–20.55 tok/s on the MXFP4 build
-and makes a claim worth chasing: DeepSeek V4 Flash was trained QAT-native in
-MXFP4 for its routed experts (~90% of the parameters), so the published MXFP4
-weights carry no post-hoc quantization error where almost all the model lives.
+— M5 Max 128 GB, ds4 — reports 18.02 tok/s on the MXFP4 build, and makes a claim
+worth chasing: DeepSeek V4 Flash was trained QAT-native in MXFP4 for its routed
+experts (~90% of the parameters), so the published MXFP4 weights carry no
+post-hoc quantization error where almost all the model lives.
 
-Two things had to be corrected before measuring. The 156 GB MXFP4 file was
-dismissed in the 08-02 entry as too large for 128 GB — true only under full
-residency; `--ssd-streaming` exists precisely for this. And `main` cannot read
-the file at all (`tensor blk.0.ffn_gate_exps.weight has type 39 (unknown)`) —
-MXFP4 lives on the `ds4f-mxfp4` branch, built here at `4893e0c` (2026-08-01).
+Setup notes. The 156 GB MXFP4 file needs `--ssd-streaming`; under full residency
+it does not fit 128 GB, which is why the 08-02 entry wrongly dismissed it.
+`main` cannot read it at all (`tensor blk.0.ffn_gate_exps.weight has type 39
+(unknown)`) — MXFP4 lives on the `ds4f-mxfp4` branch, built here at `4893e0c`.
+`--ssd-streaming` also refuses to start alongside `--mtp`.
 
-Also: `--ssd-streaming` refuses to start alongside `--mtp`
-("not compatible with --mtp yet"), so streaming runs have no speculative
-decoding. The q2 reference numbers below do have it.
+### Generation length is the whole story
 
-### Result: ~4 tok/s steady, against 30–31 for q2
+`ds4-bench`, ctx 2048, MXFP4 streaming with the auto budget:
 
-Same prompt throughout (the `merge_intervals` task), `stream: true`, one server
-lifetime per row unless noted.
+| decode tokens | steady tok/s |
+| --- | --- |
+| 128 | 7.83 |
+| 256 | 7.95 |
+| 512 | 13.95 |
+| 2048 | **18.61** |
 
-| Configuration | planned | measured |
-| --- | --- | --- |
-| q2, full residency, MTP | 83.12 GiB | **30–31 tok/s** |
-| MXFP4, streaming, auto budget | 81.16 GiB | 7.4 → 4.6 → 3.3 → 3.6 → 2.8 → 3.6 → 4.6 → 4.3 → 4.2 → 3.8 |
-| MXFP4, streaming, `--ssd-streaming-cache-experts 50GB` | 53.34 GiB | 6.0, 6.2 (stable) |
+The expert cache warms *during* a generation, and it takes on the order of a
+thousand tokens. Measure 128 and MXFP4 looks broken; measure 2048 and it
+reproduces the write-up's 18.02 average almost exactly. An entire day of
+measurements on this page's first draft — "MXFP4 runs at 6–9 tok/s", "the
+write-up does not reproduce", "the streaming path has an unexplained 2x" — were
+all artifacts of a 128- or 256-token benchmark. The write-up says plainly that
+its rate climbs from 15.08 to 20.55 as the cache warms; that was read early and
+not acted on.
+
+q2 warms too, and by more than expected: 20.01 tok/s over 128 tokens against
+34.53 over 2048. Any short benchmark on this engine understates both models.
+
+### The cost is the streaming path, not MXFP4
+
+All at ctx 2048, 2048 decode tokens:
+
+| Configuration | steady | prefill | first token |
+| --- | --- | --- | --- |
+| q2 0731, full residency | **34.53** | 497.8 | 30 ms |
+| q2 0731, `--ssd-streaming` | 17.99 | 230.4 | 6,091 ms |
+| MXFP4 0731, `--ssd-streaming` | **18.61** | 117.7 | 10,989 ms |
 
 **Findings**
 
-- **Warming does not rescue it.** The write-up's 18–20 tok/s is a warm figure
-  resting on a ~91% expert-cache hit rate, and every earlier measurement here
-  restarted the server and so measured a cold cache. Ten requests in one
-  lifetime settle the question: the rate falls from 7.4 and then oscillates
-  between 2.8 and 4.6 with no upward trend. Free memory sits at 0.06 GB from the
-  first request onward.
-- **The auto budget saves no memory at all.** 81.16 GiB planned against full
-  residency's 83.12 GiB — it asks for the same machine and then reads the SSD
-  per token, which is strictly worse. `--ssd-streaming` only becomes a memory
-  lever when the budget is capped explicitly.
-- **Capping helps, and reverses the ordering.** At 50 GiB the collapse stops
-  (6.0 → 6.2) — smaller cache, but enough page cache left to stream a 145 GiB
-  file. Slower on the first request than auto, faster by the second, and it does
-  not decay.
-- **The real trade is 30 GiB for 5x.** Capped streaming leaves ~75 GiB to the
-  desktop instead of ~45, at 6 tok/s instead of 30. There is also an asymmetry
-  in how each recovers: q2 comes back when you quit an application (4.2 → 30.7
-  tok/s on the 08-02 Docker test), while MXFP4 under the auto budget does not —
-  quitting Docker and then Edge moved it from 6.5/2.9/2.2 to 3.0/2.8/2.6 to
-  7.4/3.3/0.2.
-- **18–20 tok/s did not reproduce, and it is not the cache and not the SSD.**
-  See below — measured, not inferred. An earlier revision of this entry blamed
-  machine headroom; the counters say otherwise.
+- **Streaming costs ~1.9x, and it is the only thing that costs.** q2 loses half
+  its rate to `--ssd-streaming` alone, with its routed weights (72.56 GiB)
+  small enough that the auto budget caches 10496 of 11008 experts — so this is
+  not miss traffic, it is the path.
+- **MXFP4 is not slower than q2; under streaming it is slightly faster.** 18.61
+  against 17.99, despite 1.15x the per-token bytes and a cache that covers only
+  ~52% of its routed weights. IQ2_XXS dequantization is table-driven where
+  MXFP4 is a scale and a 4-bit field, which is the likely reason.
+- **So MXFP4 costs nothing in speed.** What it costs is that it *requires*
+  streaming, because 145 GiB will not sit resident in 128 GB. Choose MXFP4 and
+  you pay the streaming penalty; choose q2 and you can avoid it — but if you are
+  streaming either way, MXFP4 is the better of the two and carries no
+  quantization error in 90% of the weights.
+- **Time to first token is the real tax.** 10.9 s for MXFP4 and 6.1 s for q2
+  under streaming, against 30 ms resident. Long generations amortize it; an
+  interactive session does not.
+- **The write-up's 47–62% figure compares different execution modes.** It puts
+  q2 at 29–38 (full residency) against MXFP4 at 18.02 (streaming), which reads
+  as MXFP4 being half as fast. Both numbers reproduce here — 34.53 and 18.61 —
+  but the ratio between them is the streaming path, not the quantization. This
+  page made the same conflation for two days.
 
-### The cache is fine; the bytes are the problem
+### Where the time goes during a cold cache
 
-`ds4-server` never prints the streaming counters — `DS4_METAL_MEMORY_REPORT`
-only reaches `ds4_gpu_print_memory_report` from a Metal test path — so the
-worktree build was instrumented with a one-line call after each completion.
-Note that streaming replies finish through a *different* log site than
-non-streaming ones; patching the obvious one produces nothing.
+Sampled with `powermetrics` while a 128-token benchmark ran, i.e. in the cold
+regime that produced the misleading 7–9 tok/s:
 
-Capped 50 GiB, four requests:
+| phase | GPU residency | GPU power | CPU P0 | CPU power |
+| --- | --- | --- | --- | --- |
+| prefill | 93% at 1620 MHz | 24.9 W | 97% | 6.3 W |
+| decode (cold) | 0.9–2.7% | 6–27 mW | 26–38% at 1344 MHz | 1.0–1.6 W |
 
-```text
-hit_rate=0.863  hits=514297 misses=81832  evictions=78329 wraps=245496
-miss_pread=975.29 GiB  pread_ms=49839
-```
+Neither engine is working — the GPU is idle and the CPU sits at its lowest
+frequency step. That is the signature of blocking on page faults, not of a
+thermal or bandwidth limit, and it rules out the 14-inch chassis (no High Power
+Mode) as an explanation: prefill draws 24.9 W on the same machine minutes
+earlier. It also corrects an earlier reading of this file, which used the
+engine's `pread_ms` counter to argue I/O was only 13.5% of wall clock —
+`pread_ms` counts time inside `pread`, and misses served through mmap faults do
+not appear in it.
 
-- **The expert cache works.** 86.3% against the ~91% the write-up claims, and
-  per-layer rates are uniform (0.858–0.888), so no layer is starving. Whatever
-  costs the missing 5x, it is not cache misses.
-- **I/O is not the bottleneck either.** The delta for the last request alone was
-  262.9 GiB in 15.6 s of a 115.3 s wall clock — 13.5%, at ~17 GiB/s, which is
-  page-cache speed, not SSD speed. Freeing memory or resizing the budget cannot
-  buy back the other 86%.
-- **The "1.89x bytes" argument in an earlier revision of this file was wrong.**
-  It divided q2's rate by the ratio of expert sizes (12.75 vs 6.75 MiB) and
-  called the result a ceiling. Two errors. Routed experts are not the whole
-  per-token working set: ds4 reports 8.20 GiB of non-routed weights, touched
-  every token by both models, against 43 × 6 × expert_size of routed traffic —
-  3.2 GiB for MXFP4, 1.7 for q2. Including it, per-token bytes are 11.4 vs 9.9
-  GiB, a ratio of **1.15x**, not 1.89x. And neither model is near the ceiling
-  anyway: at this machine's 614 GB/s (M5 Max, 40 GPU cores) 11.4 GiB/token
-  allows ~50 tok/s, so the observed 20–30 is roughly half of a bandwidth limit,
-  not against it.
+Expert cache counters at 50 GiB budget, for reference: `hit_rate=0.863` with
+uniform per-layer rates, against the ~91% the write-up reports.
 
-### It is mostly the streaming path, not MXFP4
+### Practical upshot
 
-The comparison this entry was built on — MXFP4-streaming against
-q2-full-residency — changes the quantization and the execution path at once and
-then blames the quantization. Running **q2 0731 under `--ssd-streaming`**
-separates them. Note that q2's routed weights total 72.56 GiB and the auto
-budget caches 10496 of 11008 experts, so q2-streaming runs with essentially no
-misses — it isolates the path's own cost.
+q2 0731 with full residency remains the default: 34.5 tok/s and a 30 ms first
+token beat anything streaming can offer, and it fits. MXFP4 is the choice when
+the priority is weight fidelity over latency — it gives up 1.9x throughput and
+11 seconds of first-token latency, but not because of MXFP4; the same bill comes
+with q2 if you stream it.
 
-| ctx 2048, `ds4-bench` | steady | vs previous row |
-| --- | --- | --- |
-| q2, full residency | 20.01 | — |
-| q2, `--ssd-streaming` (cache holds ~everything) | 13.87 | 1.44x slower |
-| MXFP4, `--ssd-streaming` (cache holds ~52%) | 7.83 | 1.77x slower |
-
-Across frontiers q2-streaming runs 13.87 / 8.75 / 14.04 / 15.96 against MXFP4's
-7.83 / 9.90 / 7.04 / 7.01.
-
-So roughly 1.4x is the streaming path itself — paid even with the whole model
-cached, so it is dispatch overhead, not I/O — and a further 1.8x is MXFP4, of
-which 1.15x is bytes and the rest is real cache misses, since 137 GiB of routed
-weights cannot fit a 71 GiB cache.
-
-This also sharpens the disagreement with the write-up rather than resolving it.
-Our q2-streaming reaches 13.9–16.0 tok/s with almost no misses; the write-up's
-MXFP4 reaches 18.02 with 9% misses and 1.15x the bytes. On this machine that
-ordering is not reachable.
-
-One environmental difference is untestable here: this is a **14-inch** M5 Max,
-which has no High Power Mode. The write-up does not state its chassis. A
-sustained SSD-plus-GPU workload is where a sustained-power ceiling would show,
-and the direction fits — their rate rises through a generation, ours falls.
-Against it, `pmset -g therm` logs no warning and q2 at full residency holds
-19–20 tok/s across every frontier without decay, which a package-wide throttle
-should also have dragged down.
-
-### Same tool, both models — and a decode/prefill asymmetry
-
-`ds4-bench` rather than the server, `speed-bench/promessi_sposi.txt`, MXFP4 with
-the auto budget against **q2 0731** with full residency:
-
-| ctx | MXFP4 steady | q2 steady | MXFP4 prefill | q2 prefill | MXFP4 first token | q2 first token |
-| --- | --- | --- | --- | --- | --- | --- |
-| 2048 | 7.83 | 20.01 | 99.8 | 308.3 | 12,149 ms | 45.9 ms |
-| 4096 | 9.90 | 19.64 | 79.0 | 222.3 | 46,922 ms | 48.6 ms |
-| 6144 | 7.04 | 19.30 | 78.0 | 221.5 | 53,514 ms | 43.4 ms |
-| 8192 | 7.01 | 19.98 | 64.1 | 217.3 | 101,235 ms | 52.7 ms |
-| 32768 | 4.91 | 13.19 | 107.5 | 169.6 | 24,049 ms | 57.0 ms |
-
-- **The server numbers were not an artifact.** Bench steady (7–9.9) matches what
-  the HTTP path produced (6–9), so neither thinking mode nor the server is
-  implicated. The write-up's figure is also a server measurement — 239 tokens,
-  average 18.02 — so the two are comparable.
-- **Time to first token is 12–101 seconds** against q2's ~50 ms. Long generations
-  amortize it, which is why steady looks better than `gen_tps`, but for
-  interactive use this is the number that decides it.
-- **Prefill and decode disagree about who is slow.** At 32K the q2:MXFP4 ratio is
-  1.58x on prefill but 2.69x on decode; the write-up reports 2.09x and 1.6–2.1x.
-  Our prefill ratio is *better* than theirs and our decode ratio is worse. A
-  uniformly slow MXFP4 path — bad kernels, slow I/O — would drag both equally,
-  so something specific to decode is left over. The bandwidth arithmetic
-  predicts 1.89x; the write-up sits on it, we are ~1.4x past it.
-
-### Hypotheses tested and rejected
-
-Recorded so the next attempt starts further along:
-
-| Hypothesis | Verdict | Evidence |
-| --- | --- | --- |
-| Expert cache is thrashing | No | hit_rate 0.863 vs ~0.91 claimed, uniform per layer |
-| SSD I/O is the bottleneck | No | 13.5% of wall clock, ~17 GiB/s = page-cache speed |
-| Thinking mode / server overhead | No | ds4-bench (no-thinking) reproduces the same rates |
-| Prefill seeds the cache and we never fed it one | No | 32K prefill gave 4.91 tok/s, *worse* than 2K's 7.83 |
-| Fast MXFP4 kernel is gated off | No | it needs `expert_used_count == 6`; the model is 6 |
-| Kernels are an unoptimized reference path | No | simdgroup kernels with fused `pair_swiglu`/`slots6`/`sum6` variants; `make test-mxfp4-metal` passes |
-| Wrong build or a missing opt-in | No | same commit `4893e0c`; the only MXFP4 env var is a *disable* switch |
-
-The machine is not generally slow: q2 0731 lands at 30–31 tok/s on short
-contexts, inside the 29–38 the write-up quotes for its own q2. Whatever the gap
-is, it is specific to MXFP4 decode here.
-
-One asymmetry worth passing upstream: in the write-up the rate *rises* through a
-generation (15.08 → 20.55 over 239 tokens) as the cache warms. Here it falls,
-in every configuration tried.
-
-MXFP4 is not the default here. Its argument is real — no quantization error in
-90% of the weights — and a ~1.9x ceiling against q2 would be a defensible trade.
-5–10 tok/s with a 12–101 second first token is not, and the shortfall is in
-neither the cache, the SSD, the kernels, nor the measurement method. Worth
-re-measuring against a later branch, or asking upstream directly — the ruled-out
-list above is specific enough to make that a useful question.
+Measure with at least 1000 decode tokens. Nothing on this page from a shorter
+run should be trusted, which is why the earlier figures have been removed rather
+than annotated.
