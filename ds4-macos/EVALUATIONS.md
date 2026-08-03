@@ -222,15 +222,52 @@ miss_pread=975.29 GiB  pread_ms=49839
   262.9 GiB in 15.6 s of a 115.3 s wall clock — 13.5%, at ~17 GiB/s, which is
   page-cache speed, not SSD speed. Freeing memory or resizing the budget cannot
   buy back the other 86%.
-- **An MXFP4 expert is 12.75 MiB against q2's 6.75.** Decode is bandwidth-bound
-  in the activated bytes, so 1.89x the bytes caps MXFP4 at roughly half of q2
-  even with a perfect cache: 30 ÷ 1.89 ≈ 16 tok/s. That is where the write-up's
-  18–20 sits — near the ceiling — and 6–9 is a further 2x below it.
+- **The "1.89x bytes" argument in an earlier revision of this file was wrong.**
+  It divided q2's rate by the ratio of expert sizes (12.75 vs 6.75 MiB) and
+  called the result a ceiling. Two errors. Routed experts are not the whole
+  per-token working set: ds4 reports 8.20 GiB of non-routed weights, touched
+  every token by both models, against 43 × 6 × expert_size of routed traffic —
+  3.2 GiB for MXFP4, 1.7 for q2. Including it, per-token bytes are 11.4 vs 9.9
+  GiB, a ratio of **1.15x**, not 1.89x. And neither model is near the ceiling
+  anyway: at this machine's 614 GB/s (M5 Max, 40 GPU cores) 11.4 GiB/token
+  allows ~50 tok/s, so the observed 20–30 is roughly half of a bandwidth limit,
+  not against it.
 
-What costs that last 2x is not established here. The branch commit is titled
-"Add **portable** Metal MXFP4 expert inference", which reads like a reference
-implementation rather than a tuned one, but that is a guess from a commit
-message, not a measurement.
+### It is mostly the streaming path, not MXFP4
+
+The comparison this entry was built on — MXFP4-streaming against
+q2-full-residency — changes the quantization and the execution path at once and
+then blames the quantization. Running **q2 0731 under `--ssd-streaming`**
+separates them. Note that q2's routed weights total 72.56 GiB and the auto
+budget caches 10496 of 11008 experts, so q2-streaming runs with essentially no
+misses — it isolates the path's own cost.
+
+| ctx 2048, `ds4-bench` | steady | vs previous row |
+| --- | --- | --- |
+| q2, full residency | 20.01 | — |
+| q2, `--ssd-streaming` (cache holds ~everything) | 13.87 | 1.44x slower |
+| MXFP4, `--ssd-streaming` (cache holds ~52%) | 7.83 | 1.77x slower |
+
+Across frontiers q2-streaming runs 13.87 / 8.75 / 14.04 / 15.96 against MXFP4's
+7.83 / 9.90 / 7.04 / 7.01.
+
+So roughly 1.4x is the streaming path itself — paid even with the whole model
+cached, so it is dispatch overhead, not I/O — and a further 1.8x is MXFP4, of
+which 1.15x is bytes and the rest is real cache misses, since 137 GiB of routed
+weights cannot fit a 71 GiB cache.
+
+This also sharpens the disagreement with the write-up rather than resolving it.
+Our q2-streaming reaches 13.9–16.0 tok/s with almost no misses; the write-up's
+MXFP4 reaches 18.02 with 9% misses and 1.15x the bytes. On this machine that
+ordering is not reachable.
+
+One environmental difference is untestable here: this is a **14-inch** M5 Max,
+which has no High Power Mode. The write-up does not state its chassis. A
+sustained SSD-plus-GPU workload is where a sustained-power ceiling would show,
+and the direction fits — their rate rises through a generation, ours falls.
+Against it, `pmset -g therm` logs no warning and q2 at full residency holds
+19–20 tok/s across every frontier without decay, which a package-wide throttle
+should also have dragged down.
 
 ### Same tool, both models — and a decode/prefill asymmetry
 
