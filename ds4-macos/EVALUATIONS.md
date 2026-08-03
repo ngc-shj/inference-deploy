@@ -174,13 +174,14 @@ it does not fit 128 GB, which is why the 08-02 entry wrongly dismissed it.
 | 2048 | **18.61** |
 
 The expert cache warms *during* a generation, and it takes on the order of a
-thousand tokens. Measure 128 and MXFP4 looks broken; measure 2048 and it
-reproduces the write-up's 18.02 average almost exactly. An entire day of
-measurements on this page's first draft — "MXFP4 runs at 6–9 tok/s", "the
-write-up does not reproduce", "the streaming path has an unexplained 2x" — were
-all artifacts of a 128- or 256-token benchmark. The write-up says plainly that
-its rate climbs from 15.08 to 20.55 as the cache warms; that was read early and
-not acted on.
+thousand tokens. Measure 128 and MXFP4 looks broken; measure 2048 and it reaches
+the write-up's 18.02 average — though repeats put 2048-token runs anywhere from
+10.4 to 17.8, so "reaches" means the top of a wide range, not a stable match.
+An entire day of measurements on this page's first draft — "MXFP4 runs at 6–9
+tok/s", "the write-up does not reproduce", "the streaming path has an
+unexplained 2x" — were all artifacts of a 128- or 256-token benchmark. The
+write-up says plainly that its rate climbs from 15.08 to 20.55 as the cache
+warms; that was read early and not acted on.
 
 q2 warms too, and by more than expected: 20.01 tok/s over 128 tokens against
 34.53 over 2048. Any short benchmark on this engine understates both models.
@@ -195,9 +196,10 @@ All at ctx 2048, 2048 decode tokens, `--ctx-alloc` left at its default of 4,097:
 | q2 0731, `--ssd-streaming` | 17.99 | 230.4 | 6,091 ms |
 | MXFP4 0731, `--ssd-streaming` | **18.61** | 117.7 | 10,989 ms |
 
-The allocation matters for the streamed rows and is not what the LaunchAgent
-runs — at the deployed 131,072 the MXFP4 figure is 14.00, not 18.61. See
-"Context allocation" below. The residency row is unaffected.
+Every streamed number here is a single run, and repeats later on this page put
+MXFP4 anywhere between 10.4 and 17.8 tok/s under identical settings. Read 18.61
+as the top of that range, not as the figure. The residency rows are stable
+across repeats (34.5–35.6).
 
 **Findings**
 
@@ -274,28 +276,35 @@ decode tokens so only the allocation changes:
 | MXFP4, streaming, 60 GiB budget | 1,048,576 | 8.39 | 8.00 | 77.37 GiB | 7.88 |
 
 131,072 is what the LaunchAgent runs. `ds4-bench` defaults `--ctx-alloc` to
-`ctx-max + gen-tokens + 1`, which for this sweep is 4,097 — so a benchmark left
-on its default is not measuring the deployed configuration, and every MXFP4
-figure elsewhere on this page was taken there.
+`ctx-max + gen-tokens + 1`, which for these sweeps is 4,097 — so a benchmark
+left on its default is not measuring the deployed configuration.
 
-- **Full residency is indifferent to the allocation.** 34.53 / 35.59 / 34.63
-  across three orders of magnitude. Only the plan grows, to 97.15 GiB at 1M,
-  which leaves ~31 GB for the desktop — the regime where the 08-02 collapse
-  begins.
-- **Streaming degrades monotonically with it.** 18.61 → 14.00 → 4.50. The
-  automatic expert budget does not account for the context allocation: it asks
-  for the same 77.81 GiB at every size, so KV and buffer growth comes straight
-  out of the room the cache actually needs. Even the 1.9 GiB step from 4,097 to
-  131,072 costs a quarter of the throughput.
-- **1M costs ~14 GiB, and only half of it is KV.** Buffers go 1.00 → 8.00 GiB
-  alongside KV's 1.36 → 8.39.
-- **Capping the budget does not rescue 1M.** 60 GiB brings the plan down to
-  77.37 GiB and recovers only to 7.88, because the cache holds 4306 experts
-  instead of 5737 and misses more. Raise the budget and memory thrashes; lower
-  it and the hit rate falls. No setting on this machine gets 1M streaming near
-  14.
+The single-run figures above suggested streaming degraded with the allocation,
+18.61 → 14.00 → 4.50. Repeating the first two alternately, three times each,
+does not support that:
 
-So 128K is not a conservative default to be raised when convenient — it is
-already costing a streamed model 25% against a small allocation, and 1M is out
-of the question. For q2 at full residency the allocation is free, and 1M is
-available if the desktop can live in 31 GB.
+| ctx-alloc | run 1 | run 2 | run 3 |
+| --- | --- | --- | --- |
+| 4,097 | 17.84 | 10.38 | 11.52 |
+| 131,072 | 11.19 | 11.54 | 11.16 |
+
+- **4,097 and 131,072 are indistinguishable.** Drop the first run of the session
+  and both sit at 10.4–11.5. The 1.88 GiB the larger allocation costs is not
+  worth 25% of anything, which is what the arithmetic said in the first place:
+  81.16 GiB planned on a 128 GiB machine leaves ~47 GiB nominally spare.
+- **Free memory does not predict the rate.** The slowest run of the six, 10.38,
+  started with 73.5 GB free; the fastest, 17.84, started with 2.1 GB.
+- **Streamed throughput is simply unstable — 10.4 to 17.8, a factor of 1.7 —
+  where residency is not.** q2 measured 34.53 / 35.59 / 34.63 across the same
+  three allocations. Any single streaming number on this page, including the
+  18.61 quoted above, is one draw from a wide distribution.
+- **1M is still worse, but on n=1.** 4.50 with the auto budget sits below the
+  observed spread, and capping at 60 GiB moved it to 7.88 — consistent with the
+  budget ignoring the allocation and the cache losing room, since 8.39 GiB of KV
+  and 8.00 of buffers is a different order of intrusion than 1.88. It has not
+  been repeated.
+
+So the honest reading is that MXFP4 under streaming runs around 11 tok/s here,
+occasionally 18 on a favourable first run, and the allocation does not matter up
+to 128K. For q2 at full residency the allocation is free at any size; 1M only
+costs the 97.15 GiB plan, which leaves ~31 GB for the desktop.
