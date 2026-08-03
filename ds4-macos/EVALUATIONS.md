@@ -232,8 +232,58 @@ What costs that last 2x is not established here. The branch commit is titled
 implementation rather than a tuned one, but that is a guess from a commit
 message, not a measurement.
 
+### Same tool, both models — and a decode/prefill asymmetry
+
+`ds4-bench` rather than the server, `speed-bench/promessi_sposi.txt`, MXFP4 with
+the auto budget against **q2 0731** with full residency:
+
+| ctx | MXFP4 steady | q2 steady | MXFP4 prefill | q2 prefill | MXFP4 first token | q2 first token |
+| --- | --- | --- | --- | --- | --- | --- |
+| 2048 | 7.83 | 20.01 | 99.8 | 308.3 | 12,149 ms | 45.9 ms |
+| 4096 | 9.90 | 19.64 | 79.0 | 222.3 | 46,922 ms | 48.6 ms |
+| 6144 | 7.04 | 19.30 | 78.0 | 221.5 | 53,514 ms | 43.4 ms |
+| 8192 | 7.01 | 19.98 | 64.1 | 217.3 | 101,235 ms | 52.7 ms |
+| 32768 | 4.91 | 13.19 | 107.5 | 169.6 | 24,049 ms | 57.0 ms |
+
+- **The server numbers were not an artifact.** Bench steady (7–9.9) matches what
+  the HTTP path produced (6–9), so neither thinking mode nor the server is
+  implicated. The write-up's figure is also a server measurement — 239 tokens,
+  average 18.02 — so the two are comparable.
+- **Time to first token is 12–101 seconds** against q2's ~50 ms. Long generations
+  amortize it, which is why steady looks better than `gen_tps`, but for
+  interactive use this is the number that decides it.
+- **Prefill and decode disagree about who is slow.** At 32K the q2:MXFP4 ratio is
+  1.58x on prefill but 2.69x on decode; the write-up reports 2.09x and 1.6–2.1x.
+  Our prefill ratio is *better* than theirs and our decode ratio is worse. A
+  uniformly slow MXFP4 path — bad kernels, slow I/O — would drag both equally,
+  so something specific to decode is left over. The bandwidth arithmetic
+  predicts 1.89x; the write-up sits on it, we are ~1.4x past it.
+
+### Hypotheses tested and rejected
+
+Recorded so the next attempt starts further along:
+
+| Hypothesis | Verdict | Evidence |
+| --- | --- | --- |
+| Expert cache is thrashing | No | hit_rate 0.863 vs ~0.91 claimed, uniform per layer |
+| SSD I/O is the bottleneck | No | 13.5% of wall clock, ~17 GiB/s = page-cache speed |
+| Thinking mode / server overhead | No | ds4-bench (no-thinking) reproduces the same rates |
+| Prefill seeds the cache and we never fed it one | No | 32K prefill gave 4.91 tok/s, *worse* than 2K's 7.83 |
+| Fast MXFP4 kernel is gated off | No | it needs `expert_used_count == 6`; the model is 6 |
+| Kernels are an unoptimized reference path | No | simdgroup kernels with fused `pair_swiglu`/`slots6`/`sum6` variants; `make test-mxfp4-metal` passes |
+| Wrong build or a missing opt-in | No | same commit `4893e0c`; the only MXFP4 env var is a *disable* switch |
+
+The machine is not generally slow: q2 0731 lands at 30–31 tok/s on short
+contexts, inside the 29–38 the write-up quotes for its own q2. Whatever the gap
+is, it is specific to MXFP4 decode here.
+
+One asymmetry worth passing upstream: in the write-up the rate *rises* through a
+generation (15.08 → 20.55 over 239 tokens) as the cache warms. Here it falls,
+in every configuration tried.
+
 MXFP4 is not the default here. Its argument is real — no quantization error in
-90% of the weights — and the ceiling is about half of q2 by arithmetic, which
-would be a defensible trade. 6–9 tok/s is not, and since the shortfall is in
-neither the cache nor the SSD, no amount of tuning on this side will move it.
-Worth re-measuring when the MXFP4 expert kernels land in a tuned form.
+90% of the weights — and a ~1.9x ceiling against q2 would be a defensible trade.
+5–10 tok/s with a 12–101 second first token is not, and the shortfall is in
+neither the cache, the SSD, the kernels, nor the measurement method. Worth
+re-measuring against a later branch, or asking upstream directly — the ruled-out
+list above is specific enough to make that a useful question.
