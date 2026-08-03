@@ -1,6 +1,6 @@
 # ds4-server (DwarfStar) — macOS LaunchAgent deployment
 
-Builds DwarfStar with `make metal` and runs `ds4-server` as a per-user
+Builds DwarfStar with `make` and runs `ds4-server` as a per-user
 **LaunchAgent** on Apple Silicon (Metal). This is the macOS counterpart of
 [`../ds4/`](../ds4/), which targets a Linux/CUDA box with systemd.
 
@@ -23,7 +23,7 @@ directory with `CONFDIR=`, `KVDIR=`, or `LOGDIR=`.
 ## Install / upgrade
 
 ```bash
-./install.sh                 # build (make metal) -> render plist -> load agent
+./install.sh                 # build (make) -> render plist -> load agent
 $EDITOR "${XDG_CONFIG_HOME:-$HOME/.config}/ds4/ds4-server.env"
 NO_BUILD=1 ./install.sh      # re-render plist + reload after editing the env
 ```
@@ -62,6 +62,11 @@ option for the Metal backend.
 
 ## Design notes (the non-obvious bits)
 
+- **There is no `make metal` target.** On Darwin the Metal build is the
+  Makefile's default target; `metal` names only the `metal/` shader directory in
+  the checkout, so `make metal` matches that directory and exits "Nothing to be
+  done" — a silent no-op that leaves a stale binary in place while the installer
+  reports success. `MAKE_TARGET` therefore defaults to `all`.
 - **Flags are baked into the plist, not read at launch.** systemd word-splits
   `$DS4_SERVER_ARGS` in `ExecStart`; launchd does not split env vars into
   `ProgramArguments`. So `install.sh` expands each flag from
@@ -83,8 +88,34 @@ option for the Metal backend.
 
 ## Current model
 
-DeepSeek V4 Flash (see [`../ds4/`](../ds4/) and the repo's `download_model.sh`),
-optionally with the MTP draft head for speculative decoding
-(`--mtp <file> --mtp-draft 2`). MTP helps predictable output (code, structured
-lists); on divergent free-form text its draft-acceptance rate is low and it can
-be marginally slower. See `ds4-server.env.example`.
+DeepSeek V4 Flash **0731**, q2 quant
+(`IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731`, 86.7 GB), with the
+MTP draft head for speculative decoding (`--mtp <file> --mtp-draft 2`). ds4's
+guidance is that MTP helps predictable output (code, structured lists) and can
+be marginally slower on divergent text, but an A/B over three alternated reps
+measured no difference either way on a coding workload — 16.1 against 16.6
+tok/s, inside the run-to-run spread. It stays on. See
+[EVALUATIONS.md](EVALUATIONS.md) and `ds4-server.env.example`.
+
+`download_model.sh` in the ds4 checkout has no `-0731` target as of `54b36ed`;
+its filenames are hardcoded and not env-overridable, so the 0731 GGUFs have to
+be pulled directly from
+[antirez/deepseek-v4-gguf](https://huggingface.co/antirez/deepseek-v4-gguf) and
+the `ds4flash.gguf` symlink repointed by hand. Use `curl -C -` with
+`--speed-limit 1024 --speed-time 60`: without the stall timeout a network change
+mid-transfer leaves a half-open connection that `--retry` never notices, and the
+download hangs silently.
+
+## Measured throughput
+
+Numbers and protocol are in [EVALUATIONS.md](EVALUATIONS.md). The short version:
+decode runs at ~30 tok/s with memory to spare and falls to 4–15 tok/s when the
+rest of the desktop crowds it out, and a server restart does not clear it —
+**quitting Docker took the same prompt from 4.2 back to 30.7 tok/s.**
+
+The model wires ~90 GB, leaving ~35 GB for everything else. Keep heavy
+applications closed while serving. When throughput drops, read `vm_stat` free
+pages and compressor size — *not* `vm.swapusage`, which reports a file macOS
+resizes on its own and stays flat through a collapse. Activity Monitor's
+`ds4-server` row is misleading for the same reason: the model is counted under
+wired memory, not against the process.

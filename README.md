@@ -25,7 +25,7 @@ not auto-evict).
 
 | Dir | Engine | Build |
 | --- | --- | --- |
-| [`ds4-macos/`](ds4-macos/) | DwarfStar `ds4-server` (`--metal`) | from source (`make metal`) |
+| [`ds4-macos/`](ds4-macos/) | DwarfStar `ds4-server` (`--metal`) | from source (`make`) |
 | [`vllm-mlx/`](vllm-mlx/) | vllm-mlx `serve` (OpenAI API, MLX backend) | pip (dedicated venv) |
 
 Measured numbers for Apple Silicon — MLX 4-bit format ranking, vllm-mlx thinking
@@ -33,6 +33,12 @@ control, and vllm-mlx vs a Metal-built llama.cpp — are in
 [`llama.cpp/EVALUATIONS-macos.md`](llama.cpp/EVALUATIONS-macos.md). Headline:
 on Apple Silicon the bandwidth law flips the GB10 ranking — MLX `mxfp4` beats
 both MLX `nvfp4` and a Metal llama.cpp GGUF at equal bit width.
+
+DeepSeek V4 Flash on ds4 is measured separately in
+[`ds4-macos/EVALUATIONS.md`](ds4-macos/EVALUATIONS.md): the 0731 weights are not
+distinguishable from their predecessor on single-shot coding tasks, and decode
+falls from ~30 tok/s to 4–15 once the rest of the desktop competes with the
+model's ~90 GB wired working set — quitting Docker alone restored 4.2 → 30.7.
 
 ## Mutual exclusion — run one engine at a time
 
