@@ -90,11 +90,12 @@ option for the Metal backend.
 
 DeepSeek V4 Flash **0731**, q2 quant
 (`IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731`, 86.7 GB), with the
-MTP draft head for speculative decoding (`--mtp <file> --mtp-draft 2`). MTP
-helps predictable output (code, structured lists); on divergent free-form text
-its draft-acceptance rate is low and it can be marginally slower — measured at
-a 40% penalty on reasoning-heavy prompts, see below. See
-`ds4-server.env.example`.
+MTP draft head for speculative decoding (`--mtp <file> --mtp-draft 2`). ds4's
+guidance is that MTP helps predictable output (code, structured lists) and can
+be marginally slower on divergent text, but an A/B over three alternated reps
+measured no difference either way on a coding workload — 16.1 against 16.6
+tok/s, inside the run-to-run spread. It stays on. See
+[EVALUATIONS.md](EVALUATIONS.md) and `ds4-server.env.example`.
 
 `download_model.sh` in the ds4 checkout has no `-0731` target as of `54b36ed`;
 its filenames are hardcoded and not env-overridable, so the 0731 GGUFs have to

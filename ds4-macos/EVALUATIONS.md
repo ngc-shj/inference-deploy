@@ -123,16 +123,35 @@ rather than `vm.swapusage` when throughput drops. The one question still worth
 putting upstream is whether Metal residency, once lost, is ever re-requested;
 the startup log's `residency requested in 15557 ms` happens exactly once.
 
-### MTP costs throughput on reasoning-heavy prompts
+### MTP: no measurable effect either way
 
-Comparing the two pass-1 rows, which are the only ones measured before the
-collapse, MTP is slower on all three tasks, and worst on the longest generation
-— 19.1 vs 26.9 tok/s on task 2, a 40% penalty. ds4's own guidance says draft
-acceptance is high on predictable output and low on divergent free-form text;
-these prompts are thinking-heavy, so they sit on the bad side of that split. In
-the degraded state the difference washes out. MTP is left enabled by default
-since the tasks here are not representative of all use, but it is the first flag
-to drop for a reasoning workload.
+An earlier revision of this entry read a 40% penalty off the pass-1 rows above
+(19.1 with `--mtp` against 26.9 without) and concluded MTP was the first flag to
+drop for reasoning work. That comparison was one sample per arm on a
+memory-contended machine, which the rest of this page has since shown to be
+worth nothing.
+
+Retested on 08-03 with the protocol the rest of these numbers now use: q2 0731
+at full residency, `--ctx 131072`, through the server, one open-ended coding
+prompt generating thousands of tokens, arms alternated, three reps each.
+
+| | rep 1 | rep 2 | rep 3 | mean |
+| --- | --- | --- | --- | --- |
+| `--mtp ... --mtp-draft 2` | 17.1 | 15.2 | 15.9 | 16.1 |
+| no MTP | 16.2 | 16.8 | 16.7 | 16.6 |
+
+The arms overlap; the 3% gap sits inside the spread of the MTP arm alone
+(15.2–17.1). Nothing here justifies changing the default in either direction, so
+MTP stays enabled. ds4's own guidance — draft acceptance is high on predictable
+output, low on divergent text — may well hold, but this workload does not
+resolve it.
+
+Worth noting separately: **15–17 tok/s is what the server delivers on a real
+coding prompt**, against 34.5 from `ds4-bench` at the same quant and residency.
+The difference is the context growing past 8,000 tokens mid-generation, the
+thinking tokens, and KV persistence — none of which the benchmark does. Quote
+the benchmark for comparing configurations and this number for what a user
+sees.
 
 ### Footprint
 
