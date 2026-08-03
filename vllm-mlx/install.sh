@@ -146,9 +146,12 @@ fi
 # Truncate the log first so the readiness poll below matches THIS boot's
 # "Uvicorn running" line, not a stale one from a previous run.
 : > "$LOGDIR/vllm-mlx-server.err.log" 2>/dev/null || true
-# bootstrap loads the plist; RunAtLoad starts it. No `kickstart -k` here — that
-# would kill the just-started process and reload the model a second time.
+# bootstrap loads the plist. RunAtLoad is false — the agent is on-demand so it
+# does not sit on the memory pool alongside ds4 at every login — so nothing is
+# running yet and kickstart has to start it explicitly. Plain `kickstart`, not
+# `-k`: there is no process to replace.
 launchctl bootstrap "$domain" "$PLIST"
+launchctl kickstart "$domain/$LABEL"
 
 # --- 6. wait for readiness ----------------------------------------------------
 # bootstrap returns once launchd has SPAWNED the process, not when the server is
