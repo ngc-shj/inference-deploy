@@ -196,15 +196,44 @@ lifetime per row unless noted.
   tok/s on the 08-02 Docker test), while MXFP4 under the auto budget does not —
   quitting Docker and then Edge moved it from 6.5/2.9/2.2 to 3.0/2.8/2.6 to
   7.4/3.3/0.2.
-- **18–20 tok/s did not reproduce, and the gap is unexplained.** The
-  configuration matched exactly — the auto budget resolved to the same
-  6.38 GiB + 71.43 GiB / 5737 experts at 12.75 MiB the write-up reports — so it
-  is not a settings difference. Machine headroom is the obvious suspect and was
-  not eliminated: even freshly rebooted with applications quit, the compressor
-  held ~20 GB of restored session state and free never exceeded 1.9 GB.
+- **18–20 tok/s did not reproduce, and it is not the cache and not the SSD.**
+  See below — measured, not inferred. An earlier revision of this entry blamed
+  machine headroom; the counters say otherwise.
+
+### The cache is fine; the bytes are the problem
+
+`ds4-server` never prints the streaming counters — `DS4_METAL_MEMORY_REPORT`
+only reaches `ds4_gpu_print_memory_report` from a Metal test path — so the
+worktree build was instrumented with a one-line call after each completion.
+Note that streaming replies finish through a *different* log site than
+non-streaming ones; patching the obvious one produces nothing.
+
+Capped 50 GiB, four requests:
+
+```text
+hit_rate=0.863  hits=514297 misses=81832  evictions=78329 wraps=245496
+miss_pread=975.29 GiB  pread_ms=49839
+```
+
+- **The expert cache works.** 86.3% against the ~91% the write-up claims, and
+  per-layer rates are uniform (0.858–0.888), so no layer is starving. Whatever
+  costs the missing 5x, it is not cache misses.
+- **I/O is not the bottleneck either.** The delta for the last request alone was
+  262.9 GiB in 15.6 s of a 115.3 s wall clock — 13.5%, at ~17 GiB/s, which is
+  page-cache speed, not SSD speed. Freeing memory or resizing the budget cannot
+  buy back the other 86%.
+- **An MXFP4 expert is 12.75 MiB against q2's 6.75.** Decode is bandwidth-bound
+  in the activated bytes, so 1.89x the bytes caps MXFP4 at roughly half of q2
+  even with a perfect cache: 30 ÷ 1.89 ≈ 16 tok/s. That is where the write-up's
+  18–20 sits — near the ceiling — and 6–9 is a further 2x below it.
+
+What costs that last 2x is not established here. The branch commit is titled
+"Add **portable** Metal MXFP4 expert inference", which reads like a reference
+implementation rather than a tuned one, but that is a guess from a commit
+message, not a measurement.
 
 MXFP4 is not the default here. Its argument is real — no quantization error in
-90% of the weights — but 5x is too much to pay for it on this box, and the
-capped configuration that behaves is also the one furthest from the write-up's
-numbers. Worth revisiting if the streaming cache policy changes; the branch is
-young.
+90% of the weights — and the ceiling is about half of q2 by arithmetic, which
+would be a defensible trade. 6–9 tok/s is not, and since the shortfall is in
+neither the cache nor the SSD, no amount of tuning on this side will move it.
+Worth re-measuring when the MXFP4 expert kernels land in a tuned form.
