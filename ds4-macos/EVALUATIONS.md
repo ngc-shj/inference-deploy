@@ -252,3 +252,34 @@ with q2 if you stream it.
 Measure with at least 1000 decode tokens. Nothing on this page from a shorter
 run should be trusted, which is why the earlier figures have been removed rather
 than annotated.
+
+### Context allocation: free for residency, ruinous for streaming
+
+`--ctx 1048576` is what the Linux sibling runs; macOS defaults to 131072. Cost
+of the allocation alone, measured at the same 2048-token frontier and 2048
+decode tokens so only the allocation changes:
+
+| Configuration | KV | buffers | planned | steady |
+| --- | --- | --- | --- | --- |
+| q2, residency, default alloc | 1.36 | 1.00 | 83.12 GiB | 34.53 |
+| q2, residency, 1M alloc | 8.39 | 8.00 | 97.15 GiB | **34.63** |
+| MXFP4, streaming, default alloc | 1.36 | 1.00 | 79.28 GiB | **18.61** |
+| MXFP4, streaming, 1M alloc, auto budget | 8.39 | 8.00 | 95.18 GiB | 4.50 |
+| MXFP4, streaming, 1M alloc, 60 GiB budget | 8.39 | 8.00 | 77.37 GiB | 7.88 |
+
+- **1M costs ~14 GiB, and only half of it is KV.** Graph buffers go 1.00 → 8.00
+  GiB alongside KV's 1.36 → 8.39. The env file's old note blamed KV alone.
+- **Full residency pays nothing in speed.** 34.53 → 34.63 is noise. The cost is
+  the 97.15 GiB plan, which leaves ~31 GB for the desktop — the regime where the
+  08-02 collapse begins.
+- **Streaming breaks, and capping the budget does not fix it.** The auto budget
+  ignores the context allocation entirely: it still asks for 77.81 GiB of
+  experts on top of a KV that grew by 7 GiB, and MXFP4 falls to 4.50 tok/s.
+  Capping at 60 GiB brings the plan back down to 77.37 GiB and recovers only to
+  7.88, because the cache now holds 4306 experts instead of 5737 and misses
+  more. Raise the budget and memory thrashes; lower it and the hit rate falls.
+  There is no setting on this machine that gets 1M streaming near 18.61.
+
+So 128K is not a conservative default to be raised when convenient — it is the
+right ceiling for a streamed model on 128 GB. For q2 at full residency 1M is
+available at no throughput cost, if the desktop can live in 31 GB.
