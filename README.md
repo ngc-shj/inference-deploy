@@ -40,6 +40,11 @@ distinguishable from their predecessor on single-shot coding tasks, and decode
 falls from ~30 tok/s to 4–15 once the rest of the desktop competes with the
 model's ~90 GB wired working set — quitting Docker alone restored 4.2 → 30.7.
 
+Prep notes for a model not yet measured — which quantization to pick per box and
+what to check before running — are in
+[`docs/QWEN3.8-27B-PREP.md`](docs/QWEN3.8-27B-PREP.md) (desk research, not
+measurements).
+
 ## Mutual exclusion — run one engine at a time
 
 The 128 GB pool fits only one engine's working set at a time. The on-demand
