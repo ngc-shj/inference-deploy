@@ -189,20 +189,29 @@ instruct sampling, run 1 discarded.
 The baseline reproducing 138.7 against the 138–140 recorded on 2026-07-11
 is what makes the 34.9 trustworthy: same script, same day, same box.
 
-**Quality vs the resident model** — the toy coding task does not discriminate
-(both 4/4 doctests, both solve the agent-loop task in 2 steps / 3 tool calls),
-exactly as the prep doc warned. Two axes did:
+**Quality vs the resident model** — everything mechanically scorable came out
+level, exactly as the prep doc warned it would:
 
 | Axis | Qwen3.8-27B | resident 35B-A3B |
 | --- | --- | --- |
-| Japanese honorifics (5 repeats of one 尊敬語 rewrite) | **1/5** | **5/5** |
-| Japanese, 5 mechanically-scored tasks | 3/5 | 4/5 |
-| Vision (synthetic images: digits, count, colour) | **3/3** | n/a |
+| Coding (doctests) / agent loop | 4/4; solved in 2 steps | same |
+| Harder verifiable set, thinking OFF and ON (see [EVALUATIONS.md](EVALUATIONS.md)) | 9/9 both modes | 9/9 |
 | Long-context needle retrieval, to 82,848 prompt tokens | correct at every depth | not measured |
+| Vision (synthetic images: digits, count, colour) | **3/3** | n/a |
+| **Japanese honorifics** (5 repeats of one 尊敬語 rewrite) | **1/5** | **5/5** |
+| Japanese, 5 mechanically-scored tasks | 3/5 | 4/5 |
 
-Qwen3.8-27B's honorific failures are not near-misses: 「お見になりました」
-twice (not a Japanese form at all) and 「拝見された」 (humble form applied to a
-superior's action). The resident model wrote 「ご覧になった」 every time.
+**Japanese is the only deficit anything here could measure**, and the failures
+are not near-misses: 「お見になりました」 twice (not a Japanese form at all) and
+「拝見された」 (humble form applied to a superior's action). The resident model
+wrote 「ご覧になった」 every time. Independent Japanese coverage of this model
+reports the same shape of problem — Simplified-Chinese bleed, and losing to
+Gemma4 26B/12B on Japanese — so this is the model, not the harness.
+
+On every other axis it is the resident model's equal, and the public verdict on
+it is strongly positive. That verdict rests on open-ended generation quality and
+long-horizon agentic work, which need a judge; nothing here provides one. "No
+difference measured" is a statement about this harness.
 
 **Findings**
 
@@ -239,9 +248,15 @@ superior's action). The resident model wrote 「ご覧になった」 every time
   (the first flag errors without the second). Without them an agent driver gets
   a clean, silent no-op — opencode ran four turns and changed nothing.
 
-**Verdict**: not adopted. Slower than the resident model by 4×, and worse at
-Japanese honorifics — the one axis where a real difference showed. Vision is the
-only capability it adds, and reaching it requires upgrading vllm-mlx to 0.4.1.
+**Verdict**: not adopted **on speed and on Japanese** — 4× slower than the
+resident model, and the only model here that cannot reliably produce 尊敬語.
+Vision is the one capability it adds, and reaching it requires upgrading
+vllm-mlx to 0.4.1.
+
 `reasoning_effort` was wired correctly (an invalid value raises from the chat
-template) but produced *shorter* reasoning at `xhigh` than at `low` and no
-accuracy difference, so the prep doc's "only deciding axis" decided nothing.
+template) but produced *shorter* reasoning at `xhigh` than at `low`, with no
+accuracy difference. **That was the task, not the knob**: published traces show
+this model spending 22k reasoning tokens on a single SVG at `xhigh`, so a
+question answered in ~2k characters was never going to separate the levels. The
+prep doc's "only deciding axis" was not tested at a difficulty where it could
+decide anything.

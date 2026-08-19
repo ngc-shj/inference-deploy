@@ -569,13 +569,29 @@ the `mmproj-BF16.gguf` shipped alongside the GGUF. No `mmproj =` line is needed
 in `models.ini`. Worth contrasting with the Mac, where the same capability is
 unreachable until vllm-mlx is upgraded to 0.4.1.
 
-**Verdict**: not adopted as a resident model. 26.2 tok/s is the honest best case
-and still ~4× slower than the resident 35B-A3B, with quality on par on coding
-tasks (4/4 doctests) and *worse* on the axes that discriminate — see
-[EVALUATIONS-macos.md](EVALUATIONS-macos.md) for Japanese honorifics, 1/5 vs
-5/5. Kept as an **on-demand `models.ini` entry without `load-on-startup`**: it
-is the only vision-capable model on this box that needs no extra setup, which is
-worth an entry even when its decode speed is not.
+**No quality deficit was found here, and that is a measurement result, not a
+compliment.** Both models scored 9/9 on a harder verifiable set (3-round
+circular-XOR automaton, a 20-step nonlinear recurrence, inclusion-exclusion),
+under thinking ON *and* OFF, on top of 4/4 doctests and an agent loop both
+solved in 2 steps. **This harness cannot separate them.** The public verdict on
+this model is strongly positive and rests on open-ended generation quality,
+long-horizon agentic work, and multimodal reasoning — axes that need a judge,
+which nothing here provides. Do not read "no difference measured" as "no
+difference".
+
+Worth recording: at `enable_thinking: false` the model still writes its working
+into `content` (45–99 s per answer at 26 tok/s ≈ 1200–2500 tokens). The flag
+suppresses the reasoning channel, not the reasoning.
+
+**Verdict**: not adopted **as a resident model, on speed** — 26.2 tok/s is the
+honest best case and still ~4× slower than the resident 35B-A3B. The one
+measured quality deficit is Japanese (see
+[EVALUATIONS-macos.md](EVALUATIONS-macos.md), honorifics 1/5 vs 5/5), which
+matches independent Japanese reports of Simplified-Chinese bleed and of losing
+to Gemma4 26B/12B on Japanese. Kept as an **on-demand `models.ini` entry without
+`load-on-startup`**: it is the only vision-capable model on this box that needs
+no extra setup, and on any axis this harness can score it is the resident
+model's equal.
 
 Router-served numbers match the standalone instance (26.0 vs 26.2), so the
 `models.ini` section reproduces the measurement.
