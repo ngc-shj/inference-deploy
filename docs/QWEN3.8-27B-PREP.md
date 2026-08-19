@@ -1,74 +1,86 @@
-# Qwen3.8-27B — 事前検証と実行準備 (z1mn / gx10-a9c0)
+# Qwen3.8-27B — desk study and run-up (z1mn / gx10-a9c0)
 
-> **実測済み (2026-08-19)。結果は
-> [llama.cpp/EVALUATIONS.md](../llama.cpp/EVALUATIONS.md) (GB10) と
-> [llama.cpp/EVALUATIONS-macos.md](../llama.cpp/EVALUATIONS-macos.md) (z1mn) を参照。
-> 採用は見送り。** 以下の机上検証のうち、外した予測を先に挙げておく:
+> **Superseded by measurement (2026-08-19). Results:
+> [llama.cpp/EVALUATIONS.md](../llama.cpp/EVALUATIONS.md) (GB10) and
+> [llama.cpp/EVALUATIONS-macos.md](../llama.cpp/EVALUATIONS-macos.md) (z1mn).
+> Not adopted.** What this desk study got wrong, up front:
 >
-> - **速度**: z1mn 50-70 tok/s 予測 → 実測 34.9。GB10 25-30 予測 → 実測 7.8
->   (§1 の予測は Q4 前提だが、実際に動かしたのは FP8 で倍のバイト数だった)
-> - **最大リスク**: 「vllm-mlx が読めるか」(§3-1) は杞憂。実際の壁は
->   **ローカルパス指定で出力が壊れる** vllm-mlx 0.4.0 のバグで、0.4.1 で解消
-> - **判断軸**: `reasoning_effort` (§5) は配線こそ正常だが期待と逆に働き、
->   正答率でも差が出ず判断材料にならなかった。差がついたのは**日本語の敬語**
-> - **起動**: FP8 は `VLLM_USE_DEEP_GEMM=0` なしでは起動しない (§4.2 に記載なし)
+> - **Speed**: predicted 50–70 tok/s on z1mn → measured 34.9. Predicted 25–30
+>   on GB10 → measured 7.8. §1's arithmetic assumed Q4; the run used FP8, twice
+>   the bytes. The bandwidth law was right, the format assumption was not.
+> - **Biggest risk**: "can vllm-mlx read it" (§3.1) was a non-issue. The real
+>   wall was a vllm-mlx 0.4.0 bug that **corrupts output when a model is served
+>   from a local directory** — fixed in 0.4.1, and vision is only reachable on
+>   that same code path.
+> - **Deciding axis**: `reasoning_effort` (§5) was wired correctly but produced
+>   *shorter* reasoning at `xhigh` than at `low`, with no accuracy difference.
+>   The axis that did separate the models was **Japanese honorifics** (1/5 vs
+>   5/5 against the resident 35B-A3B).
+> - **Startup**: FP8 does not boot without `VLLM_USE_DEEP_GEMM=0` — not
+>   anticipated anywhere in §4.2.
 
-両機ともオフライン (Tailscale 上で last seen ~1日前) のため、以下は
-**モデルカードと本リポジトリの既測値からの机上検証** — 実測ではない。
-復帰後の実行手順は §4、llama.cpp のビルド要件は §6。
+Both boxes were offline (last seen ~1 day ago on Tailscale) when this was
+written, so everything below is a **desk study from model cards and this
+repository's own measurements** — not measured. Run-up steps are in §4;
+llama.cpp build requirements in §6.
 
-調査日: 2026-08-16。upstream の issue 状況は動くので、実行前に §6.3 を再確認すること。
+Written 2026-08-16. Upstream issue status moves, so re-check §6.3 before running.
 
 ---
 
-## 0. 結論 (先に)
+## 0. Conclusion (up front)
 
-| 箱 | 第一候補 | 形式 | サイズ | 理由 |
+| Box | First choice | Format | Size | Why |
 | --- | --- | --- | --- | --- |
-| **gx10-a9c0** (DGX Spark GB10) | `Qwen/Qwen3.8-27B-FP8` または NVFP4 | FP8 / NVFP4 + vLLM | ~28GB / ~20GB | Blackwell ネイティブ FP4、MTP spec-decode が効く唯一の経路 |
-| **z1mn** (M5 Max 128GB) | `mlx-community/Qwen3.8-27B-mxfp4` | MLX mxfp4 | 15.2 GB | 既測 (EVALUATIONS-macos.md) で mxfp4 が MLX 最速 |
+| **gx10-a9c0** (DGX Spark GB10) | `Qwen/Qwen3.8-27B-FP8` or NVFP4 | FP8 / NVFP4 + vLLM | ~28GB / ~20GB | Blackwell-native FP4; the only path where MTP spec-decode works |
+| **z1mn** (M5 Max 128GB) | `mlx-community/Qwen3.8-27B-mxfp4` | MLX mxfp4 | 15.2 GB | mxfp4 measured fastest on MLX (EVALUATIONS-macos.md) |
 
-**ただし最大の論点は形式ではない — このモデルが 27B dense である点。**
+**But the format is not the real question — the model being 27B *dense* is.**
 
 ---
 
-## 1. アーキテクチャ (これが全てを決める)
+## 1. Architecture (this decides everything)
 
-[Qwen/Qwen3.8-27B](https://huggingface.co/Qwen/Qwen3.8-27B) より:
+From [Qwen/Qwen3.8-27B](https://huggingface.co/Qwen/Qwen3.8-27B):
 
-- **dense 27B** (MoE ではない) → active params = 27B
-- 64 層 hybrid: 48 × Gated DeltaNet (linear attn) + 16 × Gated Attention
+- **dense 27B** (not MoE) → active params = 27B
+- 64-layer hybrid: 48 × Gated DeltaNet (linear attn) + 16 × Gated Attention
 - Gated Attention: Q 24 heads / KV 4 heads / head_dim 256
-- native ctx 262144 (RoPE scaling で 1M)
-- MTP head あり、`reasoning_effort` (xhigh/medium/low) 対応
-- sampling: thinking `temp 1.0 / top_p 0.95 / top_k 20`、
+- native ctx 262144 (1M via RoPE scaling)
+- has an MTP head; supports `reasoning_effort` (xhigh/medium/low)
+- sampling: thinking `temp 1.0 / top_p 0.95 / top_k 20`,
   instruct `temp 0.7 / top_p 0.80 / top_k 20`
 
-### 帯域則からの予測 — ここが重要
+### Prediction from the bandwidth law — the important part
 
-本リポジトリの既測値 (EVALUATIONS.md 2026-06-21) では、**同じ 27B dense +
-hybrid の Qwen3.6-27B が GB10 で 24.4 tok/s**、常駐の 35B-A3B (MoE, active 3B)
-が 90.5 tok/s。3.5倍差は構造的なもので、warm-up ではないと再確認済み。
+This repository's own numbers (EVALUATIONS.md, 2026-06-21): **Qwen3.6-27B, the
+same 27B dense + hybrid shape, ran at 24.4 tok/s on GB10** while the resident
+35B-A3B (MoE, active 3B) ran at 90.5. The 3.5× gap was confirmed structural,
+not warm-up.
 
-Qwen3.8-27B は同じ 27B dense。**active bytes が Q4 で ~17-18 GB あるため、
-GB10 では 25-30 tok/s 級になるはず** — 常駐 35B-A3B より大幅に遅い。
-Ternary-Bonsai-27B (1.6bit, 6.7GB) ですら 25.7 tok/s だったことから、
-27B dense には量子化では越えられない天井がある (EVALUATIONS.md 2026-07-20)。
+Qwen3.8-27B is the same 27B dense. **With ~17–18 GB of active bytes at Q4 it
+should land around 25–30 tok/s on GB10** — far slower than the resident
+35B-A3B. Ternary-Bonsai-27B (1.6-bit, 6.7 GB) still only reached 25.7 tok/s,
+which says the 27B dense ceiling is not something quantization lifts
+(EVALUATIONS.md, 2026-07-20).
 
-M5 Max は帯域 ~546 GB/s と GB10 の 2倍なので、mxfp4 15.2 GB なら
-**50-70 tok/s 程度**が期待値 (35B-A3B mxfp4 が 138-140 tok/s、
-active bytes が約 4-5 倍なので相応に落ちる)。
+The M5 Max has ~546 GB/s, roughly twice GB10, so mxfp4 at 15.2 GB should give
+**around 50–70 tok/s** (35B-A3B mxfp4 does 138–140; active bytes here are ~4–5×
+larger, so the drop should be proportional).
 
-→ **速度目的なら採用理由はない。品質が 35B-A3B を明確に上回るかどうかが
-唯一の判断軸。** 検証はそこに絞るべき。
+→ **There is no speed case for adopting this.** The only question worth testing
+is whether quality clearly beats 35B-A3B.
+
+*(Measured: 34.9 on z1mn, 7.8 on GB10 at FP8. See the note at the top.)*
 
 ---
 
-## 2. 量子化の選択
+## 2. Choosing the quantization
 
 ### gx10-a9c0 (GB10)
 
-[vLLM 公式レシピ](https://recipes.vllm.ai/Qwen/Qwen3.8-27B) が最も信頼できる:
+The [official vLLM recipe](https://recipes.vllm.ai/Qwen/Qwen3.8-27B) is the
+most trustworthy source:
 
 ```
 vllm serve Inferact/Qwen3.8-27B-NVFP4 \
@@ -76,71 +88,77 @@ vllm serve Inferact/Qwen3.8-27B-NVFP4 \
   --kv-cache-dtype fp8 --reasoning-parser qwen3 \
   --enable-auto-tool-choice --tool-call-parser qwen3_coder
 ```
-MTP は `--speculative-config '{"method":"mtp","num_speculative_tokens":3}'`。
+MTP is `--speculative-config '{"method":"mtp","num_speculative_tokens":3}'`.
 
-- 最小 vLLM 0.17.0+ (NVIDIA ModelOpt NVFP4 は 0.24.0+ という記述もあり、
-  **本リポジトリの実績どおり `vllm/vllm-openai:nightly` を使うのが安全**)
-- レシピ記載の NVFP4 は `Inferact/...`。提示された `unsloth/Qwen3.8-27B-NVFP4`
-  は Unsloth Dynamic V3.0 (preview) で、カードに vLLM バージョン要件の記載なし
-  → **未知数。まず公式 `Qwen/Qwen3.8-27B-FP8` で動かし、その後 NVFP4 を試す**
-  のが手戻りが少ない
-- **⚠ MXFP4 は NVIDIA 上で使うな** — レシピの Known Issues に明記:
-  「vLLM の MXFP4 実装は NVIDIA デバイスで linear method support が欠けており
-  意図どおり動かない。NVIDIA では NVFP4 を使え」
+- Minimum vLLM 0.17.0+ (some sources say NVIDIA ModelOpt NVFP4 needs 0.24.0+;
+  **following this repository's track record, `vllm/vllm-openai:nightly` is the
+  safe choice**)
+- The recipe's NVFP4 is `Inferact/...`. The `unsloth/Qwen3.8-27B-NVFP4` variant
+  is Unsloth Dynamic V3.0 (preview) with no vLLM version requirement on its card
+  → **unknown quantity. Start with the official `Qwen/Qwen3.8-27B-FP8`, then try
+  NVFP4** to minimise rework.
+- **⚠ Do not use MXFP4 on NVIDIA** — stated in the recipe's Known Issues:
+  vLLM's MXFP4 implementation lacks linear method support on NVIDIA devices and
+  does not work as intended. Use NVFP4 on NVIDIA.
 
-FP8 (`Qwen/Qwen3.8-27B-FP8`) は block size 128 の fine-grained fp8、
-~28GB。品質は「ほぼオリジナルと同一」。128GB プールには余裕。
+FP8 (`Qwen/Qwen3.8-27B-FP8`) is fine-grained fp8 at block size 128, ~28GB,
+quality "nearly identical to the original". Comfortable in a 128GB pool.
 
 ### z1mn (M5 Max)
 
-既測の格付け (EVALUATIONS-macos.md): **mxfp4 ≈ 4bit > nvfp4**。
-MLX には NVFP4 のハード経路がないため、常駐バイト数がそのまま速度になる。
+Measured ranking (EVALUATIONS-macos.md): **mxfp4 ≈ 4bit > nvfp4**. MLX has no
+NVFP4 hardware path, so resident bytes translate directly into speed.
 
-- `mlx-community/Qwen3.8-27B-mxfp4` — **15.2 GB、第一候補**
-- `mlx-community/Qwen3.8-27B-4bit` — 同等の代替
-- `mlx-community/Qwen3.8-27B-8bit` / `-bf16` — 品質比較用 (帯域的に遅い)
-- **NVFP4 safetensors (unsloth/nvidia) は MLX にロードできない** — 既知
-  (mlx-lm の quant dispatch に modelopt 分岐がない)。MLX ネイティブ変換のみ
-
----
-
-## 3. 復帰後に確認すべき「詰まりどころ」(机上では解けない)
-
-優先度順。**どれも当日ハマる可能性があるもの。**
-
-1. **vllm-mlx が Qwen3.8 を読めるか** — 最大のリスク。
-   `mlx-community/Qwen3.8-27B-mxfp4` のカードは **`mlx-vlm` (VLM 用)** を
-   loader に指定しており、これは実績のある `vllm-mlx` / `mlx-lm` 経路とは別。
-   モデルは vision 対応 (unsloth GGUF にも `mmproj-*.gguf` がある)。
-   vllm-mlx の models.md には Qwen3.5/3.6/3.8 の記載がない — ただし
-   **これは資料が古いだけの可能性が高い** (0.4.0 で `qwen3_5_moe` を実測済み)。
-   → 当日 `vllm-mlx serve` を叩いて確認。落ちたら `mlx-vlm` へ切替。
-
-2. **transformers ピン** — 既知の地雷。bare mlx-lm は transformers 5.0.0、
-   vllm-mlx 0.4.0 は 5.12.1 で動いた。Qwen3.8 で再度ずれる可能性あり。
-   venv は分離済みなので影響は局所化される。
-
-3. **llama.cpp のバージョン** — 詳細は §6 (実際の upstream issue を調査済み)。
-
-4. **GGUF の MTP** — unsloth リポジトリのファイル一覧には MTP ファイルが無いが、
-   **`--spec-type draft-mtp` は unsloth の GGUF で実際に動いている**
-   (upstream issue #27122 の再現構成が `Qwen3.8-27B-UD-Q4_K_XL` + `draft-mtp`)。
-   MTP テンソルは本体 GGUF に埋め込まれている = Qwen3.6-35B と同じ扱いでよい。
-   [ggml-org 版](https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF) の
-   別ファイル MTP (Q8_0 MTP 3.16GB 等) は別配布形態。unsloth 版を使うなら不要。
-
-5. **MLX の MTP も sidecar** — `mlx-community/Qwen3.8-27B-MTP-4bit` は
-   239 MB の drafter 単体 (`model_type: qwen3_5_mtp`, MTP block size 3)。
-   単独では動かず、ターゲット checkpoint と組で使う。
-   `--draft-kind mtp` は model_type から自動検出、とカードにある。
+- `mlx-community/Qwen3.8-27B-mxfp4` — **15.2 GB, first choice**
+- `mlx-community/Qwen3.8-27B-4bit` — equivalent alternative
+- `mlx-community/Qwen3.8-27B-8bit` / `-bf16` — for quality comparison (slower,
+  bandwidth-bound)
+- **NVFP4 safetensors (unsloth/nvidia) will not load in MLX** — known; mlx-lm's
+  quant dispatch has no modelopt branch. MLX-native conversions only.
 
 ---
 
-## 4. 実行手順 (NW 復帰後)
+## 3. Sticking points to check on the day (not resolvable on paper)
 
-### 4.1 事前ダウンロード (両機、NW 復帰直後に流す)
+In priority order. **Any of these could cost the session.**
 
-帯域を食うので検証より先に走らせておく。
+1. **Whether vllm-mlx can read Qwen3.8** — the biggest risk. The
+   `mlx-community/Qwen3.8-27B-mxfp4` card names **`mlx-vlm`** as its loader,
+   which is a different path from the proven `vllm-mlx` / `mlx-lm` one. The
+   model is vision-capable (the unsloth GGUF ships `mmproj-*.gguf` too).
+   vllm-mlx's models.md does not mention Qwen3.5/3.6/3.8 — but **that is most
+   likely stale documentation** (`qwen3_5_moe` was measured working on 0.4.0).
+   → Just run `vllm-mlx serve` and see. Fall back to `mlx-vlm` if it fails.
+
+2. **transformers pin** — a known landmine. Bare mlx-lm ran on transformers
+   5.0.0; vllm-mlx 0.4.0 on 5.12.1. Qwen3.8 may shift it again. The venvs are
+   already separated, so the blast radius is contained.
+
+3. **llama.cpp version** — see §6 (upstream issues actually checked).
+
+4. **MTP in GGUF** — the unsloth repo's file list has no MTP file, but
+   **`--spec-type draft-mtp` does work with the unsloth GGUF** (upstream issue
+   #27122 reproduces with `Qwen3.8-27B-UD-Q4_K_XL` + `draft-mtp`). The MTP
+   tensors are embedded in the main GGUF, so it behaves like Qwen3.6-35B. The
+   [ggml-org build](https://huggingface.co/ggml-org/Qwen3.8-27B-GGUF) ships MTP
+   as a separate file (Q8_0 MTP 3.16GB etc.) — a different packaging, not needed
+   with the unsloth build.
+
+5. **MLX MTP is a sidecar too** — `mlx-community/Qwen3.8-27B-MTP-4bit` is a
+   239 MB standalone drafter (`model_type: qwen3_5_mtp`, MTP block size 3). It
+   does not run alone; it pairs with a target checkpoint. The card says
+   `--draft-kind mtp` auto-detects from model_type.
+
+*(Measured: 1 was a non-issue; 5 needed two undocumented conversions and still
+yielded no speedup. See EVALUATIONS-macos.md.)*
+
+---
+
+## 4. Run-up steps (once the network is back)
+
+### 4.1 Pre-download (both boxes, immediately)
+
+Start this before any testing — it saturates the link.
 
 ```bash
 # z1mn
@@ -150,20 +168,33 @@ huggingface-cli download mlx-community/Qwen3.8-27B-mxfp4
 huggingface-cli download Qwen/Qwen3.8-27B-FP8
 ```
 
+**Correction from the run**: on GB10 this is wasted work. `vllm-run.sh` mounts
+`/var/lib/vllm/cache` as the container's `HF_HOME`, so the weights must land
+there, not in the user's `~/.cache/huggingface`. Let the container download them
+on first start.
+
 ### 4.2 gx10-a9c0 — vLLM
 
-`/etc/vllm/vllm-server.env` を編集 (本リポジトリの `vllm-server.env.example`
-の NVFP4 例が下敷きになる):
+Edit `/etc/vllm/vllm-server.env` (the NVFP4 example in this repository's
+`vllm-server.env.example` is the starting point):
 
 ```sh
 VLLM_IMAGE="vllm/vllm-openai:nightly"
 VLLM_MODEL="Qwen/Qwen3.8-27B-FP8"
 VLLM_SERVE_ARGS="--kv-cache-dtype fp8 --gpu-memory-utilization 0.5 --max-model-len 262144 --reasoning-parser qwen3 --enable-auto-tool-choice --tool-call-parser qwen3_coder"
-VLLM_SPEC_CONFIG='{"method":"mtp","num_speculative_tokens":3}'
+VLLM_SPEC_CONFIG=''
+VLLM_ENV="VLLM_USE_DEEP_GEMM=0"
 ```
 
-`sudo systemctl start vllm-server` (llama-server は Conflicts= で自動停止)。
-まず MTP なし (`VLLM_SPEC_CONFIG=''`) で起動確認 → 動いたら MTP を足す、の順が安全。
+`sudo systemctl start vllm-server` (llama-server stops automatically via
+`Conflicts=`). Confirm it boots without MTP first, then add MTP.
+
+**Two corrections from the run.** `VLLM_ENV` is mandatory, not optional: vLLM
+logs `Auto-disabled DeepGemm for model_type=qwen3_5_text on Blackwell` and then
+calls DeepGemm from kernel warmup anyway, dying with `Assertion error
+(deepgemm .../layout.hpp:76): Unknown recipe` after a 190 s load and a 51 s
+compile — on every restart. And if you start from the resident MoE config, drop
+`--moe-backend` and the spec config's `moe_backend`: this model is dense.
 
 ### 4.3 z1mn — vllm-mlx
 
@@ -173,138 +204,159 @@ VLLM_SPEC_CONFIG='{"method":"mtp","num_speculative_tokens":3}'
 VLLM_MLX_MODEL="mlx-community/Qwen3.8-27B-mxfp4"
 VLLM_MLX_ARGS="--host 127.0.0.1 --port 8000 --reasoning-parser qwen3"
 ```
-`NO_BUILD=1 ./install.sh` で plist 再生成 + reload。
-起動失敗時は `~/.local/state/vllm-mlx/logs/vllm-mlx-server.err.log` を見る。
+`NO_BUILD=1 ./install.sh` regenerates the plist and reloads the agent.
+On startup failure, read `~/.local/state/vllm-mlx/logs/vllm-mlx-server.err.log`.
 
-### 4.4 測定 (既存の評価と接続可能にする)
+**Correction from the run**: keep the model as a *repo name*. A local directory
+path routes through mlx_vlm on 0.4.0 and returns fluent nonsense. Tool calling
+also needs `--enable-auto-tool-choice --tool-call-parser qwen3_coder` — the
+first flag errors out without the second, and without both an agent driver gets
+a silent no-op.
 
-**既存の evaluation と比較可能にするため、プロンプトと条件を揃えること**:
-- 同じ coding タスク (`merge_intervals` doctest / bugfix / refactor)
-- `enable_thinking: false`、temp 0.7 / top_p 0.80 / top_k 20 (instruct)
-- 1回目は load+warmup 支配なので捨て、2-3 回目を採用
+### 4.4 Measurement (so it connects to the existing evaluations)
+
+**Match the prompt and conditions to the existing evaluations**:
+- the same coding tasks (`merge_intervals` doctest / bugfix / refactor)
+- `enable_thinking: false`, temp 0.7 / top_p 0.80 / top_k 20 (instruct)
+- discard run 1 (load+warmup dominated), keep runs 2–3
 - single-shot decode tok/s
 
-比較対象: 常駐 `Qwen3.6-35B-A3B-MTP:Q4_K_XL` (GB10 77.8/63.3 tok/s、
-M5 Max mxfp4 138-140 tok/s)。
+Compare against the resident `Qwen3.6-35B-A3B-MTP:Q4_K_XL` (GB10 77.8/63.3
+tok/s; M5 Max mxfp4 138–140 tok/s).
+
+**Worth adding**: re-measure the baseline on the same day with the same script.
+Reproducing 138.7 against the recorded 138–140 is what made the new numbers
+trustworthy.
 
 ---
 
-## 5. 検証の主眼 (速度ではなく品質)
+## 5. What the evaluation is actually for (quality, not speed)
 
-前述のとおり 27B dense は両機で 35B-A3B より遅いことがほぼ確実。
-したがって「採用するか」の判断は品質で決まる。既存の toy coding タスクは
-**Qwen3.6-27B / Ornith / Coder-Next のいずれでも差が出なかった** (全て 3/3 pass)
-ので、同じ手を繰り返しても判断材料にならない。
+As above, the 27B dense is near-certain to be slower than 35B-A3B on both boxes,
+so adoption turns on quality. The existing toy coding tasks **failed to separate
+Qwen3.6-27B, Ornith, or Coder-Next** (all 3/3 pass), so repeating them decides
+nothing.
 
-→ より弁別力のあるタスクを用意すべき:
-- `reasoning_effort` (xhigh/medium/low) の効き方 — Qwen3.8 の新機能で、
-  35B-A3B にはない軸。ここは実際に差が出る可能性がある
-- 実エージェントループ (Ornith で使った RPN calculator のような
-  read→edit→run→verify) — toy 生成より弁別力が高いと実証済み
-- long-context (262144) の実挙動
+→ Use tasks with more discriminating power:
+- how `reasoning_effort` (xhigh/medium/low) behaves — new in Qwen3.8 and absent
+  from 35B-A3B, so this is where a difference could show
+- a real agent loop (read→edit→run→verify, like the RPN calculator used for
+  Ornith) — proven more discriminating than toy generation
+- actual long-context (262144) behaviour
+
+*(Measured: `reasoning_effort` and the agent loop both failed to separate
+anything. Japanese honorifics and vision did. Long context was limited by
+prefill — ~288 tok/s, so the native window costs ~15 minutes of reading — not by
+accuracy.)*
 
 ---
 
-## 6. llama.cpp 最新ビルド — 詳細
+## 6. Latest llama.cpp build — detail
 
-### 6.1 結論: アーキテクチャは既にサポート済み。「読めない」わけではない
+### 6.1 Conclusion: the architecture is already supported; it is not "unreadable"
 
-当初「最新ビルド必須、既存ビルドでは読めない公算」と書いたが、これは
-ブログ記事ベースの推測だった。**upstream を直接調べた結果、状況はより明確**:
+An earlier draft said "a latest build is mandatory, existing builds probably
+cannot read it". That was inference from a blog post. **Checking upstream
+directly gives a clearer picture**:
 
-- Qwen3.8-27B の GGUF arch は **`qwen35`** — Qwen3.5/3.6 系と同じ実装を共有する。
-  本リポジトリが既に常駐させている `Qwopus3.5-9B-v3` も `qwen35` (README.md 参照)
-- `GGML_OP_GATED_DELTA_NET` は **CUDA / Metal / Vulkan いずれも実装済み**
-  (#19504 op 追加 → #20244 Metal backend, #20361 Metal GDN kernel, #20334 Vulkan、
-  いずれも **closed = マージ済み**)
-- MTP spec-decode も #22673 でマージ済み
+- Qwen3.8-27B's GGUF arch is **`qwen35`** — it shares the implementation with
+  the Qwen3.5/3.6 line. `Qwopus3.5-9B-v3`, already resident here, is also
+  `qwen35` (see README.md)
+- `GGML_OP_GATED_DELTA_NET` is **implemented on CUDA, Metal and Vulkan**
+  (#19504 added the op → #20244 Metal backend, #20361 Metal GDN kernel, #20334
+  Vulkan — all **closed = merged**)
+- MTP spec-decode was merged in #22673
 
-つまり**新規アーキテクチャの追加待ちではない**。既存ビルドが古すぎれば
-`unknown model architecture` で落ちるが、`qwen35` を既に動かせているビルドなら
-ロード自体は通る可能性が高い。**問題は「読めるか」ではなく「バグを踏むか」。**
+So this is **not waiting on a new architecture**. A build old enough will fail
+with `unknown model architecture`, but a build that already runs `qwen35` will
+probably load it. **The question is not "can it read it" but "which bugs will it
+hit".**
 
-### 6.2 現行バージョン (2026-08-16 時点)
+### 6.2 Current versions (as of 2026-08-16)
 
-- 最新リリースタグ: **b10442** (2026-08-15)
+- latest release tag: **b10442** (2026-08-15)
 - master HEAD: `ad1de39e0`
 
-### 6.3 実際に報告されている Qwen3.8-27B 固有の不具合 (すべて open)
+### 6.3 Qwen3.8-27B-specific bugs actually reported (all open)
 
-**ここが最新ビルドを推す本当の理由。** 直近数日に集中して報告されている:
+**This is the real reason to want a recent build.** They cluster in the last few
+days:
 
-| Issue | 内容 | 該当条件 | 我々への影響 |
+| Issue | What | Trigger | Impact on us |
 | --- | --- | --- | --- |
-| [#27090](https://github.com/ggml-org/llama.cpp/issues/27090) | YaRN ×4 で ~520K prefill 時に**無言で落ちる** (2×yarn-orig-ctx 直下) | rope-scale 4 で 1M ctx 狙い | **native 262144 なら無関係** |
-| [#27122](https://github.com/ggml-org/llama.cpp/issues/27122) | `draft-mtp` + `--split-mode tensor` で**CUDA ロックアップ** | 複数 GPU 分割時 | **GB10 は単一GPUなので無関係** |
-| [#27107](https://github.com/ggml-org/llama.cpp/issues/27107) (closed) | chat template の `raise_exception` で Claude Code / Codex が **400 で即死** | `--jinja` + 複数 system prompt | **該当しうる** |
-| [#27139](https://github.com/ggml-org/llama.cpp/issues/27139) | Codex エラー、Qwen3.6 の template で回避 | 同上 | 同上 |
-| [#27023](https://github.com/ggml-org/llama.cpp/issues/27023) | `reasoning_effort` が壊れている疑い | reasoning 制御 | **§5 の検証主眼に直撃** |
-| [#27109](https://github.com/ggml-org/llama.cpp/issues/27109) | qwen35 hybrid で **4bit KV cache が prefill を ~34 t/s に落とす** | `-ctk/-ctv q4_*` | q8_0 なら回避 |
+| [#27090](https://github.com/ggml-org/llama.cpp/issues/27090) | **silent crash** at ~520K prefill with YaRN ×4 (just past 2×yarn-orig-ctx) | rope-scale 4 for 1M ctx | **N/A at native 262144** |
+| [#27122](https://github.com/ggml-org/llama.cpp/issues/27122) | **CUDA lockup** with `draft-mtp` + `--split-mode tensor` | multi-GPU split | **N/A — GB10 is single-GPU** |
+| [#27107](https://github.com/ggml-org/llama.cpp/issues/27107) (closed) | chat template `raise_exception` makes Claude Code / Codex **die with 400** | `--jinja` + multiple system prompts | **could hit us** |
+| [#27139](https://github.com/ggml-org/llama.cpp/issues/27139) | Codex errors, worked around with the Qwen3.6 template | same | same |
+| [#27023](https://github.com/ggml-org/llama.cpp/issues/27023) | `reasoning_effort` suspected broken | reasoning control | **hits §5's main axis directly** |
+| [#27109](https://github.com/ggml-org/llama.cpp/issues/27109) | 4-bit KV cache collapses prefill to ~34 t/s on qwen35 hybrid | `-ctk/-ctv q4_*` | avoided with q8_0 |
 
-**#27090 の重要な副次情報**: 「~90-100K 超のプロンプトが b10430 で同様にクラッシュ
-していたが **b10434 で修正された**」(#26623 recurrent state rollback)。
-→ **b10434 未満のビルドは long-context で実用にならない。最低 b10434、
-できれば b10442 以降を使うこと。** これが「最新ビルドが必要」の具体的な根拠。
+**Important side note in #27090**: prompts over ~90–100K were crashing the same
+way on b10430 and **were fixed in b10434** (#26623, recurrent state rollback).
+→ **Any build below b10434 is unusable for long context. Use b10434 at minimum,
+b10442 or later if possible.** That is the concrete reason a recent build is
+needed.
 
-### 6.4 我々の構成で踏むもの / 踏まないもの
+### 6.4 What our configuration hits and what it does not
 
-**踏まない** (幸い、報告されている重大不具合の大半は条件が合わない):
+**Not hit** (most of the serious reports need conditions we do not meet):
 
-- #27090 → YaRN を使わず native 262144 で運用すれば無関係
-- #27122 → GB10 も M5 Max も**単一デバイス**、`--split-mode tensor` を使わない
-- #27109 → KV 量子化は q8_0 を使う方針 (models.ini のコメント通り)。q4 は避ける
+- #27090 → irrelevant if we run native 262144 without YaRN
+- #27122 → both GB10 and M5 Max are **single-device**; we do not use
+  `--split-mode tensor`
+- #27109 → we use q8_0 KV quantization (as models.ini comments state); avoid q4
 
-**踏む可能性が高い**:
+**Likely to hit**:
 
-- **chat template の `raise_exception`** — llama.cpp の autoparser (#18675) が
-  合成メッセージ列で template を probe するが、Qwen3.5 系 template は
-  「System message must be at the beginning」を assert するため
-  **パーサ生成に失敗して 400**。llama.cpp #20733 は not planned で closed、
-  つまり**上流では直らない**。回避策は 2つ:
-  1. Unsloth が配布する修正済み template を `--chat-template-file` で渡す
-  2. Qwen3.6 の template を流用する (#27139)
-- **`reasoning_effort` (#27023)** — §5 で検証主眼に据えた軸そのものなので、
-  llama.cpp 経由で評価すると llama.cpp のバグを測ってしまう恐れがある。
-  → **reasoning_effort の評価は vLLM / vllm-mlx 側で行うのが安全**
+- **chat template `raise_exception`** — llama.cpp's autoparser (#18675) probes
+  the template with a synthetic message sequence, but Qwen3.5-line templates
+  assert "System message must be at the beginning", so **parser generation fails
+  with a 400**. llama.cpp #20733 was closed as not planned, i.e. **this will not
+  be fixed upstream**. Two workarounds:
+  1. pass Unsloth's corrected template via `--chat-template-file`
+  2. reuse the Qwen3.6 template (#27139)
+- **`reasoning_effort` (#27023)** — this is the very axis §5 makes central, so
+  evaluating it through llama.cpp risks measuring a llama.cpp bug.
+  → **Evaluate `reasoning_effort` on vLLM / vllm-mlx instead.**
 
-### 6.5 ビルド手順
+### 6.5 Build steps
 
-**gx10-a9c0 (CUDA)** — 本リポジトリの `install.sh` がそのまま使える。
-既存の checkout は「触らない」設計 (`install.sh` は clone のみ、pull しない)
-なので、**明示的に更新してから**再ビルドする:
+**gx10-a9c0 (CUDA)** — this repository's `install.sh` works as-is. The existing
+checkout is deliberately left alone (`install.sh` only clones, never pulls), so
+**update it explicitly** before rebuilding:
 
 ```bash
 cd ~/ghq/github.com/ggml-org/llama.cpp
-git fetch origin && git checkout b10442      # または master
+git fetch origin && git checkout b10442      # or master
 cd ~/ghq/github.com/ngc-shj/inference-deploy/llama.cpp
-./install.sh                                  # CUDA_ARCH=121 は既定
+./install.sh                                  # CUDA_ARCH=121 is the default
 sudo systemctl restart llama-server
-/opt/llama/bin/llama-server --version         # build 番号を確認
+/opt/llama/bin/llama-server --version         # confirm the build number
 ```
 
-**z1mn (Metal)** — このリポジトリに Metal 版の install.sh は無い。
-EVALUATIONS-macos.md に記録された手順に従う:
+**z1mn (Metal)** — this repository has no Metal install.sh. Follow the steps
+recorded in EVALUATIONS-macos.md:
 
 ```bash
 cmake -S llama.cpp -B build-metal -DGGML_METAL=ON -DLLAMA_CURL=ON
 cmake --build build-metal --target llama-server -j
 ```
 
-ただし z1mn 側は **vllm-mlx (MLX) が llama.cpp/Metal より ~1.5倍速い**と
-実測済み (129 vs 87 tok/s) なので、**llama.cpp をビルドする必要は薄い**。
-GGUF 限定の用途か、llama.cpp 固有機能が要る場合のみ。
+That said, vllm-mlx (MLX) measured ~1.5× faster than llama.cpp/Metal on z1mn
+(129 vs 87 tok/s), so **there is little reason to build llama.cpp there** —
+only for GGUF-only models or llama.cpp-specific features.
 
-### 6.6 まとめ — なぜ最新ビルドなのか
+### 6.6 Summary — why a recent build
 
-「Gated DeltaNet が未実装だから」ではない (実装済み)。理由は:
+Not "because Gated DeltaNet is unimplemented" (it is implemented). Because:
 
-1. **b10434 で long-context のクラッシュが修正された** — それ未満は実用外
-2. Qwen3.8-27B 固有の不具合が**現在進行形で報告・修正されている**
-   (直近 2日で 4件 open) ため、古いビルドほど地雷が多い
+1. **b10434 fixed a long-context crash** — anything below it is unusable
+2. Qwen3.8-27B-specific bugs are **being reported and fixed right now** (4 open
+   in the last two days), so older builds carry more landmines
 
 ---
 
-## 参考
+## References
 
 - [Qwen/Qwen3.8-27B](https://huggingface.co/Qwen/Qwen3.8-27B)
 - [Qwen/Qwen3.8-27B-FP8](https://huggingface.co/Qwen/Qwen3.8-27B-FP8)
@@ -314,4 +366,4 @@ GGUF 限定の用途か、llama.cpp 固有機能が要る場合のみ。
 - [mlx-community/Qwen3.8-27B-mxfp4](https://huggingface.co/mlx-community/Qwen3.8-27B-mxfp4)
 - [mlx-community/Qwen3.8-27B-MTP-4bit](https://huggingface.co/mlx-community/Qwen3.8-27B-MTP-4bit)
 - [vLLM Recipes — Qwen3.8-27B](https://recipes.vllm.ai/Qwen/Qwen3.8-27B)
-- 既測値: `llama.cpp/EVALUATIONS.md`, `llama.cpp/EVALUATIONS-macos.md`
+- measurements: `llama.cpp/EVALUATIONS.md`, `llama.cpp/EVALUATIONS-macos.md`
