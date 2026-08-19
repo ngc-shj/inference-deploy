@@ -169,3 +169,75 @@ For reference, engine-native single measurements agree: `llama-bench` tg400 =
 llama.cpp** at equal bit width for single-stream decode. Prefer vllm-mlx for MLX
 checkpoints; llama.cpp/Metal remains the path for GGUF-only models or llama.cpp
 features MLX lacks.
+
+---
+
+## 2026-08-19 — Qwen3.8-27B (dense, hybrid, VLM) vs resident 35B-A3B
+
+First 27B dense evaluated on this box. Prompted by
+[docs/QWEN3.8-27B-PREP.md](../docs/QWEN3.8-27B-PREP.md), which predicted 50–70
+tok/s here and named `reasoning_effort` as the deciding axis. Neither held up.
+Same `merge_intervals` prompt and harness as the GB10 lineage, no-think,
+instruct sampling, run 1 discarded.
+
+| Model | Format | resident | decode tok/s |
+| --- | --- | --- | --- |
+| `Qwen3.8-27B-mxfp4` | mxfp4 (14 GB on disk) | 8.6 GB | **34.9** |
+| `Qwen3.8-27B-4bit` | affine/64 | — | 32.7 |
+| `Qwen3.6-35B-A3B-mxfp4` *(resident, re-measured same day)* | mxfp4 | 17.8 GB | **138.7** |
+
+The baseline reproducing 138.7 against the 138–140 recorded on 2026-07-11
+is what makes the 34.9 trustworthy: same script, same day, same box.
+
+**Quality vs the resident model** — the toy coding task does not discriminate
+(both 4/4 doctests, both solve the agent-loop task in 2 steps / 3 tool calls),
+exactly as the prep doc warned. Two axes did:
+
+| Axis | Qwen3.8-27B | resident 35B-A3B |
+| --- | --- | --- |
+| Japanese honorifics (5 repeats of one 尊敬語 rewrite) | **1/5** | **5/5** |
+| Japanese, 5 mechanically-scored tasks | 3/5 | 4/5 |
+| Vision (synthetic images: digits, count, colour) | **3/3** | n/a |
+| Long-context needle retrieval, to 82,848 prompt tokens | correct at every depth | not measured |
+
+Qwen3.8-27B's honorific failures are not near-misses: 「お見になりました」
+twice (not a Japanese form at all) and 「拝見された」 (humble form applied to a
+superior's action). The resident model wrote 「ご覧になった」 every time.
+
+**Findings**
+
+- **The bandwidth law holds, the prep doc's arithmetic did not.** 27B dense at
+  4 bits keeps ~13.5 GB of active weights against the MoE's ~2 GB; 138.7 / 34.9
+  = 4.0× is the ratio that predicts. The 50–70 tok/s estimate assumed the MoE's
+  penalty was milder than it is.
+- **MTP buys nothing here** (32.4 with vs 32.7 without, same binary and model
+  dir). `vllm_mlx/engine/simple.py` logs "Native mlx_lm MTP currently ignores
+  num_draft_tokens; effective speculative draft depth remains 1" — at depth 1
+  the head's forward pass costs about what the extra token saves. Third-party
+  claims of ~2.2× on this model come from MTPLX, a different runtime.
+- **Loading a local directory corrupts output on vllm-mlx 0.4.0.** The same
+  checkpoint serves correctly by repo name (mlx_lm path, `MLLM=False`) and
+  returns fluent nonsense from a local path (mlx_vlm path, `MLLM=True`).
+  **Fixed in 0.4.1.** This matters beyond MTP: vision only routes on the MLLM
+  path, so on 0.4.0 the model's vision half is unreachable by either route.
+- **Standalone MTP sidecars need two conversions.** `mlx-community/
+  Qwen3.8-27B-MTP-{4,8}bit` ship bare tensor names, but the injector keeps only
+  keys prefixed `mtp.` (the layout its own `add_mtp_weights_qwen35.py` writes)
+  and reads group_size/bits from the *base* model's config. Prefixing the keys
+  and dequantizing the head to BF16 makes it load — full precision is what the
+  injector's own comment asks for.
+- **Long context is limited by prefill, not accuracy.** Retrieval was correct at
+  every depth up to 82,848 prompt tokens, but that prompt took 288 s to read
+  (~288 tok/s prefill). At that rate the native 262144 window costs ~15 minutes
+  before the first token. Two runs returned HTTP 504 against vllm-mlx's 300 s
+  request timeout, not a model failure.
+- **Tool calling needs `--enable-auto-tool-choice --tool-call-parser qwen3_coder`**
+  (the first flag errors without the second). Without them an agent driver gets
+  a clean, silent no-op — opencode ran four turns and changed nothing.
+
+**Verdict**: not adopted. Slower than the resident model by 4×, and worse at
+Japanese honorifics — the one axis where a real difference showed. Vision is the
+only capability it adds, and reaching it requires upgrading vllm-mlx to 0.4.1.
+`reasoning_effort` was wired correctly (an invalid value raises from the chat
+template) but produced *shorter* reasoning at `xhigh` than at `low` and no
+accuracy difference, so the prep doc's "only deciding axis" decided nothing.

@@ -506,6 +506,56 @@ head-to-head vs Coder-MTP on a task Coder-MTP fails.
 
 ---
 
+## 2026-08-19 — Qwen3.8-27B-FP8 (vLLM) — the wrong quant for a dense hybrid
+
+`Qwen/Qwen3.8-27B-FP8` on `vllm/vllm-openai:nightly`, native 262144, no MTP.
+Same `merge_intervals` prompt as the evals above, no-think, run 1 discarded.
+
+| Model | Format | weights resident | decode tok/s | Code |
+| --- | --- | --- | --- | --- |
+| `Qwen/Qwen3.8-27B-FP8` | FP8 block-scaled | 28.51 GiB | **7.8** | 4/4 doctests ✓ |
+| `nvidia/Qwen3.6-35B-A3B-NVFP4` *(resident ref)* | NVFP4 | ~20 GB | 116–122 | ✓ |
+
+**7.8 tok/s is not a bug — it is this page's own bandwidth law.** 273 GB/s ÷
+28.51 GiB of active weights = 9.6 tok/s ceiling; the measurement sits at 81% of
+it. [docs/QWEN3.8-27B-PREP.md](../docs/QWEN3.8-27B-PREP.md) predicted 25–30
+tok/s, but that figure assumed **Q4 (~17–18 GB)**. FP8 is twice the bytes, so
+the prediction was right about the law and wrong about the format.
+
+**NVFP4 does not rescue it, and this is checkable without downloading 26 GB.**
+`Inferact/Qwen3.8-27B-NVFP4`'s `quantization_config.ignore` has 244 entries:
+all 48 Gated DeltaNet layers' `conv1d` and `in_proj_{a,b,qkv,z}`, plus
+`lm_head`, `embed_tokens`, `visual`, `mtp`. Only the 16 full-attention layers
+and the MLPs are 4-bit, which is why the repo totals 26.4 GB against FP8's 29 GB.
+Expect ~11 tok/s, not the ~19 a real 4-bit conversion would give.
+
+**The one path to usable speed on this box is llama.cpp Q4**, which quantizes
+the GDN layers the NVFP4 checkpoints skip (~17–18 GB → ~15 tok/s by the law,
+and the 2026-06-21 Qwen3.6-27B entry above measured 24.4 tok/s for the same
+27B-dense-hybrid shape). That needs a llama.cpp rebuild: the installed binary is
+build 9652, far below the b10434 floor that [the prep doc](../docs/QWEN3.8-27B-PREP.md)
+§6.3 identifies for long-context stability.
+
+**Startup: FP8 will not boot without `VLLM_USE_DEEP_GEMM=0`.** vLLM logs
+`Auto-disabled DeepGemm for model_type=qwen3_5_text on Blackwell` while building
+the config, then calls DeepGemm from kernel warmup regardless and the engine
+aborts with `Assertion error (deepgemm .../layout.hpp:76): Unknown recipe` —
+after a full 190 s weight load and 51 s compile, every restart. The env var is
+the only kill-switch, which is why `vllm-run.sh` now forwards `$VLLM_ENV`.
+
+**Other startup notes**: drop `--moe-backend` and the spec config's
+`moe_backend` — this model is dense and they have nothing to apply to. vLLM
+selects FLASHINFER and the Triton/FLA GDN prefill kernel on its own, so the
+explicit `--attention-backend` from the MoE config is unnecessary.
+
+**Verdict**: not adopted on this box in any vLLM form. Quality is on par on
+coding tasks (4/4 doctests; see [EVALUATIONS-macos.md](EVALUATIONS-macos.md) for
+the axes where it is *worse* than the resident model), and 7.8 tok/s against the
+resident 116–122 is not a trade anything recovers. Revisit only via llama.cpp
+Q4 after a b10434+ rebuild.
+
+---
+
 ## Sampling parameters (validation)
 
 Sampling is a **client-side, per-request** choice — not a `models.ini` load
