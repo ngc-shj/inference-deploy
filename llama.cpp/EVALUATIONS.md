@@ -563,14 +563,22 @@ the only kill-switch, which is why `vllm-run.sh` now forwards `$VLLM_ENV`.
 selects FLASHINFER and the Triton/FLA GDN prefill kernel on its own, so the
 explicit `--attention-backend` from the MoE config is unnecessary.
 
-**Verdict**: not adopted. 26.2 tok/s is the honest best case and it is still
-~4× slower than the resident 35B-A3B, with quality on par on coding tasks (4/4
-doctests) and *worse* on the axes that discriminate — see
+**Vision works here with no configuration at all** — 3/3 on synthetic images
+(read three digits, count shapes, name a colour), because llama.cpp auto-loads
+the `mmproj-BF16.gguf` shipped alongside the GGUF. No `mmproj =` line is needed
+in `models.ini`. Worth contrasting with the Mac, where the same capability is
+unreachable until vllm-mlx is upgraded to 0.4.1.
+
+**Verdict**: not adopted as a resident model. 26.2 tok/s is the honest best case
+and still ~4× slower than the resident 35B-A3B, with quality on par on coding
+tasks (4/4 doctests) and *worse* on the axes that discriminate — see
 [EVALUATIONS-macos.md](EVALUATIONS-macos.md) for Japanese honorifics, 1/5 vs
-5/5. Not registered with `load-on-startup`; kept as an on-demand entry in
-`models.ini` for the vision path, since llama.cpp auto-loads the `mmproj-BF16`
-that ships alongside the GGUF — the same capability that needs a vllm-mlx
-upgrade on the Mac.
+5/5. Kept as an **on-demand `models.ini` entry without `load-on-startup`**: it
+is the only vision-capable model on this box that needs no extra setup, which is
+worth an entry even when its decode speed is not.
+
+Router-served numbers match the standalone instance (26.0 vs 26.2), so the
+`models.ini` section reproduces the measurement.
 
 **Build note**: this needed llama.cpp b10488 (was b9652). `install.sh` reuses an
 existing checkout untouched, so the source must be moved forward explicitly;
