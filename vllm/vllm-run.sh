@@ -29,6 +29,21 @@ args=(
   -v /var/lib/vllm/cache:/root/.cache/huggingface
   -e HF_HOME=/root/.cache/huggingface
   -e "HF_TOKEN=${HF_TOKEN:-}"
+)
+
+# Extra container env as space-separated KEY=VALUE pairs. Some vLLM kill-switches
+# exist ONLY as env vars, with no serve flag — VLLM_USE_DEEP_GEMM=0 is the case
+# that forced this: vLLM auto-disables DeepGemm for qwen3_5 on Blackwell, but its
+# kernel warmup calls DeepGemm anyway and aborts with "Unknown recipe".
+# These must precede the image name, hence the split argv.
+if [[ -n "${VLLM_ENV:-}" ]]; then
+  # shellcheck disable=SC2206  # intentional word-split of a flat KEY=VALUE list
+  for kv in ${VLLM_ENV}; do
+    args+=( -e "$kv" )
+  done
+fi
+
+args+=(
   "${VLLM_IMAGE}"
   serve "${VLLM_MODEL}"
   --host 0.0.0.0 --port 8000
