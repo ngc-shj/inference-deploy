@@ -31,6 +31,18 @@ The llama.cpp source is cloned from `REPO` (default
 absent; an existing `SRC` is reused untouched. Override defaults via env:
 `SRC=/path CUDA_ARCH=121 PREFIX=/opt/llama ./install.sh`.
 
+**"Untouched" means re-running `install.sh` rebuilds the same commit.** To move
+to a newer upstream, update the checkout first:
+
+```bash
+cd "$SRC" && git fetch --tags origin && git checkout b10488
+```
+
+Check `/opt/llama/bin/llama-server --version` before assuming a build is recent
+— this box sat on b9652 while the tags had reached b10488. For `qwen35` hybrids
+(Qwen3.5/3.6/3.8) **b10434 is the floor**: below it, prompts over ~90–100K crash
+llama-server silently (fixed by #26623, recurrent state rollback).
+
 ## Design notes (the non-obvious bits)
 
 - **No `/home/linuxbrew` dependency.** A Homebrew `pkg-config`/curl/openssl is on

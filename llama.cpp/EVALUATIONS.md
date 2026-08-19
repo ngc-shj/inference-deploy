@@ -506,6 +506,102 @@ head-to-head vs Coder-MTP on a task Coder-MTP fails.
 
 ---
 
+## 2026-08-19 — Qwen3.8-27B on GB10: FP8 vs NVFP4 vs GGUF Q4, and what MTP is worth
+
+Three formats for the same model on the same box, same `merge_intervals` prompt
+as the evals above, no-think, run 1 discarded. The spread is 3.4×, all of it
+from format and speculative decoding.
+
+| Engine / format | weights | decode tok/s | Code |
+| --- | --- | --- | --- |
+| vLLM `Qwen/Qwen3.8-27B-FP8` | 28.51 GiB | **7.8** | 4/4 doctests ✓ |
+| llama.cpp `UD-Q4_K_XL`, plain decode | 17.9 GB | **11.7** | ✓ |
+| llama.cpp `UD-Q4_K_XL` + `draft-mtp` | 17.9 GB | **26.2** | ✓ |
+| `nvidia/Qwen3.6-35B-A3B-NVFP4` *(resident ref)* | ~20 GB | 116–122 | ✓ |
+
+**MTP is worth 2.2× here** (11.7 → 26.2) at a draft acceptance of 0.89–0.92 and
+mean accepted length 2.8 — the MTP tensors are embedded in the unsloth GGUF, so
+`spec-type = draft-mtp` is the whole configuration. Note the contrast with the
+same model on MLX, where MTP bought nothing because vllm-mlx caps draft depth at
+1 (see [EVALUATIONS-macos.md](EVALUATIONS-macos.md)). The speedup is real; the
+runtime decides whether you can have it.
+
+26.2 tok/s also lands where the 2026-06-21 Qwen3.6-27B entry did (24.4), which
+is the consistency check: same 27B-dense-hybrid shape, same quant size, same
+box.
+
+**The FP8 number is not a bug — it is this page's own bandwidth law.** 273 GB/s
+÷ 28.51 GiB of active weights = 9.6 tok/s ceiling; 7.8 sits at 81% of it. Q4 at
+17.9 GB raises the ceiling to 15.2, and 11.7 is 77% of that. Both are exactly
+where the law puts them; only MTP escapes it, by producing more than one token
+per weight sweep. [docs/QWEN3.8-27B-PREP.md](../docs/QWEN3.8-27B-PREP.md)
+predicted 25–30 tok/s, which turned out right **for the Q4 + MTP path it
+implicitly assumed** — the FP8 run was a different measurement than the one it
+predicted.
+
+**NVFP4 does not rescue it, and this is checkable without downloading 26 GB.**
+`Inferact/Qwen3.8-27B-NVFP4`'s `quantization_config.ignore` has 244 entries:
+all 48 Gated DeltaNet layers' `conv1d` and `in_proj_{a,b,qkv,z}`, plus
+`lm_head`, `embed_tokens`, `visual`, `mtp`. Only the 16 full-attention layers
+and the MLPs are 4-bit, which is why the repo totals 26.4 GB against FP8's 29 GB.
+Expect ~11 tok/s, not the ~19 a real 4-bit conversion would give.
+
+**llama.cpp Q4 is the only format that quantizes the GDN layers** the NVFP4
+checkpoints skip, which is why it is the fastest of the three despite being the
+least exotic. It also comes with the MTP head embedded, so it is the only path
+on this box where both halves of the speedup are available at once.
+
+**Startup: FP8 will not boot without `VLLM_USE_DEEP_GEMM=0`.** vLLM logs
+`Auto-disabled DeepGemm for model_type=qwen3_5_text on Blackwell` while building
+the config, then calls DeepGemm from kernel warmup regardless and the engine
+aborts with `Assertion error (deepgemm .../layout.hpp:76): Unknown recipe` —
+after a full 190 s weight load and 51 s compile, every restart. The env var is
+the only kill-switch, which is why `vllm-run.sh` now forwards `$VLLM_ENV`.
+
+**Other startup notes**: drop `--moe-backend` and the spec config's
+`moe_backend` — this model is dense and they have nothing to apply to. vLLM
+selects FLASHINFER and the Triton/FLA GDN prefill kernel on its own, so the
+explicit `--attention-backend` from the MoE config is unnecessary.
+
+**Vision works here with no configuration at all** — 3/3 on synthetic images
+(read three digits, count shapes, name a colour), because llama.cpp auto-loads
+the `mmproj-BF16.gguf` shipped alongside the GGUF. No `mmproj =` line is needed
+in `models.ini`. Worth contrasting with the Mac, where the same capability is
+unreachable until vllm-mlx is upgraded to 0.4.1.
+
+**No quality deficit was found here, and that is a measurement result, not a
+compliment.** Both models scored 9/9 on a harder verifiable set (3-round
+circular-XOR automaton, a 20-step nonlinear recurrence, inclusion-exclusion),
+under thinking ON *and* OFF, on top of 4/4 doctests and an agent loop both
+solved in 2 steps. **This harness cannot separate them.** The public verdict on
+this model is strongly positive and rests on open-ended generation quality,
+long-horizon agentic work, and multimodal reasoning — axes that need a judge,
+which nothing here provides. Do not read "no difference measured" as "no
+difference".
+
+Worth recording: at `enable_thinking: false` the model still writes its working
+into `content` (45–99 s per answer at 26 tok/s ≈ 1200–2500 tokens). The flag
+suppresses the reasoning channel, not the reasoning.
+
+**Verdict**: not adopted **as a resident model, on speed** — 26.2 tok/s is the
+honest best case and still ~4× slower than the resident 35B-A3B. The one
+measured quality deficit is Japanese (see
+[EVALUATIONS-macos.md](EVALUATIONS-macos.md), honorifics 1/5 vs 5/5), which
+matches independent Japanese reports of Simplified-Chinese bleed and of losing
+to Gemma4 26B/12B on Japanese. Kept as an **on-demand `models.ini` entry without
+`load-on-startup`**: it is the only vision-capable model on this box that needs
+no extra setup, and on any axis this harness can score it is the resident
+model's equal.
+
+Router-served numbers match the standalone instance (26.0 vs 26.2), so the
+`models.ini` section reproduces the measurement.
+
+**Build note**: this needed llama.cpp b10488 (was b9652). `install.sh` reuses an
+existing checkout untouched, so the source must be moved forward explicitly;
+b10434 is the floor for `qwen35` hybrids.
+
+---
+
 ## Sampling parameters (validation)
 
 Sampling is a **client-side, per-request** choice — not a `models.ini` load
