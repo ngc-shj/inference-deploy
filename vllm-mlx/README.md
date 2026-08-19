@@ -116,3 +116,25 @@ option for the Metal backend.
 cross-hardware parity with the GB10 NVFP4 default, or `-4bit` as an
 effectively-equal fallback. See `vllm-mlx-server.env.example` and
 [`../llama.cpp/EVALUATIONS-macos.md`](../llama.cpp/EVALUATIONS-macos.md).
+
+### Serving a vision model
+
+Images only route through vllm-mlx's MLLM path, and it only takes that path for
+a **filesystem path** — a repo name loads the text-only `mlx_lm` path and
+silently drops vision. So point `VLLM_MLX_MODEL` at a directory (symlinks into
+the HF cache cost nothing) and pick an affine `-4bit` quant: the MLLM path
+dequantizes the base as affine, so an mxfp4 base fails on the first token with
+`Unable to load kernel affine_dequantize_uint8_t_gs_32_b_4`. Needs
+**vllm-mlx >= 0.4.1** — 0.4.0 returns fluent nonsense from any local path.
+
+### Serving a reasoning model
+
+The stock `--timeout`, `--max-tokens` and `--max-request-tokens` all default to
+values that predate 262144-token windows, and agent clients send no sampling
+parameters at all, so the server defaults are what they get. `--timeout` is the
+one that surprises: it is wall-clock, so it 504s long reasoning regardless of
+the token caps — and it is the only backstop that works, because a model asked
+for maximum reasoning effort may simply never stop. Qwen3.8-27B at `xhigh` did
+not finish an open-ended prompt within an hour here, while the same prompt at
+`medium` took eight minutes. `vllm-mlx-server.env.example` carries a worked
+configuration and the measurement behind each number.
