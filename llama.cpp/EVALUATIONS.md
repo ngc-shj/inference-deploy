@@ -506,21 +506,38 @@ head-to-head vs Coder-MTP on a task Coder-MTP fails.
 
 ---
 
-## 2026-08-19 — Qwen3.8-27B-FP8 (vLLM) — the wrong quant for a dense hybrid
+## 2026-08-19 — Qwen3.8-27B on GB10: FP8 vs NVFP4 vs GGUF Q4, and what MTP is worth
 
-`Qwen/Qwen3.8-27B-FP8` on `vllm/vllm-openai:nightly`, native 262144, no MTP.
-Same `merge_intervals` prompt as the evals above, no-think, run 1 discarded.
+Three formats for the same model on the same box, same `merge_intervals` prompt
+as the evals above, no-think, run 1 discarded. The spread is 3.4×, all of it
+from format and speculative decoding.
 
-| Model | Format | weights resident | decode tok/s | Code |
-| --- | --- | --- | --- | --- |
-| `Qwen/Qwen3.8-27B-FP8` | FP8 block-scaled | 28.51 GiB | **7.8** | 4/4 doctests ✓ |
-| `nvidia/Qwen3.6-35B-A3B-NVFP4` *(resident ref)* | NVFP4 | ~20 GB | 116–122 | ✓ |
+| Engine / format | weights | decode tok/s | Code |
+| --- | --- | --- | --- |
+| vLLM `Qwen/Qwen3.8-27B-FP8` | 28.51 GiB | **7.8** | 4/4 doctests ✓ |
+| llama.cpp `UD-Q4_K_XL`, plain decode | 17.9 GB | **11.7** | ✓ |
+| llama.cpp `UD-Q4_K_XL` + `draft-mtp` | 17.9 GB | **26.2** | ✓ |
+| `nvidia/Qwen3.6-35B-A3B-NVFP4` *(resident ref)* | ~20 GB | 116–122 | ✓ |
 
-**7.8 tok/s is not a bug — it is this page's own bandwidth law.** 273 GB/s ÷
-28.51 GiB of active weights = 9.6 tok/s ceiling; the measurement sits at 81% of
-it. [docs/QWEN3.8-27B-PREP.md](../docs/QWEN3.8-27B-PREP.md) predicted 25–30
-tok/s, but that figure assumed **Q4 (~17–18 GB)**. FP8 is twice the bytes, so
-the prediction was right about the law and wrong about the format.
+**MTP is worth 2.2× here** (11.7 → 26.2) at a draft acceptance of 0.89–0.92 and
+mean accepted length 2.8 — the MTP tensors are embedded in the unsloth GGUF, so
+`spec-type = draft-mtp` is the whole configuration. Note the contrast with the
+same model on MLX, where MTP bought nothing because vllm-mlx caps draft depth at
+1 (see [EVALUATIONS-macos.md](EVALUATIONS-macos.md)). The speedup is real; the
+runtime decides whether you can have it.
+
+26.2 tok/s also lands where the 2026-06-21 Qwen3.6-27B entry did (24.4), which
+is the consistency check: same 27B-dense-hybrid shape, same quant size, same
+box.
+
+**The FP8 number is not a bug — it is this page's own bandwidth law.** 273 GB/s
+÷ 28.51 GiB of active weights = 9.6 tok/s ceiling; 7.8 sits at 81% of it. Q4 at
+17.9 GB raises the ceiling to 15.2, and 11.7 is 77% of that. Both are exactly
+where the law puts them; only MTP escapes it, by producing more than one token
+per weight sweep. [docs/QWEN3.8-27B-PREP.md](../docs/QWEN3.8-27B-PREP.md)
+predicted 25–30 tok/s, which turned out right **for the Q4 + MTP path it
+implicitly assumed** — the FP8 run was a different measurement than the one it
+predicted.
 
 **NVFP4 does not rescue it, and this is checkable without downloading 26 GB.**
 `Inferact/Qwen3.8-27B-NVFP4`'s `quantization_config.ignore` has 244 entries:
@@ -529,12 +546,10 @@ all 48 Gated DeltaNet layers' `conv1d` and `in_proj_{a,b,qkv,z}`, plus
 and the MLPs are 4-bit, which is why the repo totals 26.4 GB against FP8's 29 GB.
 Expect ~11 tok/s, not the ~19 a real 4-bit conversion would give.
 
-**The one path to usable speed on this box is llama.cpp Q4**, which quantizes
-the GDN layers the NVFP4 checkpoints skip (~17–18 GB → ~15 tok/s by the law,
-and the 2026-06-21 Qwen3.6-27B entry above measured 24.4 tok/s for the same
-27B-dense-hybrid shape). That needs a llama.cpp rebuild: the installed binary is
-build 9652, far below the b10434 floor that [the prep doc](../docs/QWEN3.8-27B-PREP.md)
-§6.3 identifies for long-context stability.
+**llama.cpp Q4 is the only format that quantizes the GDN layers** the NVFP4
+checkpoints skip, which is why it is the fastest of the three despite being the
+least exotic. It also comes with the MTP head embedded, so it is the only path
+on this box where both halves of the speedup are available at once.
 
 **Startup: FP8 will not boot without `VLLM_USE_DEEP_GEMM=0`.** vLLM logs
 `Auto-disabled DeepGemm for model_type=qwen3_5_text on Blackwell` while building
@@ -548,11 +563,18 @@ the only kill-switch, which is why `vllm-run.sh` now forwards `$VLLM_ENV`.
 selects FLASHINFER and the Triton/FLA GDN prefill kernel on its own, so the
 explicit `--attention-backend` from the MoE config is unnecessary.
 
-**Verdict**: not adopted on this box in any vLLM form. Quality is on par on
-coding tasks (4/4 doctests; see [EVALUATIONS-macos.md](EVALUATIONS-macos.md) for
-the axes where it is *worse* than the resident model), and 7.8 tok/s against the
-resident 116–122 is not a trade anything recovers. Revisit only via llama.cpp
-Q4 after a b10434+ rebuild.
+**Verdict**: not adopted. 26.2 tok/s is the honest best case and it is still
+~4× slower than the resident 35B-A3B, with quality on par on coding tasks (4/4
+doctests) and *worse* on the axes that discriminate — see
+[EVALUATIONS-macos.md](EVALUATIONS-macos.md) for Japanese honorifics, 1/5 vs
+5/5. Not registered with `load-on-startup`; kept as an on-demand entry in
+`models.ini` for the vision path, since llama.cpp auto-loads the `mmproj-BF16`
+that ships alongside the GGUF — the same capability that needs a vllm-mlx
+upgrade on the Mac.
+
+**Build note**: this needed llama.cpp b10488 (was b9652). `install.sh` reuses an
+existing checkout untouched, so the source must be moved forward explicitly;
+b10434 is the floor for `qwen35` hybrids.
 
 ---
 

@@ -210,11 +210,15 @@ superior's action). The resident model wrote 「ご覧になった」 every time
   4 bits keeps ~13.5 GB of active weights against the MoE's ~2 GB; 138.7 / 34.9
   = 4.0× is the ratio that predicts. The 50–70 tok/s estimate assumed the MoE's
   penalty was milder than it is.
-- **MTP buys nothing here** (32.4 with vs 32.7 without, same binary and model
-  dir). `vllm_mlx/engine/simple.py` logs "Native mlx_lm MTP currently ignores
-  num_draft_tokens; effective speculative draft depth remains 1" — at depth 1
-  the head's forward pass costs about what the extra token saves. Third-party
-  claims of ~2.2× on this model come from MTPLX, a different runtime.
+- **MTP buys nothing here, and the runtime is why** (32.4 with vs 32.7 without,
+  same binary and model dir). `vllm_mlx/engine/simple.py` logs "Native mlx_lm
+  MTP currently ignores num_draft_tokens; effective speculative draft depth
+  remains 1" — at depth 1 the head's forward pass costs about what the extra
+  token saves. This is not the model: the *same* MTP head gave **2.2×** through
+  llama.cpp on GB10 (11.7 → 26.2 tok/s, acceptance 0.89–0.92, mean accepted
+  length 2.8 — see [EVALUATIONS.md](EVALUATIONS.md)). Third-party claims of
+  ~2.2× on Apple Silicon come from MTPLX, a different runtime, and are
+  consistent with that figure rather than with anything vllm-mlx can do today.
 - **Loading a local directory corrupts output on vllm-mlx 0.4.0.** The same
   checkpoint serves correctly by repo name (mlx_lm path, `MLLM=False`) and
   returns fluent nonsense from a local path (mlx_vlm path, `MLLM=True`).
