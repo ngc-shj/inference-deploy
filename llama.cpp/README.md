@@ -46,6 +46,17 @@ absent; an existing `SRC` is reused untouched. Override defaults via env:
 - **Hardening**: `ProtectSystem=strict`, `ProtectHome=read-only`. NVIDIA device
   nodes are left visible on purpose — `PrivateDevices=true` and
   `MemoryDenyWriteExecute=true` both break the CUDA runtime.
+- **On a multi-GPU box, select by UUID — not by index.** The GB10 has one GPU and
+  needs none of this, but elsewhere `CUDA_VISIBLE_DEVICES=1` does *not* mean
+  `nvidia-smi`'s GPU 1: CUDA defaults to `CUDA_DEVICE_ORDER=FASTEST_FIRST`, so its
+  indices are ranked by speed rather than by PCI bus. With unequal cards that
+  quietly loads the model onto the wrong one, and the over-commit does not
+  necessarily fail — under WSL2/WDDM it spills into shared host memory and serves
+  at a crawl, leaving only `common_fit_params: failed to fit params to free device
+  memory` in the log. Put the UUID from
+  `nvidia-smi --query-gpu=index,name,uuid,pci.bus_id --format=csv` in
+  `llama-server.env` (systemd exports every line of it), then confirm with
+  `nvidia-smi` that the memory landed on the card you meant.
 
 ## Router mode (switch models from the client)
 
@@ -73,6 +84,13 @@ server.
       -hf Jackrong/Qwopus3.5-9B-v3-GGUF:Q8_0 -ngl 0   # Ctrl-C after "model loaded"
   sudo systemctl restart llama-server
   ```
+  Prime with **`llama-server`, not `llama download`**. The latter looks like the
+  right tool and silently skips the **mmproj**, leaving a vision model text-only:
+  `common/arg.cpp` gates mmproj fetching on `mmproj_examples = {MTMD, SERVER, CLI,
+  TTS}` and `DOWNLOAD` is absent from that list, so `use_mmproj` is false whatever
+  you pass — despite `llama download --help` promising "mmproj is also downloaded
+  automatically if available". Sidecars named by `--spec-type` (e.g. an MTP head
+  that is *not* embedded in the weights file) come down either way.
 - **GGUF only.** Safetensors-only HF repos must be converted with
   llama.cpp's `convert_hf_to_gguf.py` first, then placed under
   `/var/lib/llama/models` and referenced from a preset section with

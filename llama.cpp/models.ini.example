@@ -105,3 +105,34 @@ c = 262144
 np = 1
 spec-type = draft-mtp
 spec-draft-n-max = 2
+
+; Qwen3.8-27B: a *dense* 27B (qwen3_5, multimodal). Off by default here — the
+; models above are the resident set — but kept as the worked example for sizing a
+; model against a discrete-VRAM card rather than the GB10's shared pool.
+;
+; Its MTP head is embedded in Unsloth's UD-Q4_K_XL file, so `spec-type` needs no
+; sidecar; the log confirms which file is in play with "creating MTP draft context
+; against the target model <path>". The repo's separate MTP/mtp-*-Q4_0.gguf is for
+; base files that lack the head — ignore it. The mmproj IS a sidecar, so see the
+; `llama download` warning in README.md before priming the cache.
+;
+; KV math: 64 layers with full_attention_interval = 4, so only 16 of them cache
+; context-growing KV (4 kv heads x 256 head_dim, K+V, f16) = 64 KiB/token; the
+; other 48 are linear-attention and hold a fixed-size state. Trained length is
+; 262144, which still wants 16GB of KV (8GB at q8_0) on top of ~17.2GB of weights
+; and projector — fine in the 128GB pool, impossible on a 24GB card. On 24GB,
+; q8_0 buys c = 65536 for the 2GB that 32768 would cost at f16, measuring ~20.6GB
+; resident in total. That ceiling is the card's, not the model's, so no YaRN is
+; involved either way.
+;
+; Sampling (client-side): Qwen3-family instruct temp=0.7 top_p=0.8 top_k=20
+; min_p=0; thinking temp=0.6 top_p=0.95 top_k=20 min_p=0. llama.cpp also warns at
+; load that Qwen-VL wants at least 1024 image tokens — add `image-min-tokens = 1024`
+; before trusting it on grounding or OCR.
+;[unsloth/Qwen3.8-27B-GGUF:Q4_K_XL]
+;c = 65536
+;cache-type-k = q8_0
+;cache-type-v = q8_0
+;np = 1
+;spec-type = draft-mtp
+;spec-draft-n-max = 2
