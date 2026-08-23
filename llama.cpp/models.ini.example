@@ -116,6 +116,14 @@ spec-draft-n-max = 2
 ; base files that lack the head — ignore it. The mmproj IS a sidecar, so see the
 ; `llama download` warning in README.md before priming the cache.
 ;
+; `spec-type` is what makes a 27B *dense* model usable on one consumer card at
+; all. Measured with and without it, everything else identical (24GB + 16GB, both
+; cards, c = 262144): the MTP draft context costs **2.9GB** and takes decode from
+; 33.0 to 65.1 tok/s — near enough double for ~11 tok/s per GB. Prefill goes the
+; other way, 2588 -> 2233 tok/s, which is the drafting overhead. So if VRAM ever
+; gets tight, cut `c` before cutting `spec-type`: halving the context frees
+; comparable memory without halving decode.
+;
 ; KV math: 64 layers with full_attention_interval = 4, so only 16 of them cache
 ; context-growing KV (4 kv heads x 256 head_dim, K+V, f16) = 64 KiB/token; the
 ; other 48 are linear-attention and hold a fixed-size state. Trained length is
