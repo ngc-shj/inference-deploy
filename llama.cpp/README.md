@@ -69,6 +69,31 @@ llama-server silently (fixed by #26623, recurrent state rollback).
   `nvidia-smi --query-gpu=index,name,uuid,pci.bus_id --format=csv` in
   `llama-server.env` (systemd exports every line of it), then confirm with
   `nvidia-smi` that the memory landed on the card you meant.
+- **Splitting layers over two cards trades decode for prefill — it is not a free
+  win.** Measured on an RTX 4090 (24GB) + RTX 4090 Laptop (16GB) box with
+  Qwen3.8-27B UD-Q4_K_XL, same build and flags, one card vs both:
+
+  | | 24GB card alone | both, layer-split |
+  | --- | --- | --- |
+  | decode | **79.0 tok/s** | 64.8 tok/s (**-18%**) |
+  | prefill (4189 tok) | 2047 tok/s | **2173 tok/s** (**+6%**) |
+
+  MTP draft acceptance was if anything *better* split (0.931 vs 0.912), so the
+  decode loss is the split itself, not a speculative-decoding artifact:
+  `-sm layer` runs layer ranges serially, so bandwidth-bound decode is gated by
+  the slower card, while compute-bound prefill gets the extra SMs. Prefer one
+  card when the model fits it. The reason to split anyway is **headroom**, not
+  speed — here it frees ~11GB, which is the difference between capping context at
+  65536 and fitting the model's native 262144. Going to native context cost no
+  further decode (65.1 tok/s at 262144 vs 64.8 at 65536): the 18% is a fixed price
+  for splitting, not a price per token of context.
+- **If one of the cards drives a display, set `-ts` by hand.** The default split is
+  proportional to capacity, which on the box above left the *display* GPU with
+  0.5GB free — llama.cpp counts free VRAM, not what the desktop is about to want.
+  `-ts 2,1` (weighting the headless card) brought that back to ~1.8GB and also
+  silenced `common_fit_params: failed to fit params`. Note `-ts` sets a ratio, not
+  a cap: the same 2,1 landed nearer 40:60 than 33:67 in practice, so read
+  `nvidia-smi` afterwards rather than trusting the arithmetic.
 
 ## Router mode (switch models from the client)
 
