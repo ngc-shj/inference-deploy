@@ -59,6 +59,18 @@ launchctl bootout   gui/$(id -u)/com.vllm-mlx.server      # stop + unload
 tail -f "${XDG_STATE_HOME:-$HOME/.local/state}"/vllm-mlx/logs/vllm-mlx-server.err.log  # model-load progress
 ```
 
+`kickstart` above assumes the agent is still **loaded** — which it is after login,
+because launchd bootstraps it and `RunAtLoad=false` only stops it from *starting*.
+`bootout` unloads it, so getting back from there takes two steps, not one:
+
+```bash
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.vllm-mlx.server.plist
+launchctl kickstart gui/$(id -u)/com.vllm-mlx.server
+```
+
+Use `bootout` when freeing the pool for another engine — it is the clean stop that
+`KeepAlive` will not undo (see below) — and keep the pair above with it.
+
 Quick check once it's up (default port 8000):
 
 ```bash
