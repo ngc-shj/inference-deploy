@@ -602,6 +602,70 @@ b10434 is the floor for `qwen35` hybrids.
 
 ---
 
+## 2026-08-28 — Qwen3.8-Flash-Next (125B-A6B + 51B n-gram): what actually sets its speed
+
+180B on disk — 125B backbone with 6B activated, plus a 51B n-gram embedding and a
+4B MTP head — served from llama.cpp [PR #27742](https://github.com/ggml-org/llama.cpp/pull/27742)
+(`qwen4exp`), which is **not merged**. Built in a detached worktree and run from
+the build tree: `/opt/llama` stayed on b10488 and the resident router never saw
+this binary. Same harness as the rest of this file; `c = 262144`, no spec-decode
+unless a row says otherwise.
+
+| Model | Quant / size | Spec | decode | prefill (4189 tok) |
+| --- | --- | --- | --- | --- |
+| Flash-Next | UD-IQ4_XS, 87.25 GiB | — | 27.1 | 693 |
+| Flash-Next | UD-IQ1_S, 67.56 GiB | — | **33.3** | 719 |
+| Qwen3.6-35B-A3B *(resident)* | Q4_K_XL, 21.3 GiB | MTP | **93.4** | 2171 |
+| Qwen3.6-35B-A3B | Q4_K_XL | **off** | 64.4 | — |
+| Qwen3.8-27B *(dense)* | Q4_K_XL, 17 GiB | MTP | 26.8 | 761 |
+
+**Findings**
+
+- **Decode tracks total file bytes, not active parameters.** IQ1_S reads 22.6%
+  fewer bytes than IQ4_XS and decodes 23.0% faster — near enough linear. Prefill
+  moved 3.8% over the same change, so it is compute-bound and the split is clean.
+  Two builds 22 commits apart and all three `LLAMA_MMAP_RANDOM` modes gave 26.4 /
+  27.3 / 27.0 at IQ4_XS: nothing but the byte count moves this number.
+- **This box's effective decode bandwidth is ~123 GB/s — 45% of the 273 GB/s
+  spec.** Derived from a model whose active count is known: the 35B-A3B is 3B
+  active, and 3e9 x 5.086 bpw / 8 = 1.91 GB/token at 64.4 tok/s. MTP has to be
+  off to measure this at all — speculative decoding emits several tokens per
+  forward pass, so tok/s stops equalling passes/s. **Computing against the spec
+  figure inflates every apparent anomaly by 2.2x**; doing exactly that is what
+  first made Flash-Next look like it read 3x its active parameters.
+- **Measured against 123 GB/s, Flash-Next reads about its active 6B**, at 66–69%
+  of the 35B-A3B's efficiency (84.5 and 80.5 GB/s at IQ4_XS and IQ1_S — two
+  independent quants agreeing). The residual 1.45x is what the model card already
+  accounts for: *"125B with 6B activated, **plus** 51B n-gram embedding"* — the
+  n-gram access sits outside the 6B by the vendor's own arithmetic.
+- **Level with a dense 27B, one MTP down.** 27.1 vs 26.8 tok/s against
+  Qwen3.8-27B — a 5x larger file tying a dense model *while giving it the
+  spec-decode advantage*. Against the resident 35B-A3B the honest comparison is
+  27.1 vs **64.4** (both plain), a 2.4x gap; the 3.5x you get from the MTP-on 93.4
+  is not a comparison, it is a category error.
+- **No GGUF anywhere carries the MTP head.** unsloth, orcarouter and AtomicChat
+  all ship without it — `llama_init_from_model: context type MTP requested but
+  model doesn't contain MTP layers`. Whether it would help is untested here and
+  not encouraging elsewhere: vllm-mlx's own PR measures its MTP drafter *reducing*
+  decode (18.21 → 15.57 tok/s) and breaking two of five strict tool calls.
+- **The PR's random-access mmap work is a no-op on this box.** `LLAMA_MMAP_RANDOM`
+  (`1` / `drop`) advises the gather tables random, and three of the PR's commits
+  target exactly the access pattern that would explain a slow n-gram lookup — but
+  decode did not move. The hint applies to *host-resident* tables, and `-ngl 999`
+  on unified memory leaves none. Untested, not disproven.
+
+**Verdict**: not a resident candidate. It ties a 27B on speed, needs an unmerged
+branch that moved 22 commits in a day, cannot use the one feature that makes a
+27B-class model comfortable here, and its 87 GiB evicts the whole 3-model set.
+Re-evaluate when #27742 lands and a GGUF ships the MTP head. Quality is untested
+— everything above is speed.
+
+**Where the files live**: `/var/lib/llama/cache/models--unsloth--Qwen3.8-Flash-Next-GGUF`,
+hand-built into hub layout (blobs keyed by LFS etag, snapshot `22be3298`) so the
+router can resolve them by ID once a `qwen4exp`-capable binary is installed.
+
+---
+
 ## Sampling parameters (validation)
 
 Sampling is a **client-side, per-request** choice — not a `models.ini` load

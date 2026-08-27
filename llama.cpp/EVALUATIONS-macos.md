@@ -260,3 +260,59 @@ this model spending 22k reasoning tokens on a single SVG at `xhigh`, so a
 question answered in ~2k characters was never going to separate the levels. The
 prep doc's "only deciding axis" was not tested at a difficulty where it could
 decide anything.
+
+---
+
+## 2026-08-28 — Qwen3.8-Flash-Next on Metal: the `qwen4exp` PR needs no new kernels
+
+Cross-box run of the *same file*: unsloth `UD-IQ1_S` (67.56 GiB, 3 shards, byte-identical
+to the copy on gx10-a9c0), same commit `b8bdf73` of llama.cpp
+[PR #27742](https://github.com/ggml-org/llama.cpp/pull/27742), `c = 262144`, no
+spec-decode, same bench script. Built into a detached worktree with
+`-DGGML_METAL=ON`; the normal checkout was left alone.
+
+| Box | decode | prefill (4189 tok) |
+| --- | --- | --- |
+| gx10-a9c0 (GB10) | 33.3 | 719 |
+| **z1mn (M5 Max)** | **36.5** | **884** |
+| ratio | 1.10x | 1.23x |
+
+**Findings**
+
+- **The PR touches no ggml backend and needs nothing from Metal that is not
+  already there.** All 21 files it changes are `src/`, `gguf-py/`, `conversion/`
+  and tests — the `qwen4exp` graph is built from stock ops. Every op it calls has
+  a Metal path, including the two that look missing until you follow them:
+  `ggml_repeat_4d` is `GGML_OP_REPEAT`, and `ggml_rope_multi` is `GGML_OP_ROPE`
+  with mrope (`kernels/rope.metal`). It built and ran unmodified.
+- **The 1.35x box ratio from the 35B-A3B does not carry over.** That figure —
+  87 tok/s here on 2026-07-11 against 64.4 measured on GB10 the same week —
+  predicted ~45 tok/s. The measurement is 36.5, a ratio of **1.10x**. Whatever
+  advantage the M5 Max's bandwidth gives on a conventional MoE, this architecture
+  does not collect it.
+- **Prefill is the Mac's stronger half here, not its weaker one** — 884 vs 719,
+  23% ahead. The ~288 tok/s prefill recorded above is a different model on a
+  different engine and does not generalise to this one.
+- **Output correctness is unverified.** Token counts and throughput are sane and
+  consistent with GB10, but nothing checked what the model actually wrote. IQ1_S
+  is extreme quantisation, so a bad result would need separating from the quant
+  before it could be blamed on Metal.
+
+**Operational note — this box still runs one engine at a time.** The first run
+reported 36.4 tok/s while the vllm-mlx agent still held Qwen3.8-27B-4bit: 72.5 GB
+of weights plus 6.4 GB of KV on top of it drove ~10 GB of swap-out. Stopping the
+agent and re-running changed **prefill by 15%** (770 → 884) and left **decode
+untouched** (36.4 → 36.5) — mmap'd weights read steadily either way, while the
+bursty prefill paid for the pressure. Check for a resident engine *and* watch
+`sysctl vm.swapusage` across the load, not just free pages.
+
+**MLX is not an option yet.** `mlx_vlm` 0.6.15 has no `qwen4_exp` at all (the
+`*_flash` modules present are longcat and mimo). Reaching it needs mlx-vlm past
+[#2040](https://github.com/Blaizzy/mlx-vlm/pull/2040) plus the unmerged
+[#2045](https://github.com/Blaizzy/mlx-vlm/pull/2045), and vllm-mlx
+[PR #735](https://github.com/waybarrios/vllm-mlx/pull/735), still a draft — into
+the venv that currently serves this Mac. MLX checkpoints exist (86–113 GiB,
+several carrying MTP, which no GGUF does), so it is the only route to testing MTP
+for this model; #735's own numbers have that drafter *reducing* decode from 18.21
+to 15.57 tok/s and breaking two of five strict tool calls, so the expected value
+is low. Wait for the merges.
