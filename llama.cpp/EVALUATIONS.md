@@ -638,6 +638,10 @@ unless a row says otherwise.
   independent quants agreeing). The residual 1.45x is what the model card already
   accounts for: *"125B with 6B activated, **plus** 51B n-gram embedding"* — the
   n-gram access sits outside the 6B by the vendor's own arithmetic.
+  *Amended (2026-08-29)*: both Flash-Next points are **i-quants** and the
+  123 GB/s baseline is a **K-quant**, and the family itself costs something —
+  measured below at ~5% on this box. Correcting for it trims the residual from
+  1.45x to **~1.38x**; the n-gram attribution stands, slightly smaller.
 - **Level with a dense 27B, one MTP down.** 27.1 vs 26.8 tok/s against
   Qwen3.8-27B — a 5x larger file tying a dense model *while giving it the
   spec-decode advantage*. Against the resident 35B-A3B the honest comparison is
@@ -663,6 +667,37 @@ Re-evaluate when #27742 lands and a GGUF ships the MTP head. Quality is untested
 **Where the files live**: `/var/lib/llama/cache/models--unsloth--Qwen3.8-Flash-Next-GGUF`,
 hand-built into hub layout (blobs keyed by LFS etag, snapshot `22be3298`) so the
 router can resolve them by ID once a `qwen4exp`-capable binary is installed.
+As of 2026-08-29 the snapshot holds **UD-IQ1_S and UD-Q2_K_XL**; UD-IQ4_XS was
+dropped for space (its numbers are reproduced above, and the identical bytes
+live on z1mn and on HF main).
+
+---
+
+## 2026-08-29 — Flash-Next i-quant vs K-quant on CUDA: ~5%, not Metal's ~12%
+
+Follow-up to the Metal quant sweep (EVALUATIONS-macos.md, same date), which
+showed the quant *family* carries its own cost there and put the "residual
+1.45x" attribution above in doubt. Same-session pair on this box, same build
+(`b8bdf73`), `c = 65536`, resident router stopped for the duration:
+
+| Quant | Family | Bytes | decode | ms/token |
+| --- | --- | --- | --- | --- |
+| UD-IQ1_S | i | 72.5 GB | 32.9 | 30.42 |
+| UD-Q2_K_XL | K | 78.9 GB | 32.3 | 31.00 |
+
+**Findings**
+
+- **CUDA has a K-advantage too, but a small one.** The i-family line measured
+  here earlier (0.33 ms/token per GB) predicts 32.5 ms for a 78.9 GB i-quant;
+  the K-quant does it in 31.0 — **~5% cheaper per byte**, against ~12% at the
+  same size point on Metal. CUDA's i-quant kernels are much closer to
+  bandwidth-ideal than Metal's.
+- **The 1.45x n-gram residual survives, trimmed to ~1.38x** (amendment above).
+- **Cross-box ratios at matched quant**: IQ1_S 1.12x, Q2_K_XL 1.20x (Mac/GB10).
+  The ratio moves with the family — worth remembering before quoting any single
+  "Mac vs GB10" number for this model.
+- IQ1_S at 65536 vs 262144: 32.9 vs 33.3 — context length still costs nothing
+  measurable at short generation, on CUDA as on Metal.
 
 ---
 
