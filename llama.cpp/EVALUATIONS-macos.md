@@ -287,9 +287,12 @@ spec-decode, same bench script. Built into a detached worktree with
   with mrope (`kernels/rope.metal`). It built and ran unmodified.
 - **The 1.35x box ratio from the 35B-A3B does not carry over.** That figure —
   87 tok/s here on 2026-07-11 against 64.4 measured on GB10 the same week —
-  predicted ~45 tok/s. The measurement is 36.5, a ratio of **1.10x**. Whatever
-  advantage the M5 Max's bandwidth gives on a conventional MoE, this architecture
-  does not collect it.
+  predicted ~45 tok/s. The measurement is 36.5, a ratio of **1.10x**.
+  *Superseded by the 2026-08-29 quant sweep below*: the explanation offered here
+  ("this architecture does not collect the M5 Max's bandwidth advantage") was
+  wrong — the comparison put an **i-quant** on this box against a **K-quant**
+  baseline, and i-quants carry their own cost on Metal. Same file at IQ4_XS puts
+  the box ratio at **1.29x**; the shortfall was the quant family, not the model.
 - **Prefill is the Mac's stronger half here, not its weaker one** — 884 vs 719,
   23% ahead. The ~288 tok/s prefill recorded above is a different model on a
   different engine and does not generalise to this one.
@@ -316,3 +319,61 @@ several carrying MTP, which no GGUF does), so it is the only route to testing MT
 for this model; #735's own numbers have that drafter *reducing* decode from 18.21
 to 15.57 tok/s and breaking two of five strict tool calls, so the expected value
 is low. Wait for the merges.
+
+---
+
+## 2026-08-29 — Flash-Next quant sweep on Metal: family beats bytes, and back-to-back runs lie
+
+Prompted by the observation that **IQ-family quants are slow on Apple Silicon** —
+which, if true, invalidated the 2026-08-28 box-ratio explanation above (an
+i-quant here was compared against a K-quant baseline). Five quants of the same
+model, same build (`b8bdf73`, PR #27742), `c = 65536`, no spec-decode, vllm-mlx
+stopped.
+
+Accepted values — **early-session positions only** (see the thermal note for why
+that qualifier is load-bearing):
+
+| Quant | Family | Bytes | decode | Confidence |
+| --- | --- | --- | --- | --- |
+| UD-IQ1_S | i | 72.5 GB | 36.9 | high (4 runs, ±1) |
+| UD-Q2_K_XL | K | 78.9 GB | **38.6** | medium (one clean run) |
+| UD-IQ3_XXS | i | 82.0 GB | 37.1 | medium |
+| UD-Q3_K_XL | K | 90.0 GB | 34.7 | high (twice, spread 0.04) |
+| UD-IQ4_XS | i | 93.7 GB | 35.0 | medium |
+
+**Findings**
+
+- **Back-to-back model benches on this MacBook are invalid — and `sudo purge`
+  does not save them.** In two sweep attempts, later positions degraded
+  monotonically regardless of quant, bottoming at **19.2 tok/s for a file that
+  measures 36.9 fresh** (1.9x error); prefill fell in step (907 → 343), which
+  page-cache effects cannot explain but sustained heat can. A 5-minute idle
+  restored 36.4 exactly. The existing "discard run 1" practice is not enough
+  here: **discard everything after the first model or two of a session**, and
+  re-validate any suspicious number after a cooldown.
+- **The quant family matters as much as the byte count.** Q2_K_XL is 8.7%
+  *bigger* than IQ1_S and *faster* (38.6 vs 36.9) — impossible if decode were
+  bytes-only. K-quants scale with bytes (~0.27 ms/token per GB, same behaviour
+  as CUDA); the i-family's slope is far shallower (~0.07), i.e. **on Metal the
+  i-quants are partly compute-bound in dequantisation, not purely
+  bandwidth-bound**. The penalty is worst at the exotic low-bit end (IQ1_S runs
+  ~12% behind the K-line at its size) and fades by IQ4_XS (on par with the
+  K-line). So "IQ quants are slow on Apple Silicon" holds for IQ1/IQ2-class
+  quants and largely washes out by IQ3/IQ4 — on this model and build.
+- **The cross-box ratio is quant-dependent, which is what falsified the 08-28
+  claim.** Same file, Mac/GB10: IQ1_S 1.11x, IQ4_XS 1.29x (35.0 vs 27.1, with a
+  small context-length caveat — GB10 measured at 262144). CUDA's i-quant decode
+  is bytes-linear, Metal's is flat, so the bigger the i-quant the more the Mac
+  pulls ahead. No K-quant has been measured on GB10 yet; that point is queued.
+- **Same-quant cross-machine, Q3_K_XL, short context**: 34.7 here vs 22.6
+  reported on an M4 Max 128GB (third-party, same quant and engine lineage) —
+  1.53x, a plausible generation gap now that the quant is held constant.
+
+**Which quant for this box**: speed spans only 11% across a 21 GB range, so
+bytes buy quality, not speed — take the highest-bpw file that fits. That is
+**IQ4_XS (4.16 bpw effective) at `c = 65536`**, which grazes the default wired
+limit; wanting the native 262144 context (KV 6.4 GB) means either raising
+`iogpu.wired_limit_mb` or dropping to **Q3_K_XL**, the safe pick with
+third-party agentic mileage (190/190 tool calls) on record. Quality across these
+quants is otherwise unmeasured here, and the engine is still an unmerged PR —
+this stays an experiment, not a deployment.
