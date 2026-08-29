@@ -465,3 +465,21 @@ run a 180B model at all?
 tok/s with 47 GiB streaming from system RAM is the shape of the thing, and no
 placement fixes that. The interesting number remains mlx-serve's 70: the gap
 between it and every llama.cpp figure here is the n-gram table, not the box.
+
+**Postscript — 21.5 is this engine's ceiling, not the model's.**
+[FreeToken](https://github.com/FlashML-org/FreeToken) merged `qwen4_exp` support
+([#257](https://github.com/FlashML-org/FreeToken/pull/257), 2026-08-28 — the
+first Flash-Next implementation to land in a mainline anywhere) and reports
+**36 tok/s on a single RTX 4090 (24GB)** and 65 on a 5090, against the 21.5
+measured here on *two* 4090s. Its design description is the same conclusion
+reached from the other direction: *"PLE n-gram embedding (47.7 GiB table, kept
+in pinned host memory, UVA gather)"* — the table off the GPU by construction,
+which is what `-ot` was doing by hand and what mlx-serve ships as an external
+file. Three independent implementations now treat that table as the thing to
+move.
+
+The catch is where the real constraint sits: FreeToken wants **~111 GiB of
+pinned host RAM** (63 GiB expert banks + 48 GiB PLE) and recommends 128 GB. The
+4090 box here has 48 GB, so it cannot run that path at all. **Host RAM, not
+VRAM, is what gates this model** — which reframes every number in this file:
+the 128GB boxes were never winning on GPU, they were winning on the table.
