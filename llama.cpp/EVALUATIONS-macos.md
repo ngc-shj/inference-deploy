@@ -377,3 +377,52 @@ limit; wanting the native 262144 context (KV 6.4 GB) means either raising
 third-party agentic mileage (190/190 tool calls) on record. Quality across these
 quants is otherwise unmeasured here, and the engine is still an unmerged PR —
 this stays an experiment, not a deployment.
+
+---
+
+## 2026-08-29 — mlx-serve's external n-gram store: the intervention that proves the bottleneck
+
+The quant sweep above established *that* Flash-Next decode is bytes-bound and the
+n-gram table is the likely residual; [`ddalcu/mlx-serve`](https://github.com/ddalcu/mlx-serve)
+(native Swift/Metal server, MIT) ships the intervention: its companion checkpoint
+[`ddalcu/Qwen3.8-Flash-Next-MLX-Serve-4bit`](https://huggingface.co/ddalcu/Qwen3.8-Flash-Next-MLX-Serve-4bit)
+carries the 51B n-gram table as an **external 32 GB `ngram_table.bin`**, mmap'd
+and gathered on the CPU (~16 rows/token) instead of living in the GPU-resident
+set. Measured here on **v26.8.11-pre-release.1** (the stable brew formula,
+26.8.10, predates `qwen4_exp` and dies with `MISSING WEIGHT:
+model.embed_tokens.weight`), same prompts as every Flash-Next number in this
+lineage, vllm-mlx stopped:
+
+| Engine / quant | decode | prefill (4189 tok) |
+| --- | --- | --- |
+| **mlx-serve, MLX 4-bit + external n-gram** | **70.4–70.6** | 856–1499 (prefix cache moves it) |
+| llama.cpp/Metal, best of five quants (Q2_K_XL) | 38.6 | ~900 |
+| llama.cpp/Metal, closest quant class (Q3_K_XL) | 34.7 | 907 |
+| GB10 llama.cpp, IQ4_XS *(ref)* | 27.1 | 693 |
+
+**Findings**
+
+- **Taking the n-gram table out of the weight stream nearly doubles decode**
+  (34.7–38.6 → 70). That is the missing-bandwidth arithmetic from the GB10
+  section made real: the "residual 1.38x" was the table, and an engine that
+  gathers 16 rows on the CPU instead of streaming 32 GB per-token recovers it.
+  This retires the llama.cpp-based "ties a dense 27B" verdict for Apple Silicon
+  — on this box, through this engine, Flash-Next runs at 70 tok/s with vision
+  and 262k context.
+- **MTP is loaded but not wired** — `[qwen4] MTP head loaded (… spec wiring
+  pending)`, and `--no-mtp` measures the same 70 tok/s, so both cases are serial
+  decode. The model card's "78 tok/s with MTP" is not reproducible on this
+  build; the repo's commit log shows the wiring in progress.
+- **Consistency with the card**: 60 tok/s serial claimed on an M4 Max, 70
+  measured here on the M5 Max — a 1.17x generation gap, in line with the 1.53x
+  seen on llama.cpp between the same two chips being an upper bound.
+- **Caveats**: pre-release binary (installed by hand from the GitHub release;
+  brew's stable lags), single-session numbers, quality unmeasured — same
+  standing as every other Flash-Next figure in this file. The checkpoint is
+  ~99 GB on disk but the GPU-resident set stays near 70 GB by design, and swap
+  stayed flat through both cases.
+
+**Verdict**: first Flash-Next configuration on any box here that clears the
+"usable, not just runnable" bar on speed. Worth re-evaluating against the
+resident vllm-mlx Qwen3.8-27B once mlx-serve's MTP wiring and a stable 26.8.11
+land — at 70 tok/s serial the remaining questions are quality, not throughput.
