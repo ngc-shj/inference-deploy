@@ -426,3 +426,42 @@ lineage, vllm-mlx stopped:
 "usable, not just runnable" bar on speed. Worth re-evaluating against the
 resident vllm-mlx Qwen3.8-27B once mlx-serve's MTP wiring and a stable 26.8.11
 land — at 70 tok/s serial the remaining questions are quality, not throughput.
+
+---
+
+## 2026-08-30 — Flash-Next on 40GB of consumer VRAM (cross-box coda)
+
+Not an Apple Silicon result, but it belongs with the other Flash-Next numbers.
+The same unsloth `UD-IQ1_S` file, same prompts, on **RTX 4090 (24GB) + RTX 4090
+Laptop (16GB)** under WSL2, llama.cpp from PR #27742 built for sm_89. The
+question the Metal work raised: if taking the 51B n-gram table out of the
+GPU-resident set is what makes this model fast, does that also let a 40GB box
+run a 180B model at all?
+
+| Box | Engine | decode |
+| --- | --- | --- |
+| M5 Max 128GB | mlx-serve (external n-gram) | **70.4** |
+| M5 Max 128GB | llama.cpp/Metal | 36.9 |
+| GB10 128GB | llama.cpp/CUDA | 33.3 |
+| **4090 + 4090 Laptop, 40GB** | **llama.cpp/CUDA, `-ot` PLE→CPU** | **21.5** |
+
+**Findings**
+
+- **It runs.** 180B on 40GB of VRAM, at 65% of the GB10's speed, by pushing
+  `per_layer_token_embd` (26.8 GiB, one tensor) and eight layers' experts to
+  system RAM. llama.cpp already treats that tensor specially —
+  `per_layer_token_embd.weight (size = 27465 MiB) lazy read enabled` — so the
+  `-ot` route is doing the same thing mlx-serve does structurally.
+- **The ceiling is ~5 GiB away.** Keeping every expert on GPU needs 40.03 GiB
+  against 40.9 GiB of cards, and KV plus compute buffers do not fit in the
+  0.9 GiB left. Each layer of experts pushed to DDR5 costs measurably: 8 layers
+  → 21.5 tok/s, 12 → 15.5, 24 → 11.8.
+- **How the offload is distributed matters more than how much.** See the `-ot`
+  bullet in [README.md](README.md): a contiguous 24-layer offload measured 5.2
+  tok/s, the same 24 layers spread across the index measured 11.8. That was
+  three wasted runs before the placement was printed at `-lv 4`.
+
+**Verdict**: viable for experiments on a 40GB box, not for daily use — 21.5
+tok/s with 47 GiB streaming from system RAM is the shape of the thing, and no
+placement fixes that. The interesting number remains mlx-serve's 70: the gap
+between it and every llama.cpp figure here is the n-gram table, not the box.

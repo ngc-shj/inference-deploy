@@ -94,6 +94,17 @@ llama-server silently (fixed by #26623, recurrent state rollback).
   silenced `common_fit_params: failed to fit params`. Note `-ts` sets a ratio, not
   a cap: the same 2,1 landed nearer 40:60 than 33:67 in practice, so read
   `nvidia-smi` afterwards rather than trusting the arithmetic.
+- **`-ot` offload has to be spread across the layer index, or `-ts` starves a
+  card.** `-ts` splits by *layer*, so offloading a contiguous block of layers
+  leaves all the remaining weight at one end of the index and the split follows
+  it there. Offloading the top 24 layers' experts of a 180B MoE asked for 60:40
+  and measured **CUDA0 20705 MiB : CUDA1 1463 MiB — 93:7**, with 40GB of VRAM
+  doing the work of 22 and decode at 5.2 tok/s. Offloading the *same volume*
+  from every other layer instead gave 13543:8726 and **11.8 tok/s**; thinning it
+  to every sixth layer reached **21.5 tok/s**. Same flags, same bytes on the CPU
+  — only the stride changed. Print the placement to check it, at `-lv 4`:
+  `load_tensors: CUDA0 model buffer size = ...` is not shown at default
+  verbosity, which is how three runs got spent on a split nobody could see.
 
 ## Router mode (switch models from the client)
 
