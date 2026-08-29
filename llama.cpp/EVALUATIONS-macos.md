@@ -426,3 +426,60 @@ lineage, vllm-mlx stopped:
 "usable, not just runnable" bar on speed. Worth re-evaluating against the
 resident vllm-mlx Qwen3.8-27B once mlx-serve's MTP wiring and a stable 26.8.11
 land — at 70 tok/s serial the remaining questions are quality, not throughput.
+
+---
+
+## 2026-08-30 — Flash-Next on 40GB of consumer VRAM (cross-box coda)
+
+Not an Apple Silicon result, but it belongs with the other Flash-Next numbers.
+The same unsloth `UD-IQ1_S` file, same prompts, on **RTX 4090 (24GB) + RTX 4090
+Laptop (16GB)** under WSL2, llama.cpp from PR #27742 built for sm_89. The
+question the Metal work raised: if taking the 51B n-gram table out of the
+GPU-resident set is what makes this model fast, does that also let a 40GB box
+run a 180B model at all?
+
+| Box | Engine | decode |
+| --- | --- | --- |
+| M5 Max 128GB | mlx-serve (external n-gram) | **70.4** |
+| M5 Max 128GB | llama.cpp/Metal | 36.9 |
+| GB10 128GB | llama.cpp/CUDA | 33.3 |
+| **4090 + 4090 Laptop, 40GB** | **llama.cpp/CUDA, `-ot` PLE→CPU** | **21.5** |
+
+**Findings**
+
+- **It runs.** 180B on 40GB of VRAM, at 65% of the GB10's speed, by pushing
+  `per_layer_token_embd` (26.8 GiB, one tensor) and eight layers' experts to
+  system RAM. llama.cpp already treats that tensor specially —
+  `per_layer_token_embd.weight (size = 27465 MiB) lazy read enabled` — so the
+  `-ot` route is doing the same thing mlx-serve does structurally.
+- **The ceiling is ~5 GiB away.** Keeping every expert on GPU needs 40.03 GiB
+  against 40.9 GiB of cards, and KV plus compute buffers do not fit in the
+  0.9 GiB left. Each layer of experts pushed to DDR5 costs measurably: 8 layers
+  → 21.5 tok/s, 12 → 15.5, 24 → 11.8.
+- **How the offload is distributed matters more than how much.** See the `-ot`
+  bullet in [README.md](README.md): a contiguous 24-layer offload measured 5.2
+  tok/s, the same 24 layers spread across the index measured 11.8. That was
+  three wasted runs before the placement was printed at `-lv 4`.
+
+**Verdict**: viable for experiments on a 40GB box, not for daily use — 21.5
+tok/s with 47 GiB streaming from system RAM is the shape of the thing, and no
+placement fixes that. The interesting number remains mlx-serve's 70: the gap
+between it and every llama.cpp figure here is the n-gram table, not the box.
+
+**Postscript — 21.5 is this engine's ceiling, not the model's.**
+[FreeToken](https://github.com/FlashML-org/FreeToken) merged `qwen4_exp` support
+([#257](https://github.com/FlashML-org/FreeToken/pull/257), 2026-08-28 — the
+first Flash-Next implementation to land in a mainline anywhere) and reports
+**36 tok/s on a single RTX 4090 (24GB)** and 65 on a 5090, against the 21.5
+measured here on *two* 4090s. Its design description is the same conclusion
+reached from the other direction: *"PLE n-gram embedding (47.7 GiB table, kept
+in pinned host memory, UVA gather)"* — the table off the GPU by construction,
+which is what `-ot` was doing by hand and what mlx-serve ships as an external
+file. Three independent implementations now treat that table as the thing to
+move.
+
+The catch is where the real constraint sits: FreeToken wants **~111 GiB of
+pinned host RAM** (63 GiB expert banks + 48 GiB PLE) and recommends 128 GB. The
+4090 box here has 48 GB, so it cannot run that path at all. **Host RAM, not
+VRAM, is what gates this model** — which reframes every number in this file:
+the 128GB boxes were never winning on GPU, they were winning on the table.
