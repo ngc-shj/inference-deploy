@@ -521,8 +521,36 @@ the first, because on this laptop only early positions are trustworthy:
 `--mtp`, `RunAtLoad=false`, ~70 GB resident with no swap. vllm-mlx and its
 Qwen3.8-27B are stopped and unloaded: 70 + 16 GB of weights plus the desktop
 does not fit in 128 GB, and launchd has no `Conflicts=`, so that exclusion is
-manual. Quality between the two is still unmeasured — this swap is made on
-speed and parameter count alone.
+manual.
+
+**Quality, since the swap was made on speed alone.** All three models live at
+once — Flash-Next on this Mac, the other two on the GB10 router — so no engine
+had to be swapped to compare them:
+
+| | 尊敬語 (見る) x5 | other keigo | merge_intervals | LRU |
+| --- | --- | --- | --- | --- |
+| **Flash-Next 180B** | **5/5** | **3/3** | 7/7 | 18/18, 16/16, 11/11 |
+| Qwen3.8-27B | 2/5 | 3/3 | 4/4 | 13/13 |
+| Qwen3.6-35B-A3B | 5/5 | 2/3 | 4/4 | 22/22 |
+
+- **Coding does not separate them** — every doctest the models wrote, they
+  passed. As on 2026-08-19.
+- **Japanese honorifics still do, and Flash-Next does not inherit the
+  27B's deficit.** Qwen3.8-27B's 2/5 reproduces the 1/5 recorded on 08-19 with
+  the same failure shapes: 「お覧になりました」 and 「お見えになりました」 (neither is a
+  form), 「拝見されました」 (humble applied to a superior). The 35B-A3B is 5/5 on
+  that item but writes 「お伺いいたします」, a double honorific, on another.
+- The swap is now justified on both axes: 3x the decode of the 27B it replaced,
+  5/5 against 2/5 on the one thing that has ever discriminated here, coding
+  level.
+- **One Flash-Next LRU run died with a SyntaxError**; three repeats all passed
+  (18/18, 16/16, 11/11) and the raw output was a clean single fenced block, so
+  that was a one-off, not a defect. Worth stating because a single run would
+  have recorded it as one.
+
+Same limit as every quality claim in this file: these are mechanically scorable
+axes. Open-ended generation and long-horizon agentic work need a judge and none
+was used, so "level on coding" is a statement about this harness.
 
 **Gotcha — the macOS application firewall silently drops the LAN.** The server
 binds `*:11234` and answers on `127.0.0.1`, but a new unlisted binary gets its
