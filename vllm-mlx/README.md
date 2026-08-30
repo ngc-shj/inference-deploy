@@ -71,6 +71,18 @@ launchctl kickstart gui/$(id -u)/com.vllm-mlx.server
 Use `bootout` when freeing the pool for another engine — it is the clean stop that
 `KeepAlive` will not undo (see below) — and keep the pair above with it.
 
+**If a *new* engine binary answers on `127.0.0.1` but times out from the LAN**,
+suspect the macOS application firewall before the bind address. It drops
+*incoming* connections to binaries it has not seen, silently — nothing in the
+server log, and `lsof` still shows a healthy `*:PORT (LISTEN)`. This agent never
+hit it because its Python interpreter was already approved; a freshly brewed
+binary is not:
+
+```bash
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add /opt/homebrew/bin/<engine>
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --unblockapp /opt/homebrew/bin/<engine>
+```
+
 Quick check once it's up (default port 8000):
 
 ```bash
