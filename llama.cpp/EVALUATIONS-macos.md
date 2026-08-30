@@ -413,6 +413,8 @@ lineage, vllm-mlx stopped:
   pending)`, and `--no-mtp` measures the same 70 tok/s, so both cases are serial
   decode. The model card's "78 tok/s with MTP" is not reproducible on this
   build; the repo's commit log shows the wiring in progress.
+  *(Fixed in stable 26.8.11 — see the 08-30 section below. Both cases here were
+  plain decode, which the later `--no-mtp` measurement of 70.5 confirms.)*
 - **Consistency with the card**: 60 tok/s serial claimed on an M4 Max, 70
   measured here on the M5 Max — a 1.17x generation gap, in line with the 1.53x
   seen on llama.cpp between the same two chips being an upper bound.
@@ -483,3 +485,83 @@ pinned host RAM** (63 GiB expert banks + 48 GiB PLE) and recommends 128 GB. The
 4090 box here has 48 GB, so it cannot run that path at all. **Host RAM, not
 VRAM, is what gates this model** — which reframes every number in this file:
 the 128GB boxes were never winning on GPU, they were winning on the table.
+
+---
+
+## 2026-08-30 — MTP wired: 101.5 tok/s, and Flash-Next becomes this box's resident
+
+`mlx-serve` **26.8.11** went stable on 08-29 (brew's formula tracks it; the
+hand-installed pre-release is no longer needed) and its notes close the item
+left open above: *"Speculative decoding on Flash Next is opt-in (`--mtp`): +41%
+on code"*, plus *"`--no-mtp` was ignored on Flash Next"* in the fixes.
+
+Same checkpoint, same prompts, three cases in one session — the third repeats
+the first, because on this laptop only early positions are trustworthy:
+
+| Case | decode | prefill (4189 tok) |
+| --- | --- | --- |
+| `--mtp` | **101.5** | 1563 |
+| `--no-mtp` | 70.5 | 1489 |
+| `--mtp` (repeat) | 103.5 | 1530 |
+
+**Findings**
+
+- **MTP is worth +44%** (70.5 → 101.5), matching the vendor's "+41% on code" for
+  a code-generation prompt. Speculation stats from the server:
+  `accepts=191 / 94 attempts, avg_per_round=2.03, per_draft_pct=82.0%, depth=6`.
+- **The pre-release reading was right as a measurement and wrong as an
+  interpretation.** `--no-mtp` now measures **70.5**, against the pre-release's
+  70.4 for *both* cases — so that build was running plain decode either way, as
+  its own `spec wiring pending` said. The release note's "`--no-mtp` was ignored"
+  describes the same symptom from the other side.
+- **No thermal drift this time**: 101.5 first, 103.5 last, 2% apart.
+
+**Adopted as resident.** `com.mlx-serve.flashnext` LaunchAgent, port 11234
+(mlx-serve's own default, left alone so vllm-mlx can return to 8080 unclashed),
+`--mtp`, `RunAtLoad=false`, ~70 GB resident with no swap. vllm-mlx and its
+Qwen3.8-27B are stopped and unloaded: 70 + 16 GB of weights plus the desktop
+does not fit in 128 GB, and launchd has no `Conflicts=`, so that exclusion is
+manual.
+
+**Quality, since the swap was made on speed alone.** All three models live at
+once — Flash-Next on this Mac, the other two on the GB10 router — so no engine
+had to be swapped to compare them:
+
+| | 尊敬語 (見る) x5 | other keigo | merge_intervals | LRU |
+| --- | --- | --- | --- | --- |
+| **Flash-Next 180B** | **5/5** | **3/3** | 7/7 | 18/18, 16/16, 11/11 |
+| Qwen3.8-27B | 2/5 | 3/3 | 4/4 | 13/13 |
+| Qwen3.6-35B-A3B | 5/5 | 2/3 | 4/4 | 22/22 |
+
+- **Coding does not separate them** — every doctest the models wrote, they
+  passed. As on 2026-08-19.
+- **Japanese honorifics still do, and Flash-Next does not inherit the
+  27B's deficit.** Qwen3.8-27B's 2/5 reproduces the 1/5 recorded on 08-19 with
+  the same failure shapes: 「お覧になりました」 and 「お見えになりました」 (neither is a
+  form), 「拝見されました」 (humble applied to a superior). The 35B-A3B is 5/5 on
+  that item but writes 「お伺いいたします」, a double honorific, on another.
+- The swap is now justified on both axes: 3x the decode of the 27B it replaced,
+  5/5 against 2/5 on the one thing that has ever discriminated here, coding
+  level.
+- **One Flash-Next LRU run died with a SyntaxError**; three repeats all passed
+  (18/18, 16/16, 11/11) and the raw output was a clean single fenced block, so
+  that was a one-off, not a defect. Worth stating because a single run would
+  have recorded it as one.
+
+Same limit as every quality claim in this file: these are mechanically scorable
+axes. Open-ended generation and long-horizon agentic work need a judge and none
+was used, so "level on coding" is a statement about this harness.
+
+**Gotcha — the macOS application firewall silently drops the LAN.** The server
+binds `*:11234` and answers on `127.0.0.1`, but a new unlisted binary gets its
+*incoming* connections dropped, so every LAN address times out with nothing in
+the log. vllm-mlx never showed this because its Python interpreter was already
+approved. Fix:
+
+```bash
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --add /opt/homebrew/bin/mlx-serve
+sudo /usr/libexec/ApplicationFirewall/socketfilterfw --unblockapp /opt/homebrew/bin/mlx-serve
+```
+
+After that both interfaces answer, including the 2.5GbE island address — worth
+having for long prompts.
