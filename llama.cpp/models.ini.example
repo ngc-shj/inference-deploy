@@ -18,6 +18,15 @@
 ; in the OpenAI request body. See EVALUATIONS.md for sources and the note that
 ; throughput is independent of sampling.
 ;
+; A section gives a model its SETTINGS; it is not what makes the model exist.
+; The router serves the union of these sections and whatever it finds in the
+; cache directory (`GET /models` labels each entry source=preset or source=cache),
+; so commenting a section out leaves the model served with NO settings — it then
+; inherits [*] below, e.g. c = 8192 instead of its own context length. Removing a
+; model means removing both the section and the weights; doing only the other
+; half (weights gone, section left) hangs the router in `ensure_model: waiting`
+; on the next request. See README.md.
+;
 ; Models must be in the cache before the router can serve them. Download once:
 ;   sudo -u llama LLAMA_CACHE=/var/lib/llama/cache /opt/llama/bin/llama-server \
 ;       -hf unsloth/gpt-oss-20b-GGUF:F16 -ngl 0
@@ -86,8 +95,12 @@ c = 131072
 ; --- gpt-oss-20b F16 (~13.8GB) — non-Qwen family, adjustable reasoning ---------
 ; Native 131072 context; alternating sliding-window attention keeps long-context
 ; KV cheap (roughly half a full-attention model's).
-[unsloth/gpt-oss-20b-GGUF:F16]
-c = 131072
+; WITHDRAWN 2026-09-01, reversibly: never evaluated in EVALUATIONS.md, and the
+; request volume that looked like usage was a 30-second monitor. To restore,
+; uncomment AND move the weights back into the cache — see README.md, either
+; half alone fails silently.
+;[unsloth/gpt-oss-20b-GGUF:F16]
+;c = 131072
 
 ; Qwopus3.6-35B-A3B-Coder-MTP: an optional coding-first model. Same
 ; Qwen3.6-35B-A3B base as the resident model above + an embedded MTP head, so
@@ -111,9 +124,10 @@ np = 1
 spec-type = draft-mtp
 spec-draft-n-max = 3
 
-; Qwen3.8-27B: a *dense* 27B (qwen3_5, multimodal). Off by default here — the
-; models above are the resident set — but kept as the worked example for sizing a
-; model against a discrete-VRAM card rather than the GB10's shared pool.
+; Qwen3.8-27B: a *dense* 27B (qwen3_5, multimodal). Enabled — it is the only
+; vision-capable model here that needs no extra setup, and it is also kept as the
+; worked example for sizing a model against a discrete-VRAM card rather than the
+; GB10's shared pool.
 ;
 ; Its MTP head is embedded in Unsloth's UD-Q4_K_XL file, so `spec-type` needs no
 ; sidecar; the log confirms which file is in play with "creating MTP draft context
@@ -142,10 +156,13 @@ spec-draft-n-max = 3
 ; min_p=0; thinking temp=0.6 top_p=0.95 top_k=20 min_p=0. llama.cpp also warns at
 ; load that Qwen-VL wants at least 1024 image tokens — add `image-min-tokens = 1024`
 ; before trusting it on grounding or OCR.
-;[unsloth/Qwen3.8-27B-GGUF:Q4_K_XL]
-;c = 65536
-;cache-type-k = q8_0
+; The q8_0 cache-type lines below are the 24GB-card sizing, NOT what this box
+; runs: on GB10 this model is an MTP resident, and q8_0 KV costs a spec-decode
+; model up to 25% of its decode at depth (EVALUATIONS.md, 2026-09-01).
+[unsloth/Qwen3.8-27B-GGUF:Q4_K_XL]
+c = 131072
+np = 1
+spec-type = draft-mtp
+spec-draft-n-max = 6
+;cache-type-k = q8_0   ; 24GB-card only — see above
 ;cache-type-v = q8_0
-;np = 1
-;spec-type = draft-mtp
-;spec-draft-n-max = 6

@@ -162,9 +162,12 @@ fi
 # Truncate the log first so the readiness poll below matches THIS boot's
 # "listening on" line, not a stale one from a previous run.
 : > "$LOGDIR/ds4-server.err.log" 2>/dev/null || true
-# bootstrap loads the plist; RunAtLoad starts it. No `kickstart -k` here — that
-# would kill the just-started process and reload the ~93GB model a second time.
+# bootstrap loads the plist. RunAtLoad is false — the agent is on-demand so it
+# does not coexist with the other engines by default — so nothing is running yet
+# and kickstart has to start it explicitly. Plain `kickstart`, not `-k`: the
+# latter would kill and respawn, reloading the ~93GB model a second time.
 launchctl bootstrap "$domain" "$PLIST"
+launchctl kickstart "$domain/$LABEL"
 
 # --- 6. wait for readiness ----------------------------------------------------
 # kickstart/bootstrap return once launchd has SPAWNED the process, not when the

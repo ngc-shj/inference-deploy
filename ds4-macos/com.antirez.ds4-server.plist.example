@@ -29,9 +29,16 @@ __DS4_SERVER_ARGS__
     <key>WorkingDirectory</key>
     <string>__WORKDIR__</string>
 
-    <!-- Start at login. -->
+    <!-- On-demand, NOT at login — the other half of the fix that made
+         com.vllm-mlx.server on-demand. This agent wires ~90 GB for DeepSeek V4
+         Flash and launchd has no systemd `Conflicts=`, so starting it at login
+         reserves most of a 128 GB machine against whatever else is resident.
+         Left at `true` it ran for eight days beside a 70 GB mlx-serve without
+         being noticed: an idle ds4-server holds ~5 MB, so nothing surfaces
+         until a single request wires the pool. Start it when you want it:
+             launchctl kickstart gui/$(id -u)/com.antirez.ds4-server -->
     <key>RunAtLoad</key>
-    <true/>
+    <false/>
 
     <!-- Restart on crash, but not on a clean exit (a manual `launchctl kickstart`
          stop or SIGINT shutdown stays down until asked to start again). -->

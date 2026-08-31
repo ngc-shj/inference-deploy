@@ -31,7 +31,8 @@ NO_BUILD=1 ./install.sh      # re-render plist + reload after editing the env
 Run as your normal user (NOT root, NO sudo) — a LaunchAgent lives in your login
 session. Re-running rebuilds (incremental), re-renders the plist, and reloads the
 agent, then waits for the server to log its `listening on` line before reporting
-done. `RunAtLoad` starts it now and at every login.
+done. The installer starts it explicitly; `RunAtLoad` is **false**, so it does
+NOT come back at the next login — start it when you want it (see below).
 
 Directory overrides (`KVDIR=`, `CONFDIR=`, `LOGDIR=`) only take effect on the
 first install — an existing env file is left untouched, so its `--kv-disk-dir` is
@@ -82,13 +83,25 @@ option for the Metal backend.
   graceful window before SIGKILL.
 - **No mutual-exclusion, and nothing enforces the convention.** The Linux box
   time-shares one 128GB pool between llama.cpp / vLLM / ds4 via systemd
-  `Conflicts=`; launchd has no equivalent. [`../vllm-mlx/`](../vllm-mlx/)
-  installs its own `RunAtLoad` agent, so both engines start at login and sit on
-  the pool together — ~90 GB for ds4 plus ~19 GB for vllm-mlx was the actual
-  state during a day of benchmarking here, undetected because free memory looks
-  the same either way. Before measuring anything, check:
-  `launchctl print gui/$(id -u)/com.vllm-mlx.server`. It costs streamed models
-  ~14% and residency nothing (see [EVALUATIONS.md](EVALUATIONS.md)).
+  `Conflicts=`; launchd has no equivalent. Both agents tracked here are now
+  `RunAtLoad=false`, so the standing cost is zero and co-tenancy is a decision —
+  but that is a convention, not a guarantee, and the failure is silent: ~90 GB
+  for ds4 plus ~19 GB for vllm-mlx was the actual state through a day of
+  benchmarking, undetected because free memory looks the same whether the pool
+  is committed or not. It costs streamed models ~14% and residency nothing (see
+  [EVALUATIONS.md](EVALUATIONS.md)).
+  The live risk is no longer vllm-mlx: this Mac's resident engine is **mlx-serve**
+  (`com.mlx-serve.flashnext`, ~70 GB for Qwen3.8-Flash-Next, not packaged in this
+  repo), and an idle `ds4-server` holds only ~5 MB, so a stopped-looking ds4 that
+  is merely *loaded* wires ~90 GB the moment one request arrives. Before
+  measuring anything, check all three:
+
+  ```bash
+  launchctl print gui/$(id -u)/com.antirez.ds4-server
+  launchctl print gui/$(id -u)/com.vllm-mlx.server
+  launchctl print gui/$(id -u)/com.mlx-serve.flashnext
+  ```
+
 - **`--host 0.0.0.0` exposes an unauthenticated API.** The default is
   `127.0.0.1`. If you bind to the LAN, firewall the port — the server has no auth.
 

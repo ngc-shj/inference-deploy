@@ -125,6 +125,22 @@ server.
   `--spec-type draft-mtp` (needs the MTP head) **must** live here, not in the
   global args, or non-MTP models would break. Section name = the model ID the
   router exposes; confirm it with `curl -s localhost:8080/v1/models | jq -r '.data[].id'`.
+- **Removing a model takes both halves, and each half alone fails silently.**
+  The router serves the union of `models.ini` sections and whatever it finds in
+  the cache directory — `GET /models` labels each entry `source: preset` or
+  `source: cache`. So:
+  - **Comment out the section, leave the weights** → the model is *still served*,
+    now as `source: cache` with no settings, silently inheriting `[*]`'s
+    `c = 8192` instead of its own context length.
+  - **Move the weights, leave the section** → a request spawns an instance that
+    can never load, and the router sits in `ensure_model: waiting until model …
+    is fully loaded` **forever**, holding one of the `--models-max` slots. The
+    client hangs rather than getting an error; disconnecting it does not clear
+    the state. (Same hang as the CUDA-OOM case in
+    [EVALUATIONS.md](EVALUATIONS.md) — two triggers, one symptom.)
+    `POST /models/unload {"model": "<id>"}` clears it without a restart.
+
+  Do both, and undo both together.
 - A model must be **in the cache before it can be served**. Download once, then
   restart:
   ```bash
@@ -158,16 +174,26 @@ Served side by side via the router (clients pick one per request):
 
 | Model ID | Size | Notes |
 | --- | --- | --- |
-| `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:Q4_K_XL` | ~20GB | Qwen MoE, UD-Q4_K_XL file (router drops the `UD-` prefix), MTP spec-decode, autoloaded on startup |
+| `unsloth/Qwen3.6-35B-A3B-MTP-GGUF:Q4_K_XL` | ~20GB | Qwen MoE, UD-Q4_K_XL file (router drops the `UD-` prefix), MTP spec-decode (`n_max = 4`), autoloaded on startup |
+| `Jackrong/Qwopus3.6-35B-A3B-Coder-MTP-GGUF:Q4_K_M` | ~21.7GB | coding first pick, same base + MTP (`n_max = 3`), **must run thinking-off** |
+| `unsloth/Qwen3.8-27B-GGUF:Q4_K_XL` | ~17GB | dense VL, the only vision model needing no extra setup; MTP (`n_max = 6`) |
 | `Jackrong/Qwopus3.5-9B-v3-GGUF:Q8_0` | ~9.5GB | Qwen3.5 (`qwen35`) hybrid-SSM **Qwen-VL** finetune, near-lossless quant, no spec-decode; multimodal (mmproj loaded) |
-| `unsloth/gpt-oss-20b-GGUF:F16` | ~13.8GB | OpenAI MoE (non-Qwen family), MXFP4-native, adjustable reasoning effort |
 
 Quant policy: big model → efficient quant (`UD-Q4_K_XL`), small Qwen finetune →
-high-quality quant (`Q8_0`), gpt-oss → `F16` (its experts are natively MXFP4, so
-F16 *is* near-full quality and lower quants gain little). All three fit resident
-at once (see KV math below), so `--models-max 3` keeps them loaded with no reload
-on switch. `Qwopus...:Q4_K_M` (~5.6GB) is commented out in `models.ini.example` —
-enable it only to compare quantization quality.
+high-quality quant (`Q8_0`). `Qwopus...:Q4_K_M` (~5.6GB) is commented out in
+`models.ini.example` — enable it only to compare quantization quality.
+
+**`unsloth/gpt-oss-20b-GGUF:F16` (~13.8GB) was withdrawn on 2026-09-01**, as a
+reversible trial rather than a verdict. It had never been evaluated in
+[EVALUATIONS.md](EVALUATIONS.md), and the request counts that appeared to
+justify its slot turned out to be a 30-second monitor enumerating whatever was
+already loaded and pinging each — which also refreshes LRU, so a polled model
+keeps its own slot alive. Weights are parked at
+`/var/lib/llama/gpt-oss-20b-GGUF.disabled` and the section is commented out;
+restore **both together** (see the removal note under Router mode). With four
+models against `--models-max 3` the eviction churn was 46 evictions and 45
+load-waits in 14 days; the point of the trial is to find out whether anyone
+misses it, and note that the monitor's own traffic cannot answer that.
 
 ### Context length and KV cache
 
@@ -177,16 +203,16 @@ scaling (YaRN — required only past a model's trained length, at a quality cost
 | Model | Trained ctx | Configured `c` | KV (f16) | Memory type |
 | --- | --- | --- | --- | --- |
 | Qwen3.6-35B-A3B | 262144 | 262144 | ~26GB | hybrid linear attn — only some layers cache KV (see EVALUATIONS.md) |
-| gpt-oss-20b | 131072 (native) | 131072 | ~4GB | alternating sliding-window attention |
+| Qwopus3.6-Coder-MTP | 262144 | 262144 | ~26GB | same base as the 35B-A3B |
+| Qwen3.8-27B | 262144 | 131072 | ~8GB | dense + hybrid; 16 of 64 layers cache KV (64 KiB/token) |
 | Qwopus3.5-9B | 262144 | 131072 | light | `qwen35` hybrid SSM: state-space (Mamba-style) layers + a full-attention layer every `full_attention_interval`; only the full-attn layers cache KV |
 
 None of these use plain full attention: Qwen3.6 and Qwopus (`qwen35`) interleave
-state-space / linear-attention layers with periodic full-attention layers,
-gpt-oss uses sliding-window attention — so only a fraction of layers cache
-context-growing KV and it stays far below a dense model's. Qwen runs at full
-native 262144 (it routinely sees >131k-token prompts). Resident weights (~45GB) +
-KV total well under the 128GB pool. (Architectures confirmed from GGUF
-`general.architecture` + per-arch `ssm.*` / `full_attention_interval` keys.)
+state-space / linear-attention layers with periodic full-attention layers — so
+only a fraction of layers cache context-growing KV and it stays far below a
+dense model's. Qwen runs at full native 262144 (it routinely sees >131k-token
+prompts). (Architectures confirmed from GGUF `general.architecture` + per-arch
+`ssm.*` / `full_attention_interval` keys.)
 
 **Prompt-cache caveat.** Because of SWA / hybrid-recurrent memory, llama.cpp
 cannot reuse cross-request prompt KV for these models — the log shows
@@ -196,6 +222,11 @@ length (most visible on Qwen at high `c`). This is a model-architecture
 limitation, not a config bug.
 
 To trim KV when tight: lower a model's `c`, or halve KV with `cache-type-k = q8_0`
-/ `cache-type-v = q8_0` (`-ctk/-ctv`, requires `-fa on`, negligible quality loss).
+/ `cache-type-v = q8_0` (`-ctk/-ctv`, requires `-fa on`). Quality survives it —
+measured 2026-09-01, retrieval 5/5 at 181k tokens — but **do not put q8_0 on a
+model running `spec-type`**: the cost is a flat ~3% without speculative decoding
+and −4/−12/**−25%** at 14k/54k/181k with it, because a verify pass reads KV for
+every drafted position. All three MTP residents here therefore stay at f16. See
+[EVALUATIONS.md](EVALUATIONS.md).
 Read a model's trained length and live KV size from
 `journalctl -u llama-server | grep -iE 'n_ctx_train|KV cache'`.
