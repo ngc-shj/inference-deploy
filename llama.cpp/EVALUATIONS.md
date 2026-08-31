@@ -366,6 +366,8 @@ MTP is in the GGUF). Sampling: Qwen3-family instruct 0.7 / 0.8 / 20.
   finetune tuned for short outputs. The llama.cpp log confirms MTP is live:
   **draft acceptance 0.76–1.00** (1.00 on templated code), the exact win Ornith
   lacks (Ornith has no MTP → capped at 63).
+  *Amended (2026-08-31)*: measured at `spec-draft-n-max = 2`, which the sweep
+  below shows is not this model's optimum — at 3 it serves **116 tok/s**.
 - **Must run it no-think.** Despite the "thinking-off" branding, at default
   (thinking-on) it *over-thinks* — refactor/merge blew 25k–32k reasoning chars and
   hit the token cap with **empty code** (same failure as Ornith). With
@@ -596,6 +598,12 @@ model's equal.
 Router-served numbers match the standalone instance (26.0 vs 26.2), so the
 `models.ini` section reproduces the measurement.
 
+*Amended (2026-08-31)*: "26.2 is the honest best case" was true of
+`spec-draft-n-max = 2`, not of the model. This is the dense one, so it gains the
+most from a deeper draft — **33.2 tok/s at n_max=6**, which makes it ~2.9x rather
+than ~4x slower than the resident 35B-A3B. The verdict does not change; the
+margin does. See the 2026-08-31 sweep below.
+
 **Build note**: this needed llama.cpp b10488 (was b9652). `install.sh` reuses an
 existing checkout untouched, so the source must be moved forward explicitly;
 b10434 is the floor for `qwen35` hybrids.
@@ -698,6 +706,83 @@ showed the quant *family* carries its own cost there and put the "residual
   "Mac vs GB10" number for this model.
 - IQ1_S at 65536 vs 262144: 32.9 vs 33.3 — context length still costs nothing
   measurable at short generation, on CUDA as on Metal.
+
+---
+
+## 2026-08-31 — `spec-draft-n-max` was never swept, and 2 was wrong for all three
+
+Every MTP section in `models.ini` carried `spec-draft-n-max = 2`, below
+llama.cpp's own default of 3, and no sweep is recorded anywhere in this file —
+the Laguna entry above swept `draft-dflash` and found the model card's 15 was
+3x worse than 4, but that lesson was never carried across to `draft-mtp`. Swept
+here on a standalone instance (`:8090`) so the resident router was untouched;
+same `merge_intervals` prompt as the rest of this file, temp 0, no-think, four
+warm runs per point, median. Each model at its production `c`.
+
+| n_max | 35B-A3B @262144 | Coder-MTP @65536 | Qwen3.8-27B @131072 |
+| --- | --- | --- | --- |
+| off | — | 76.7 | 11.5 |
+| **2** *(was configured)* | 93.1 (acc .93) | 106.8 (.92) | 25.3 (.91) |
+| 3 | 96.4 (.84) | **113.7** (.85) | 28.1 (.82) |
+| 4 | **96.6** (.77) | 109.9 (.76) | 30.1 (.75) |
+| 5 | — | 106.1 (.68) | 30.9 (.69) |
+| 6 | — | — | **32.2** (.65) |
+| 8 | — | — | 31.4 (.56) |
+| 10 | — | — | 28.9 (.46) |
+
+**Findings**
+
+- **The optimum is per model and nothing shared predicts it**: 4, 3, 6. What
+  orders them is the *no-MTP* baseline — the slower a model decodes on its own,
+  the deeper the draft it pays for. The dense 27B starts at 11.5 tok/s, so
+  amortizing one forward pass over six drafted tokens is worth +27% even at
+  acceptance 0.65; the 35B-A3B already runs at 63 and peaks two steps earlier.
+- **Throughput peaks well past the acceptance knee.** Acceptance falls
+  monotonically with depth in all three, and reading it as the tuning signal is
+  what makes 2 look right — the 27B's best point has acceptance 0.65, its worst
+  measured has 0.91.
+- **Gains, at production context**: 35B-A3B 93.1 → 96.6 (+3.8%), Coder-MTP
+  106.8 → 113.7 (+6.5%), Qwen3.8-27B 25.3 → 32.2 (**+27%**). The 27B's 25.3 at
+  n_max=2 reproduces the 26.2 recorded on 2026-08-19, so that entry measured the
+  unswept setting and its "26.2 is the honest best case" verdict was 7 tok/s
+  pessimistic.
+- **Depth is cheaper at short context.** The 35B-A3B measured 98.5 at n_max=4 at
+  `c = 65536` against 96.6 at 262144, and the 262144 run cannot separate 3 from 4
+  (96.4 vs 96.6). The ranking holds; the margin narrows.
+- **Mainline has no per-request override.** `"speculative.n_max"` in the request
+  body is silently ignored — the sweep runs flat at ~93 including `0` — because
+  that field is the Poolside fork's, noted in the Laguna entry above. Sweeping
+  mainline means restarting the server per point.
+
+**Applied and re-measured on the router**, all three co-resident, `models.ini`
+carrying 4 / 3 / 6:
+
+| Model (router, warm) | n_max=2 | applied | accept |
+| --- | --- | --- | --- |
+| `Qwen3.6-35B-A3B-MTP:Q4_K_XL` | 93.6 | **96.5** (n=4) | 0.77 |
+| `Qwopus3.6-Coder-MTP:Q4_K_M` | 106.8 *(standalone)* | **116.0** (n=3) | 0.85 |
+| `Qwen3.8-27B:Q4_K_XL` | 25.3 *(standalone)* | **33.2** (n=6) | 0.65 |
+
+Coder-MTP served from the router at `c = 262144` beats its own standalone
+`c = 65536` sweep point (116.0 vs 113.7), so nothing about the resident set is
+costing it — consistent with the occupancy result below.
+
+**"Fewer residents → faster" does not reproduce.** The 2026-06-30 quant entry
+recorded Ornith at 63 tok/s with three models loaded and 78 with one, and read it
+as resident GB setting the ceiling. Re-tested on the router with the 35B-A3B, the
+only variable being how many other models were loaded:
+
+| Loaded models | Pool used | 35B-A3B decode |
+| --- | --- | --- |
+| 3 (Coder-MTP, 35B-A3B, 27B) | 108 GiB / 121 | 93.6 |
+| 2 | 75 GiB | 93.3 |
+| 1 | 45 GiB | 93.0 |
+
+Flat across a 63 GiB swing in occupancy. Idle weights cost no bandwidth, which is
+what the law at the top of this file predicts; the 63 → 78 observation came from
+a session whose own notes record CUDA-OOM and `ensure_model: waiting…` retry
+loops, so it measured the OOM boundary, not a general effect. Unloading models to
+make the resident one faster is not worth doing.
 
 ---
 
