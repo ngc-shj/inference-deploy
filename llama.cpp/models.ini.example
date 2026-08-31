@@ -32,6 +32,11 @@ c = 8192
 ; The MTP speculative-decoding flags below are specific to this model (they need
 ; its multi-token-prediction head) — keep them per-section, NOT in [*], so a
 ; non-MTP model like Qwopus below is safe.
+;
+; `spec-draft-n-max` is per model, not a shared constant: swept on GB10
+; 2026-08-31 (EVALUATIONS.md) the optimum is 4 for the 35B-A3B, 3 for Coder-MTP
+; and 6 for the dense 27B — the slower a model decodes *without* MTP, the deeper
+; the draft it pays for. All three sat at 2, below llama.cpp's own default of 3.
 
 ; --- Qwen3.6-35B-A3B UD-Q4_K_XL (~20GB) — big model, efficient quant -----------
 ; Runs at full native 262144 context (no YaRN). KV ~26GB at this length; the
@@ -49,7 +54,7 @@ c = 8192
 c = 262144
 np = 1
 spec-type = draft-mtp
-spec-draft-n-max = 2
+spec-draft-n-max = 4
 load-on-startup = true
 
 ; Qwopus3.5-9B-v3: a plain (non-MTP) 9B model — NO spec-type here. It inherits
@@ -88,7 +93,7 @@ c = 131072
 ; Qwen3.6-35B-A3B base as the resident model above + an embedded MTP head, so
 ; `spec-type = draft-mtp` works with the flag alone (no sidecar). Apache-2.0
 ; agentic-coding finetune (Jackrong). Measured fastest local coder on GB10 —
-; 95-100 tok/s no-think, beating the resident 35B-A3B; see EVALUATIONS.md and
+; 116 tok/s no-think at n_max=3, beating the resident 35B-A3B; see EVALUATIONS.md and
 ; CODING_MODEL_STUDY.md. Not loaded on startup here; point opencode/aider at it.
 
 ; --- Qwopus3.6-35B-A3B-Coder-MTP Q4_K_M (~21.7GB) — coding first pick ----------
@@ -104,7 +109,7 @@ c = 131072
 c = 262144
 np = 1
 spec-type = draft-mtp
-spec-draft-n-max = 2
+spec-draft-n-max = 3
 
 ; Qwen3.8-27B: a *dense* 27B (qwen3_5, multimodal). Off by default here — the
 ; models above are the resident set — but kept as the worked example for sizing a
@@ -143,4 +148,4 @@ spec-draft-n-max = 2
 ;cache-type-v = q8_0
 ;np = 1
 ;spec-type = draft-mtp
-;spec-draft-n-max = 2
+;spec-draft-n-max = 6
