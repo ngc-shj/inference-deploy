@@ -141,6 +141,19 @@ server.
     `POST /models/unload {"model": "<id>"}` clears it without a restart.
 
   Do both, and undo both together.
+- **`GET /props?model=<id>` loads the model.** It reads like a metadata query and
+  is not one: the router routes any request naming a model through `proxy_get`,
+  which calls `ensure_model_ready()` whenever `--models-autoload` is on (the
+  default). Probing an unloaded model this way blocks for the full load —
+  measured **27.5 s** here — and evicts whatever was least recently used. Pass
+  **`&autoload=false`** to get a 400 `model is not loaded` in under a
+  millisecond instead; that is the safe form for anything on a timer. Confirmed
+  in current master (`is_autoload`, `server-models.cpp`), so it is upstream
+  behaviour rather than a quirk of the pinned build.
+
+  This also means the router log's `proxy_reques: proxying request to model X`
+  does **not** imply inference. `/props` produces it; `/v1/models` does not.
+  Counting those lines as usage over-reports any model a dashboard watches.
 - A model must be **in the cache before it can be served**. Download once, then
   restart:
   ```bash
@@ -186,14 +199,17 @@ high-quality quant (`Q8_0`). `Qwopus...:Q4_K_M` (~5.6GB) is commented out in
 **`unsloth/gpt-oss-20b-GGUF:F16` (~13.8GB) was withdrawn on 2026-09-01**, as a
 reversible trial rather than a verdict. It had never been evaluated in
 [EVALUATIONS.md](EVALUATIONS.md), and the request counts that appeared to
-justify its slot turned out to be a 30-second monitor enumerating whatever was
-already loaded and pinging each — which also refreshes LRU, so a polled model
-keeps its own slot alive. Weights are parked at
+justify its slot were a 30-second dashboard reading `/v1/models` and then
+`/props?model=` for each entry — **not inference at all**, and each of those
+probes both refreshes LRU and, on an unloaded model, forces a load (see the
+`/props` note under Router mode). Weights are parked at
 `/var/lib/llama/gpt-oss-20b-GGUF.disabled` and the section is commented out;
 restore **both together** (see the removal note under Router mode). With four
 models against `--models-max 3` the eviction churn was 46 evictions and 45
-load-waits in 14 days; the point of the trial is to find out whether anyone
-misses it, and note that the monitor's own traffic cannot answer that.
+load-waits in 14 days — some of which the dashboard caused rather than observed.
+The point of the trial is to find out whether anyone misses it, and the
+dashboard's traffic cannot answer that: point it at `/v1/models`, or at
+`/props?model=…&autoload=false`, before reading the log as usage.
 
 ### Context length and KV cache
 
