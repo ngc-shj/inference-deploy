@@ -565,3 +565,65 @@ sudo /usr/libexec/ApplicationFirewall/socketfilterfw --unblockapp /opt/homebrew/
 
 After that both interfaces answer, including the 2.5GbE island address — worth
 having for long prompts.
+
+---
+
+## 2026-09-01 — Flash-Next has vision and thinking; the engine hides the second one
+
+Prompted by a proposal to bring Qwen3.8-27B back onto this Mac beside
+Flash-Next. The memory arithmetic for that co-tenancy is sound (~90 GB at small
+contexts, >110 GB if both run at 262144, against a 128 GB pool with ~7.5 GB free
+and 4.2 GB already in the compressor), but it was answering the wrong question:
+the 27B had no job left here. Both capabilities it would have been brought back
+for turn out to be present in the resident model, one of them behind an API
+difference rather than a capability gap.
+
+**Vision works, with no configuration.** A synthetic 320x160 image — red circle,
+blue square, green triangle, left to right — came back as `red circle, blue
+square, green triangle`. The `/v1/models` capability list (`vision`, input
+modalities `text/image/video`) is not aspirational here. That retires the one
+role the 27B held on this box, and the GB10 router serves a 27B over the island
+anyway.
+
+**Thinking works, but `enable_thinking` is not how you reach it.** The
+checkpoint's `chat_template.jinja` defaults to reasoning ON
+(`enable_thinking is undefined or enable_thinking is true`), yet mlx-serve
+produces no reasoning unless the request carries a top-level `reasoning_effort`:
+
+| Request | completion tokens | `reasoning_content` | wall |
+| --- | --- | --- | --- |
+| default | 389 | — | — |
+| `chat_template_kwargs: {enable_thinking: false}` | 453 | — | — |
+| `reasoning_effort: "low"` | 709 | 1,177 chars | — |
+| `reasoning_effort: "medium"` | 825 | 1,251 chars | 10.8 s |
+| `reasoning_effort: "xhigh"` | 3,033 | **11,160 chars** | 52.1 s |
+
+**Findings**
+
+- **The toggle is engine-specific, not model-specific.** On the GB10 router the
+  documented control for the same family is
+  `chat_template_kwargs: {enable_thinking: false}` (see
+  [EVALUATIONS.md](EVALUATIONS.md) and `models.ini.example`); here that field is
+  ignored in both directions and `reasoning_effort` is the only switch. Carrying
+  a client between the two boxes without changing this silently changes whether
+  the model reasons.
+- **The default is OFF, whatever the template says.** So every Flash-Next number
+  in this file — 101.5 tok/s, keigo 5/5, today's 104.7 and the vision result —
+  is a **no-thinking** measurement. Nothing here has yet scored the model in the
+  mode its harder tasks would use.
+- **Depth is a per-request choice**, which is strictly better than what the
+  co-tenancy proposal was trying to buy. Getting "thinking available" by
+  resident model would have cost 15.8 GB of weights, a third of the decode rate,
+  and 2/5 against 5/5 on keigo; getting it by request field costs a JSON key.
+  `xhigh` at 52 s per answer is a batch setting, not an interactive one — `low`
+  or `medium` is the usable range for agent loops.
+
+**Verdict**: **do not co-host.** The proposal's constraints (64K cap, 8-bit KV,
+prefix cache trimmed, no concurrent generation) were the right ones for the
+wrong goal. One engine at a time on this Mac still holds.
+
+Correction to a figure quoted while assessing this: the 2026-08-27 co-tenancy
+note above measured **prefill** moving 15% (770 → 884) when the co-tenant was
+stopped, and **decode unchanged** (36.4 → 36.5). Co-tenancy there cost the
+bursty phase, not the streaming one, and that measurement was llama.cpp/Metal
+rather than mlx-serve.

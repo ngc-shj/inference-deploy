@@ -28,6 +28,15 @@ not auto-evict).
 | [`ds4-macos/`](ds4-macos/) | DwarfStar `ds4-server` (`--metal`) | from source (`make`) |
 | [`vllm-mlx/`](vllm-mlx/) | vllm-mlx `serve` (OpenAI API, MLX backend) | pip (dedicated venv) |
 
+**The resident engine on that Mac is a third one, `mlx-serve`, which is not
+packaged here** — installed from Homebrew and driven by a hand-written
+`com.mlx-serve.flashnext` agent. It holds Qwen3.8-Flash-Next (~70 GB) at
+101–104 tok/s with vision, which is why both packaged agents are `RunAtLoad=false`
+and started on demand. Its thinking control also differs from everything else in
+this repo: `chat_template_kwargs={"enable_thinking": …}` is ignored and a
+top-level `reasoning_effort` (`low`/`medium`/`xhigh`) is the only switch, with
+the default OFF.
+
 Measured numbers for Apple Silicon — MLX 4-bit format ranking, vllm-mlx thinking
 control, and vllm-mlx vs a Metal-built llama.cpp — are in
 [`llama.cpp/EVALUATIONS-macos.md`](llama.cpp/EVALUATIONS-macos.md). Headline:
