@@ -9,8 +9,11 @@ serving GGUFs.
 Why vllm-mlx over bare `mlx-lm`: it gives an OpenAI API that matches this repo's
 vLLM / llama.cpp deployments **and** real per-request thinking control — clients
 pass `chat_template_kwargs={"enable_thinking": false}` to skip the reasoning
-preamble, which bare `mlx-lm` cannot do. Measurements and the format/version
-matrix are in [`../llama.cpp/EVALUATIONS-macos.md`](../llama.cpp/EVALUATIONS-macos.md).
+preamble, which bare `mlx-lm` cannot do. Note that this field is **specific to
+this engine and llama.cpp** — `mlx-serve`, the resident engine on this Mac,
+ignores it and takes a top-level `reasoning_effort` instead. Measurements and the
+format/version matrix are in
+[`../llama.cpp/EVALUATIONS-macos.md`](../llama.cpp/EVALUATIONS-macos.md).
 
 ## Layout
 
