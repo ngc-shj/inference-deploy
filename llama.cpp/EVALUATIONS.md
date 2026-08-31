@@ -786,6 +786,137 @@ make the resident one faster is not worth doing.
 
 ---
 
+## 2026-09-01 — `cache-type q8_0`: free without MTP, −25% with it
+
+`models.ini.example` has offered `cache-type-k/v = q8_0` as the memory valve
+since the beginning ("halve KV, negligible quality loss") and it was never
+measured here. The reason to want it was concrete: the 35B-A3B and Coder-MTP
+both hold `c = 262144` at f16, ~26 GB of KV each, and freeing that would make a
+fourth resident slot fit. It does not survive measurement.
+
+**Depth first, because a short prompt cannot see this.** KV traffic is
+proportional to context depth, so a 60-token prompt measures nothing about KV
+format — the same trap as measuring speculative depth on a two-token answer.
+Everything below is a decode curve against depth, on the resident 35B-A3B.
+
+| Prompt tokens | f16, MTP on | q8_0, MTP on | f16, MTP off | q8_0, MTP off |
+| --- | --- | --- | --- | --- |
+| 13,613 | 92.1 | 88.4 (−4%) | 55.7 | 54.0 (−3%) |
+| 54,319 | 85.7 | 75.7 (−12%) | 42.1 | 40.7 (−3%) |
+| 180,965 | 55.0 | **41.5 (−25%)** | 26.4 | 25.5 (−3%) |
+
+**Findings**
+
+- **The penalty is an interaction with speculative decoding, not a property of
+  q8_0.** Without MTP it is a flat ~3% at every depth; with MTP it is 4% → 12%
+  → 25%, growing with context. A verify pass reads KV for n+1 query positions
+  instead of one, so the dequantization cost is multiplied by the draft depth
+  and then again by the depth of the cache. All three resident models run MTP.
+- **`llama-bench` says the opposite, and it is the wrong tool here.** It
+  measured q8_0 at **+4.6%** at `d65536` (47.44 vs 45.36) — because llama-bench
+  cannot run speculative decoding, so it only ever measures the flat-3% regime.
+  Any KV-format conclusion drawn from `llama-bench` does not transfer to how
+  these models are actually served.
+- **No quality loss was detectable.** Five codenames planted at even intervals
+  through a synthetic log and asked back: **5/5 at 13.6k, 54.3k and 181k tokens,
+  for both formats**. The keigo probe (below) was also unchanged. So the claim
+  in `models.ini.example` is not wrong — the cost is throughput, not fidelity.
+
+**Verdict**: **not adopted.** 26 GB is not worth a quarter of the decode rate at
+the depth where agent sessions actually run. The comment in
+`models.ini.example` stays as-is for non-MTP models, where the cost really is
+~3%.
+
+### Decode falls ~30% by 65k, and current master does not fix it
+
+Measured while setting the above up, so it is recorded here. `llama-bench`,
+plain decode, no MTP, f16 KV:
+
+| Depth | b10488 (production) | master f8dbcd6 |
+| --- | --- | --- |
+| 0 | 65.00 | 66.30 |
+| 16384 | 60.10 | 59.65 |
+| 32768 | 53.92 | 54.32 |
+| 65536 | 45.36 | 45.30 |
+
+Identical within noise at every depth. The qwen4exp n-gram work
+(#27977, #27992) that motivated checking is architecture-specific and does
+nothing for `qwen35moe`; what remains is attention cost over a growing cache, which is
+expected rather than a defect. **This retires "upgrade `/opt/llama` to fix
+decode at depth" as a reason** — the remaining reason to move off b10488 is
+qwen4exp support, i.e. Flash-Next, which the 2026-08-28 entry already declined
+on speed. Built master in `~/llama-master` and ran it from the build tree;
+`/opt/llama` was not touched.
+
+---
+
+## 2026-09-01 — Ornith-1.5-35B-A3B: the MTP head shipped, the Japanese did not
+
+[ornith-ai/Ornith-1.5-35B-A3B](https://huggingface.co/ornith-ai/Ornith-1.5-35B-A3B)
+(MIT) is the successor to the Ornith-1.0 evaluated on 2026-06-30, and it fixes
+that entry's one structural complaint: **the official GGUF carries an MTP head**.
+Verified before downloading 20 GB, by pulling the first 30 MB of the file and
+parsing the header — `blk.40.nextn.{eh_proj,enorm,hnorm,shared_head_norm}`,
+`nextn_predict_layers = 1`, 753 tensors, arch `qwen35moe`: byte-structurally the
+same shape as the resident `Qwen3.6-35B-A3B-MTP`. Vendor benchmarks are well
+above the resident model (Terminal-Bench 2.1 67.8 vs 52.5, SWE-bench Verified 79
+vs 73.4), it is vision-capable with an mmproj, and it is 20.2 GB — so on paper
+it could have collapsed the general, coding and vision slots into one.
+
+**Speed passes.** Same standalone harness as the 08-31 sweep, `c = 65536`:
+
+| n_max | Ornith-1.5 | Qwen3.6-35B-A3B *(resident)* | Coder-MTP |
+| --- | --- | --- | --- |
+| off | **77.1** | 63.4 | 76.7 |
+| 2 | 98.3 (acc .81) | 91.7 | 106.8 |
+| 3 | **102.4** (.74) | 96.9 | **113.7** |
+| 4 | 98.8 (.66) | **98.5** | 109.9 |
+| 6 | 86.1 (.49) | 94.2 | — |
+
+Plain decode is 22% above the resident model and MTP takes it past it. Nothing
+of Ornith-1.0's 63 tok/s ceiling survives.
+
+**Japanese does not.** Eight sentences to convert, temp 0, three models through
+the same prompt in one session — not a comparison against the older recorded
+numbers:
+
+| | 尊敬語 (見る) ×5 | 謙譲語ほか ×3 |
+| --- | --- | --- |
+| Qwen3.6-35B-A3B *(resident)* | **5/5** | 1/3 |
+| **Qwopus3.6-Coder-MTP** | **5/5** | **2/3** |
+| Ornith-1.5, thinking off | 4/5 | 1/3 |
+| Ornith-1.5, thinking **on** | **corrupted** | corrupted |
+
+- **In thinking mode it drops words**, which is the mode its benchmarks are
+  produced in. 「先生はもう映画になりましたか」(をご覧 gone), 「が資料を拝見します」
+  (私 gone), 「社長がになりました」(the verb gone).
+- **It is the model's own token stream, not llama.cpp's reasoning parser.**
+  Re-run with `--reasoning-format none` to see the raw output: inside the
+  `<think>` block it writes 「お客様がこちらをご覧になっている」 and
+  「私が資料を拝見します」 correctly, then drops the same fragments when it copies
+  its working into the final list. Dropping survives MTP being turned off.
+- **Coder-MTP matching the resident at 5/5 is the useful result here**, and it
+  was previously unmeasured. It makes the same-base pair (35B-A3B + Coder-MTP,
+  29 GB each) a real consolidation candidate: Coder-MTP is faster on both plain
+  and MTP decode and is not worse on the one axis that has ever separated models
+  on these boxes.
+- 「社長が来ました」 was answered 「社長が参りました」 — humble applied to a superior —
+  by **every model in every configuration tested**, including the resident one.
+  A stable blind spot, and one item of this probe therefore discriminates
+  nothing.
+
+**Verdict**: **not adopted**, and the reason is the serving path rather than the
+model — its own reasoning shows it knows the right answers. The vendor validates
+vLLM and SGLang only, and the card notes the Qwen chat template had to be
+modified for their evaluations. Worth revisiting if a corrected GGUF appears, or
+through vLLM. One caution about attribution: 「ご覧てください」 was first read here
+as evidence that MTP is not byte-identical at temp 0, but the resident
+Qwen3.6-35B-A3B produced the same string with **MTP off** during the KV runs
+above, so it is a failure this base family produces on its own and not a
+speculative-decoding defect.
+
+---
+
 ## Sampling parameters (validation)
 
 Sampling is a **client-side, per-request** choice — not a `models.ini` load
