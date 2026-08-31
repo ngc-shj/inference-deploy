@@ -904,6 +904,11 @@ numbers:
   by **every model in every configuration tested**, including the resident one.
   A stable blind spot, and one item of this probe therefore discriminates
   nothing.
+  *Amended (2026-09-01)*: it discriminates after all. Qwen3.8-Flash-Next on
+  mlx-serve answers 「社長がいらっしゃいました」, and item 6 「拝見します」 too, for
+  **8/8** — see [EVALUATIONS-macos.md](EVALUATIONS-macos.md). "Every model
+  tested" was true of the four tested that day and false as a generalisation;
+  the item is hard, not unanswerable, and the two GB10 residents fail it.
 
 **Verdict**: **not adopted**, and the reason is the serving path rather than the
 model — its own reasoning shows it knows the right answers. The vendor validates

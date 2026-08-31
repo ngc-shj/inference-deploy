@@ -627,3 +627,41 @@ note above measured **prefill** moving 15% (770 → 884) when the co-tenant was
 stopped, and **decode unchanged** (36.4 → 36.5). Co-tenancy there cost the
 bursty phase, not the streaming one, and that measurement was llama.cpp/Metal
 rather than mlx-serve.
+
+### Follow-up — what thinking is worth, now that it is reachable
+
+Every Flash-Next figure before this was taken at the engine default, which the
+section above established is thinking OFF. First measurement of the other mode,
+same box, same session, temp 0. The keigo probe is the 8-item set from
+[EVALUATIONS.md](EVALUATIONS.md) (2026-09-01); the coding task is
+`merge_intervals` with its doctests extracted from the fenced block and actually
+executed.
+
+| `reasoning_effort` | keigo | doctests | tokens (keigo / code) | wall |
+| --- | --- | --- | --- | --- |
+| **off** *(default)* | **8/8** | 5/5 | 80 / 380 | 2.5 s / 3.6 s |
+| low | 7.5/8 | 5/5 | 434 / 660 | 4.5 s / 7.0 s |
+| medium | 7.5/8 | 5/5 | 496 / 932 | 5.8 s / 10.1 s |
+
+**Findings**
+
+- **Thinking buys nothing here and costs 2–3x the tokens and wall-clock.** The
+  only movement was item 7 getting *worse* (`伺います` → `参ります`, still humble
+  but the less apt choice), on both `low` and `medium`. Every other answer was
+  identical across all three settings.
+- **This is a statement about the harness, not about thinking.** Short,
+  mechanically scorable tasks are exactly where extended reasoning has least to
+  offer; the long-horizon agentic work it exists for is not measured anywhere in
+  this repo. Do not read "no gain measured" as "no gain" — the same caveat the
+  2026-08-19 entry attaches to its own null result.
+- **Flash-Next scores 8/8 with thinking off**, which is the highest anything has
+  scored on this probe, and it clears the two items every other model failed:
+  item 6 「拝見します」 (the GB10 residents leave it unconverted) and item 8
+  「社長がいらっしゃいました」. Against the same probe the resident GB10 pair score
+  roughly 6/8 (Qwen3.6-35B-A3B) and 6.5/8 (Coder-MTP). On Japanese this Mac's
+  resident is ahead of both of the GB10 ones, which is consistent with the
+  5/5-vs-2/5 honorifics result that justified adopting it on 2026-08-30.
+
+**Verdict**: leave the default alone. `reasoning_effort` is worth reaching for on
+a hard task, not as a standing setting — and if it is ever turned on by default,
+these numbers say to re-measure rather than assume it is free.
