@@ -20,6 +20,19 @@ llama.cpp cannot reuse cross-request prompt KV (log: `forcing full prompt
 re-processing`), so multi-turn latency grows with context length even though
 single-shot tok/s stays flat. Throughput numbers below are single-shot.
 
+Three things every number here depends on, all measured rather than assumed, all
+from [2026-09-13](#2026-09-13--batch-size-sweep-where-the-single-stream-ceiling-comes-from):
+
+- **Achieved decode bandwidth is 199 GB/s**, 73% of the 273 GB/s spec. Use this,
+  not the spec, for roofline arithmetic — and derive it from a dense model, whose
+  per-step bytes are exactly countable. (The earlier ~123 GB/s figure is retired:
+  it was an MoE reading 1.6× its nominal active set.)
+- **Speculative decoding is worth up to 2.8×** on the dense 27B (11.5 → 32.2 at
+  the swept `spec-draft-n-max`), so a comparison must hold it fixed. The
+  2026-07-20 entry is retracted for not doing so.
+- **The whole page is `np = 1`.** At batch 32 the dense/MoE ranking narrows from
+  5.7× to 2.8×, so these numbers do not rank models for throughput work.
+
 ---
 
 ## 2026-06-21 — Qwen3.6-27B (MTP) vs resident 35B-A3B
@@ -80,12 +93,18 @@ a different binary. Same `merge_intervals` prompt, temp 0.2, warm single-shot.
 
 **Findings**
 
-- **Extreme quant does not buy speed here.** 9× lighter weights → **~1.05×**
+- ~~**Extreme quant does not buy speed here.** 9× lighter weights → **~1.05×**
   faster (24.4 → 25.7 tok/s). If decode were weight-bandwidth-bound the ternary
   build would be multiples faster; it is flat. On GB10 the 27B dense+hybrid is
   bound by **per-token compute / attention seriality and low-bit dequant
-  overhead**, not weight traffic — the opposite regime from the MoE models,
-  whose small *active* set genuinely is bandwidth-limited (35B-A3B → 90 tok/s).
+  overhead**, not weight traffic~~ — **WRONG, retracted 2026-09-13.** The two
+  numbers are not comparable: 24.4 was MTP-on, 25.7 was not (the fork's own log
+  line in the next bullet says so). Against the Q4's *plain-decode* 11.7 tok/s
+  from [2026-08-19](#2026-08-19--qwen3827b-on-gb10-fp8-vs-nvfp4-vs-gguf-q4-and-what-mtp-is-worth)
+  (11.5 on 2026-08-31 and again on 2026-09-13), ternary is **~2.2× faster for
+  2.67× lighter weights** (17.9 → 6.7 GB, not 9×)
+  — the bandwidth law, obeyed. See
+  [2026-09-13](#2026-09-13--batch-size-sweep-where-the-single-stream-ceiling-comes-from).
 - **The dspark speculative drafter gives nothing measurable** (+1 tok/s). The
   fork logs `no implementations specified for speculative decoding` — the
   advertised 1.34× is a CUDA-serving/batch result, not single-stream on GB10.
@@ -95,13 +114,16 @@ a different binary. Same `merge_intervals` prompt, temp 0.2, warm single-shot.
 - **Memory win is real but irrelevant here**: 6.7 GB resident is tiny, but the
   27B was never memory-constrained on this box (its hybrid KV is light too).
 
-**Verdict**: no reason to adopt. It is the same speed class as every other 27B
-dense on GB10 (~25 tok/s), i.e. ~3.5× slower than the resident 35B-A3B at
-comparable quality, and it needs a non-mainline fork + separate binary to run.
-The value was the *measurement*: it confirms GB10's 27B-dense ceiling is
-compute/attention-bound, so no quant — however aggressive — moves it. Extreme
-low-bit quant pays off for *footprint* (edge/phone, the model's actual target),
-not for throughput on this bandwidth-rich, compute-modest box.
+**Verdict**: no reason to adopt — it needs a non-mainline fork + separate binary,
+and at 25.7 tok/s it is still ~3× slower than the resident 35B-A3B at comparable
+quality. But adopt/reject was the *only* sound conclusion here: the throughput
+reading below it was an artifact, and ternary is in fact the fastest 27B-dense
+decode measured on this box at equal spec settings.
+
+**Method lesson (2026-09-13)**: a draft head is worth up to 2.8× on this box
+(11.5 → 32.2 on the dense 27B, per 2026-08-31), so a spec-on number compared
+against a spec-off number swamps whatever effect is under test. Every throughput
+comparison on this page must state its spec setting and hold it fixed.
 
 ---
 
@@ -634,8 +656,15 @@ unless a row says otherwise.
   moved 3.8% over the same change, so it is compute-bound and the split is clean.
   Two builds 22 commits apart and all three `LLAMA_MMAP_RANDOM` modes gave 26.4 /
   27.3 / 27.0 at IQ4_XS: nothing but the byte count moves this number.
-- **This box's effective decode bandwidth is ~123 GB/s — 45% of the 273 GB/s
-  spec.** Derived from a model whose active count is known: the 35B-A3B is 3B
+- ~~**This box's effective decode bandwidth is ~123 GB/s — 45% of the 273 GB/s
+  spec.**~~ **Retired 2026-09-13**: the box sustains **199 GB/s**, measured on a
+  dense model whose per-step bytes are exactly countable. What 123 GB/s actually
+  measures is the 35B-A3B reading ~1.6× its nominal active set — an MoE cannot
+  calibrate this number. The warning below about computing against the spec
+  figure still stands; it was just the wrong correction. Everything downstream
+  of the 123 baseline in this entry is unsettled — see
+  [2026-09-13](#2026-09-13--batch-size-sweep-where-the-single-stream-ceiling-comes-from).
+  Derived from a model whose active count is known: the 35B-A3B is 3B
   active, and 3e9 x 5.086 bpw / 8 = 1.91 GB/token at 64.4 tok/s. MTP has to be
   off to measure this at all — speculative decoding emits several tokens per
   forward pass, so tok/s stops equalling passes/s. **Computing against the spec
@@ -919,6 +948,84 @@ as evidence that MTP is not byte-identical at temp 0, but the resident
 Qwen3.6-35B-A3B produced the same string with **MTP off** during the KV runs
 above, so it is a failure this base family produces on its own and not a
 speculative-decoding defect.
+
+---
+
+## 2026-09-13 — Batch-size sweep: where the single-stream ceiling comes from
+
+Prompted by [a report of an A100 driven from 33 to 673 tok/s](https://note.com/shi3zblog/n/nd5fc5341b342),
+which attributes the single-stream ceiling to the fixed cost of ~2000 kernel
+launches per token. Worth testing here, because if that were also GB10's
+constraint the 27B-dense numbers on this page would have headroom in them.
+
+`llama-batched-bench`, resident router stopped so the pool was free, spec-off
+(the tool cannot drive a draft head — which is exactly why the 11.5 tok/s below
+is comparable to 2026-08-19's plain-decode 11.7 and not to any MTP number):
+
+```
+llama-batched-bench -m <gguf> -ngl 999 -fa on -c 16384 -b 2048 -ub 512 \
+                    -npp 128 -ntg 128 -npl 1,2,4,8,16,32,1
+```
+
+Aggregate decode tok/s (`S_TG t/s`), B=1 repeated last as the warm baseline:
+
+| B | Qwen3.8-27B `UD-Q4_K_XL` (dense) | | Qwen3.6-35B-A3B `UD-Q4_K_XL` (MoE) | |
+| --- | --- | --- | --- | --- |
+| 1 | 11.57 | 1.00× | 66.17 | 1.00× |
+| 2 | 21.01 | 1.82× | 103.49 | 1.57× |
+| 4 | 38.00 | 3.29× | 150.62 | 2.29× |
+| 8 | 59.56 | 5.15× | 206.08 | 3.13× |
+| 16 | 86.09 | 7.44× | 260.71 | 3.96× |
+| 32 | 115.22 | **9.96×** | 326.23 | **4.96×** |
+
+**Kernel-launch cost is not this box's constraint.** `GGML_CUDA_DISABLE_GRAPHS=1`
+moves the 27B from 11.57 to 11.53 at B=1 and 115.22 to 113.10 at B=32; the MoE
+loses 2–3%. Whatever the launch overhead is, CUDA graphs or not, it is inside
+the noise — so there is no 2000-launch tax to reclaim and no reason to chase
+custom kernels for single-stream latency.
+
+**Single-stream is weight-traffic bound, and this measures the box's real decode
+bandwidth.** A dense model is the only workload here whose per-step byte count is
+*exactly* known: it reads every weight, and llama.cpp reports the 0.35 GB of
+`blk.64.nextn.*` MTP tensors it drops (`unused tensor ... -- ignoring`). That
+leaves 17.21 GB at 86.9 ms/step = **199 GB/s, 73% of the 273 GB/s spec** —
+reproduced at 198 GB/s through `llama-server` on a different code path. So the
+single-stream levers are fewer bytes per sweep (quantization) or more tokens per
+sweep (a draft head). The 11.5 tok/s baseline is now measured three times on
+three code paths — 11.7 (2026-08-19), 11.5 (2026-08-31's sweep), 11.51 / 11.57
+here via `llama-server` and `llama-batched-bench` — which is what makes the
+retraction below safe to make without re-downloading the ternary build.
+
+**This retires the ~123 GB/s "effective decode bandwidth" figure** from
+2026-08-28. That number came from assuming the 35B-A3B reads exactly its nominal
+active bytes (3e9 × 5.086 bpw / 8 = 1.91 GB/token at 64.4 tok/s). The box
+demonstrably sustains 199 GB/s, so the assumption is what fails, not the
+hardware: at 64.4 tok/s the MoE is reading **~3.1 GB/token, ~1.6× its nominal
+active set** — routing, shared experts, attention, embeddings and expert-
+granularity overfetch all land outside the active-parameter count. An MoE cannot
+calibrate a bandwidth ceiling for exactly this reason; a dense model can.
+
+⚠ **Not followed through**: 2026-08-28 divides Flash-Next's traffic by 123 GB/s
+to conclude it "reads about its active 6B" with a 1.38–1.45× residual it
+attributes to the 51B n-gram embedding. That arithmetic rests on the retired
+baseline and needs redoing. It is left alone here rather than rescaled, because
+the honest recomputation needs a fresh Flash-Next measurement (that build is an
+unmerged PR in a detached worktree) and none was taken. Treat the n-gram
+attribution as unsettled, not as refuted.
+
+**Dense batches better than MoE — the inverse of the B=1 ranking.** A dense model
+reads one shared weight set per step, so concurrency amortizes it almost
+perfectly (9.96× at B=32). MoE sequences diverge across experts, so the bytes
+read per step *grow* with B and scaling flattens early (4.96×). The 27B's
+disadvantage narrows from 5.7× at B=1 to 2.8× at B=32.
+
+**Operational consequence.** The resident router runs `np = 1`, which is the
+right call for interactive latency and is why every other number on this page is
+a single-stream number. But those numbers do not rank models for *throughput*
+work — bulk summarization, dataset generation, batch eval. There, raise `-np`,
+and note that a dense 27B is far less bad than its headline suggests. The A100
+report's 673 tok/s is the same regime: an aggregate at batch 64, not a
+single-stream speed.
 
 ---
 
