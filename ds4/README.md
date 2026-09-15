@@ -8,7 +8,7 @@ service. Targeted at the GB10 (Grace Blackwell, sm_121) box but parameterized.
 | Path | Purpose |
 | --- | --- |
 | `/opt/ds4/ds4-server` | the binary |
-| `/var/lib/ds4/models` | relocated GGUFs (main + optional MTP), readable by the CLI |
+| `/var/lib/ds4/models` | relocated GGUFs, readable by the CLI |
 | `/var/lib/ds4/models/ds4flash.gguf` | stable alias symlink (the env file's `-m` target) |
 | `/var/lib/ds4/kv` | `--kv-disk-dir` on-disk KV cache (0750, service-private) |
 | `/etc/ds4/ds4-server.env` | runtime flags (`$DS4_SERVER_ARGS`) |
@@ -17,7 +17,8 @@ service. Targeted at the GB10 (Grace Blackwell, sm_121) box but parameterized.
 ## Install / upgrade
 
 ```bash
-MODEL_MOVE=1 ./install.sh    # build (make) -> /opt/ds4 -> create user -> relocate GGUFs -> install unit
+# download the model first (see "Downloading the model")
+MODEL_MOVE=1 MODEL_SRC=$HOME/ghq/github.com/antirez/ds4/gguf/DeepSeek-V4.1-Flash-Q2.gguf ./install.sh
 sudoedit /etc/ds4/ds4-server.env
 sudo systemctl start ds4-server   # ON-DEMAND — do NOT enable (see below)
 journalctl -u ds4-server -f
@@ -31,9 +32,11 @@ build does not run as root. Re-running rebuilds (incremental), reinstalls, and
 
 ### On-demand only — do NOT `enable` this service
 
-DeepSeek V4 Flash is ~86GB of weights; with KV it cannot share the 128GB unified
-memory with the llama.cpp router (~93GB resident) or a vLLM instance. The unit
-declares `Conflicts=llama-server.service vllm-server.service`, so
+DeepSeek V4.1 Flash streams its weights from SSD but still plans ~81 GiB
+resident at the configured 64GB expert-cache budget (104 GiB with the automatic
+one); it cannot share the 128GB unified memory with the llama.cpp router (~93GB
+resident) or a vLLM instance. The unit declares
+`Conflicts=llama-server.service vllm-server.service`, so
 `systemctl start ds4-server` evicts the other engines first and gives ds4 the
 pool; `systemctl start llama-server` hands it back. The three are mutually
 exclusive — run one at a time, and never `enable` ds4-server.
@@ -44,6 +47,25 @@ existing `SRC` is reused untouched. Override defaults via env:
 `SRC=/path MAKE_TARGET=cuda-generic ./install.sh`
 (`cuda-spark`/`cuda-generic`/`cpu`); `NO_BUILD=1` skips the build.
 
+### Downloading the model
+
+The V4.1 Flash Q2 GGUF is 341 GiB and is read continuously while serving, so it
+must sit on the local NVMe. Upstream's `./download_model.sh ds41f-q2` works and
+verifies the SHA-256, but when `HF_TOKEN` is unset it reads
+`~/.cache/huggingface/token` and passes it as `hf download --token <token>`,
+readable by every local account through `ps` for the whole ~3 h download.
+Call the CLI directly instead — it picks up the stored token itself:
+
+```bash
+hf download antirez/deepseek-v4.1-flash-gguf DeepSeek-V4.1-Flash-Q2.gguf \
+  --local-dir ~/ghq/github.com/antirez/ds4/gguf
+sha256sum ~/ghq/github.com/antirez/ds4/gguf/DeepSeek-V4.1-Flash-Q2.gguf
+# compare with the ds41f-q2 expected_sha in download_model.sh
+```
+
+`MODEL_MOVE=1` is not optional at this size: the installer copies by default,
+and a second 341 GiB does not fit.
+
 ## Design notes (the non-obvious bits)
 
 - **Models must leave `$HOME`.** The service runs as the unprivileged `ds4`
@@ -52,10 +74,13 @@ existing `SRC` is reused untouched. Override defaults via env:
   `/var/lib/ds4/models`. Default copies; `MODEL_MOVE=1` moves instead (instant
   on the same filesystem) and leaves a symlink at the source so the `ds4` CLI
   keeps resolving it.
-- **MTP is auto-detected from `download_model.sh`.** The draft model name is the
-  single source of truth (`MTP_FILE` in `download_model.sh`); the installer
-  looks for it in `$GGUF_DIR` (default `<checkout>/gguf`) and relocates it too.
-  It stays off until `--mtp <path> --mtp-draft 2` is added to the env file.
+- **No speculative decoding for V4.1.** DSpark and MTP are not implemented for
+  V4.1 on CUDA. Upstream also dropped the standalone V4 MTP download, so the
+  installer's MTP auto-detection (keyed on `MTP_FILE` in `download_model.sh`)
+  now finds nothing.
+- **No `LimitMEMLOCK` needed.** V4.1's encoder-residency `mlock` path is
+  Metal-only (`ds41_encoder_acquire` returns immediately off Apple); CUDA stages
+  experts into its own bounded device cache.
 - **`StateDirectoryMode=0755`** (llama.cpp uses `0750`): the ds4 CLI is also run
   as a normal user and reads the same models, so `/var/lib/ds4` must be
   traversable. The `kv/` subdir stays `0750`, service-private.
@@ -68,15 +93,19 @@ existing `SRC` is reused untouched. Override defaults via env:
 
 ## Current model
 
-DeepSeek V4 Flash **0731**, IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8 (~86GB), with the
-optional MTP draft head (`DeepSeek-V4-Flash-MTP-Q4K-Q8_0-F32`, ~3.8GB) driving
-speculative decoding via `--mtp ... --mtp-draft 2`. See `ds4-server.env.example`.
+DeepSeek V4.1 Flash **Q2** (`DeepSeek-V4.1-Flash-Q2.gguf`, 341 GiB, of which
+189 GiB is Engram that stays on disk) on engine 6e4c285, served with
+`--cuda --ssd-streaming --ctx 32768 --ssd-streaming-cache-experts 64GB`. See
+`ds4-server.env.example`.
 
-0731 reasons noticeably longer than the Preview quant it replaced, so raise the
-client's `max_tokens` (2500+ for prose, 3000+ for code) — at the older budgets
-answers arrive truncated, or never start. Measured numbers, plus why the engine
-is pinned to e34a808 and DSpark is off, are in [EVALUATIONS.md](EVALUATIONS.md).
+Expect **7–8 tok/s decode and 12–26 s to the first token even for a short
+prompt** — this is the quality option, not the fast one. The explicit 64GB
+budget costs 14–29% decode against the automatic one, which on this box pushes
+other processes into swap and logs `NVRM ... NV_ERR_NO_MEMORY`; ds4 sets
+`oom_score_adj=1000` on itself, so it is the first thing the kernel kills.
+Upstream validates `--ctx` up to 65536 under SSD streaming.
 
-`--ctx 1048576` in `ds4-server.env.example` no longer loads on a 128GB box (it
-needs ~135GB with the model and context buffers); 131072 fits with margin and
-avoids the degraded managed-KV path.
+The server thinks at high effort by default; send `think:false` (or
+`model=deepseek-chat`) for direct answers. Measurements, and what replaced
+Flash 0731, are in [EVALUATIONS.md](EVALUATIONS.md). 0731 is no longer on disk;
+the previous engine is kept as `/opt/ds4/ds4-server.e34a808`.

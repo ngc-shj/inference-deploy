@@ -7,9 +7,10 @@ router set on the same box see
 there (**bandwidth ÷ resident bytes**) holds here too and explains most of what
 follows.
 
-DeepSeek V4 Flash is a single ~81 GiB resident model; it cannot share the pool
-with the llama.cpp router or vLLM, so every number below was taken with
-`ds4-server` alone (the unit's `Conflicts=` evicts the others).
+Every model here takes most of the pool — V4 Flash as a ~81 GiB resident model,
+V4.1 Flash as an 81–104 GiB SSD-streaming plan — so none can share it with the
+llama.cpp router or vLLM, and every number below was taken with `ds4-server`
+alone (the unit's `Conflicts=` evicts the others).
 
 ## Method
 
@@ -126,6 +127,82 @@ repetition loop; it has a minimal repro (single prompt, `temperature=0`, fixed
 seed, deterministic) and is worth reporting upstream, after which it becomes a
 clear win. Revisit DSpark only if the support model's footprint drops or the
 box's memory pressure changes.
+
+---
+
+## 2026-09-15 — DeepSeek-V4.1-Flash, SSD-streamed on one Spark
+
+`deepseek-ai/DeepSeek-V4.1-Flash` (2026-09-10) is a new architecture, not a
+weights swap. It is a 552B-parameter MoE built as a causal encoder–decoder,
+with 8B parameters active on input and 16B on output, plus Engram tables.
+DwarfStar added CUDA support in a04f46f (2026-09-13). antirez's Q2 is
+**341 GiB**. 189 GiB of that is Engram, which is only ever read from disk. The
+remaining 152 GiB of main weights still exceeds the 121 GiB pool, so on one
+Spark V4.1 runs only with `--ssd-streaming`. Q4 (483 GiB), vision and DSpark
+are not available on CUDA. The resident alternative is two Sparks over RoCE
+tensor parallelism, which upstream measures at 21.9 tok/s.
+
+Engine 6e4c285 ran with `--cuda --ssd-streaming --ctx 32768` against the same
+five prompts: 3 repetitions, `temperature=0`, `seed=1234`, thinking at the
+server default (high), `max_tokens` 6000, TTFT keyed off either token kind, and
+`/var/lib/ds4/kv` emptied before each run. The four-configuration matrix above
+does not apply. What varies is the expert-cache budget: automatic, then an
+explicit `--ssd-streaming-cache-experts 64GB`. Swap was reset to 0 before the
+64GB run; the automatic run started with 2.9 GiB already swapped.
+
+| Median of 3 | V4.1 auto (80.12 GiB cache) | V4.1 **64GB** (56.88 GiB) | 0731 resident (L1) |
+| --- | --- | --- | --- |
+| decode, code generation | 8.92 | 7.70 | 14.80 |
+| decode, code + tests (LRU) | 9.65 | 7.80 | 14.52 |
+| decode, bugfix | 9.51 | 6.73 | 15.07 |
+| decode, prose | 10.48 | 8.20 | 14.94 |
+| decode after a 9.5k prompt | 9.39 | 6.80 | 13.66 |
+| TTFT, 54–154-token prompts | 9–17 s | 12–26 s | — |
+| cold prefill, 9 533 tok | 87 tok/s (109 s) | 77 tok/s (124 s) | 362–385 (10 458 tok) |
+| continued prefill, 1 341 tok after an 8 192-tok disk-KV hit | 43 tok/s | 36 tok/s | — |
+| planned resident (ds4 log) | 104.42 GiB | 81.18 GiB | 110–111 GiB used |
+| swap | 2.9 → 8.7 GiB | peak 0.8 GiB | — |
+| MemAvailable, minimum | ~5 GiB (end of run, not sampled) | 8 GiB (20 GiB outside the long prompt) | — |
+| `NVRM ... NV_ERR_NO_MEMORY` lines | 8 | 0 | — |
+
+**Findings**
+
+- **Correct and stable.** The generated `merge_intervals` passes its doctests
+  5/5, and the LRU cache passes its unittest 4/4. The bugfix answer names the
+  missing leftover append. Reasoning and answer lengths were identical across
+  all three repetitions and across both budgets. The LRU prompt that sent the
+  54b36ed engine into a loop on 0731 finishes here in 3 269 tokens.
+- **Decode is ~0.6× the 0731 resident speed, and it is SSD-bound.** Cutting the
+  cache from 80 to 57 GiB costs 14–29% on every workload. At 7–10 tok/s the
+  thinking phase dominates the wall clock: the LRU answer took 6–7 minutes.
+- **Short prompts are the cost users will feel.** Prompts under 256 tokens are
+  prefilled 8 rows at a time at 6–10 tok/s, so a 54-token prompt waits 8–12 s
+  before its first token. A chat pays this on every turn. The disk KV cache
+  only helps long shared prefixes: an 8 192-token aligned hit cut a 9.5k
+  prompt's TTFT from 110 s to 32 s.
+- **The automatic budget over-commits this box.** It sizes the cache to 80% of
+  the CUDA working set as if nothing else were running. With the desktop and
+  containers present, it pushed swap up 5.8 GiB, and the first large prefill
+  logged 8 NVRM OOMs at `moe gateup y-indirect q8 staging engage`. ds4
+  recovered and completed the request, but it sets `oom_score_adj=1000` on
+  itself. The explicit 64GB budget logged no NVRM lines and kept swap under
+  1 GiB.
+- **`LimitMEMLOCK` is irrelevant on CUDA.** V4.1's encoder-residency path
+  `mlock`s expert pages only on Metal; `ds41_encoder_acquire` returns
+  immediately off Apple. It was briefly added to the unit on the opposite
+  assumption.
+- **Disk is the entry fee.** Fitting the 341 GiB file meant deleting the 0731
+  model set, two unused container images, the pip/npm caches and a disabled
+  gpt-oss-20b, and it still leaves 14 GiB free on the root filesystem.
+  Upstream's `download_model.sh` also passes the stored HF token on the
+  `hf download` command line (see README).
+
+**Verdict**: deploy V4.1 Q2 as the on-demand, quality-first engine, with
+`--ssd-streaming-cache-experts 64GB`. It is not an interactive replacement for
+the resident models: 7–8 tok/s and a 12–26 s first token rule that out. Rolling
+back to 0731 means re-downloading 81 GiB; the old engine is kept at
+`/opt/ds4/ds4-server.e34a808`. Revisit if upstream speeds up short CUDA SSD
+prefills, or if a second Spark makes resident TP possible.
 
 ---
 
