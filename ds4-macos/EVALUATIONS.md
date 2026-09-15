@@ -81,7 +81,9 @@ Decode rate, completion tokens ÷ wall-clock, `--ctx 131072`:
   its 16 GB budget before pass 1, evicting on every request throughout, so its
   fullness is not what changes between the passes.
 - **Not thermal, as far as can be seen.** `pmset -g therm` recorded no warning —
-  which is weak evidence, since it only logs warnings that did fire.
+  which is weak evidence, since it only logs warnings that did fire. (09-15: it
+  also stayed silent through Heavy thermal pressure that `powermetrics` showed
+  cutting GPU power from 28 W to about 4 W, so this bullet rules nothing out.)
 - **Not the July Metal rework.** Built `80ebbc3` (Jun 17, the last revision
   before any of it) and ran the same set: 12.8 → 7.9 → 6.1 → 6.6 tok/s. It
   collapses too, from a lower starting point — in the same machine state the
@@ -369,3 +371,89 @@ So the honest reading is that MXFP4 under streaming runs around 11 tok/s here,
 occasionally 18 on a favourable first run, and the allocation does not matter up
 to 128K. For q2 at full residency the allocation is free at any size; 1M only
 costs the 97.15 GiB plan, which leaves ~31 GB for the desktop.
+
+---
+
+## 2026-09-15 — DeepSeek V4.1 Flash Q2: correct, and thermally capped
+
+Trigger: V4.1 Flash support landed for Metal on 09-12 (`bd66c40`). It is a
+different architecture — Engram n-gram tables, its own GGUF, tokenizer and graph —
+so no V4 file carries over. The Q2 GGUF is 340.6 GiB: 152 GiB of main weights
+plus 189 GiB of Engram tables that are always read from disk. On 128 GB the only
+mode is `--ssd-streaming`.
+
+Setup: ds4 `6e4c285`, built in a separate worktree so the LaunchAgent kept its
+`54b36ed` binary. GGUF sha256 matched `download_model.sh`. Throwaway server:
+`--ssd-streaming --ctx 32768`, automatic cache — 76.62 GiB target, of which a
+69.50 GiB dynamic cache (7,498 experts at 9.49 MiB), 9.37 GiB resident model,
+93.88 GiB planned. Thinking off, temperature 0.
+
+### Quality — the 2-bit battery passes
+
+The prompts are [shi3z/DeepSeekv4.1-DGX-Spark](https://github.com/shi3z/DeepSeekv4.1-DGX-Spark)'s
+`measure/battery.sh`, same wording and settings (temperature 0, `max_tokens`
+110). That fork reports an all-experts 2-bit format failing 2 of 4 — Mt. Fuji at
+3,884 m, the shogunate founded in 「元和」 — and concludes an absent expert does
+less harm than a damaged one. ds4's Q2, whose experts are all imatrix-calibrated
+IQ2_XXS, answers all four: 3,776 m, パリ, 1603, `s[::-1]`.
+
+A fifth prompt checks free generation, which the fork found teacher-forced loss
+cannot see: a single-file HTML breakout game. 3,361 tokens, closed at
+`</html>`, stopped on its own; the longest self-repeating span is 45 characters
+(a synthetic `<!DOCTYPE>` loop scores 3,991). Every prompt's output was
+byte-identical between the two memory-state battery runs below, and A and B
+produced the same 3,361 tokens.
+
+So the fork's 2-bit result does not carry over to imatrix IQ2_XXS. Five prompts
+are a smoke test, not a benchmark.
+
+### Throughput — thermal throttling after two minutes
+
+Decode rate per 50-token chunk from the server log, same HTML prompt. A and B
+share one server with 10 minutes idle between them, so B has a cool machine and
+a warm expert cache:
+
+| Run | gen 50 | 500 | 1000 | 2000 | 2500 | 3000 | 3350 | whole |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| mlx-serve resident, 0.13 GB free | 9.2 | 14.6 | 14.9 | 10.4 | 7.9 | 7.8 | 7.4 | 10.2 |
+| 79.6 GB free | 12.8 | 14.4 | 15.9 | 12.7 | 6.7 | 7.6 | 6.9 | 10.8 |
+| **A** — cooled 14 min, cold cache | 10.1 | 14.3 | 16.4 | 14.0 | 9.8 | 8.3 | 7.9 | 11.5 |
+| **B** — cooled 10 min, warm cache | 14.2 | 15.2 | 16.5 | 13.7 | 9.8 | 8.2 | 7.5 | 11.5 |
+
+`powermetrics` during B (`gpu_power,thermal`, 5 s samples):
+
+| Time into B | thermal pressure | GPU frequency | GPU power | decode |
+| --- | --- | --- | --- | --- |
+| 1:10 | Nominal | 1,598 MHz | 28.2 W | 16.5 |
+| 1:55 | **Heavy** | 1,301 MHz | 17.4 W | 14.9 |
+| 2:35 | Heavy | 1,027 MHz | 10.2 W | 12.4 |
+| 3:00 | Heavy | 763 MHz | 5.7 W | 9.8 |
+| 3:30 onward | Heavy | 540–690 MHz | 3.1–4.7 W | 7.5–8.2 |
+
+**Findings**
+
+- **It is thermal.** Pressure turns Heavy under two minutes into sustained decode;
+  over the next ninety seconds the GPU is cut from 28 W to about 4 W and from
+  1,600 to about 550 MHz, while residency stays at 81–96%. The GPU is not waiting
+  on anything — it is being slowed, and the decode rate follows it down. Ten
+  minutes idle restores Nominal pressure and 16 tok/s. A context-length threshold
+  was the other candidate, since A and B drop at the same token; they also drop at
+  the same elapsed time, and these samples settle which one it is.
+- **Not memory.** The run with mlx-serve resident, 0.13 GB free and 72.4 GB in
+  the compressor traces the same curve as the one with 79.6 GB free. The automatic
+  budget is 69.50 GiB in both — it does not react to compressor pressure.
+- **Expert-cache misses cost little.** B, routing to exactly the experts A just
+  loaded, leads only for the first few hundred tokens (14.2 against 10.1 at token
+  50), is level by token 750, and finishes at 11.51 against 11.54. Serving only
+  cached experts on a miss would buy almost nothing on this box.
+- **Quote 15–16 tok/s for short replies and 7.5–8 sustained.** Upstream's
+  16.4–16.7 tok/s for M5 Max SSD streaming comes from 128-token probes, which
+  finish inside the unthrottled window.
+- **`pmset -g therm` recorded no warning through all of this.** The 08-02 entry
+  already called it weak evidence; it is the wrong instrument. Use `powermetrics`.
+- **Unexplained:** a request sent straight after another ends its run at 9–10
+  tok/s (8.93 whole), above the cooled runs' 7.5–8.3 at the same token. A fan
+  already at speed is a guess, not a measurement.
+
+For measuring on this box, add a third rule to the two in the 08-03 entry: between
+long runs, wait for `powermetrics` to report Nominal pressure, or ten minutes idle.
