@@ -1,0 +1,61 @@
+Rejected experiment, kept for the record rather than as a 423 KiB copy of
+metal/moe.metal that silently goes stale.
+
+What it does: unpacks an IQ2_XXS grid entry from one uint64 in two 32-bit
+halves instead of eight threadgroup byte loads, and derives the sign from
+1 << j instead of a lookup table.
+
+Why it is not in the tree:
+
+  - It is not faster. The standalone bench measured no difference to -23%
+    depending on the variant (see ds4-macos/V4.1-TUNING.md, "What did not
+    work").
+  - It changes the reduction order. The original adds terms j = 0..7 in
+    order; this adds j and j+4 interleaved, so the row sums do not match the
+    single-row kernel bit for bit. V4.1 pins its small-batch MoE to per-row
+    mul_mv precisely to keep that agreement, so this would have to be
+    justified against exactness even if it had been faster.
+
+To try it again, apply to metal/moe.metal in the ds4 tree. Do not revive the
+whole-file copy: a full duplicate reached through DS4_METAL_MOE_SOURCE also
+carries every other kernel at the version it was copied at, which is how a
+benchmark ends up measuring something nobody chose.
+
+diff --git a/metal/moe.metal b/metal/moe.metal
+--- a/metal/moe.metal
++++ b/metal/moe.metal
+@@ -3211,15 +3211,28 @@
+ 
+             float sg = 0;
+             float su = 0;
++            /* A grid entry is eight packed int8 values in one uint64.  Read it
++             * once and unpack from two 32-bit halves instead of taking eight
++             * threadgroup byte loads; the sign mask is 1 << j, so that table
++             * lookup goes as well. */
+             for (short l = 0; l < 4; ++l) {
+-                const threadgroup uint8_t * gridg = (const threadgroup uint8_t *)(svalues + aux8g[l]);
+-                const threadgroup uint8_t * gridu = (const threadgroup uint8_t *)(svalues + aux8u[l]);
++                const uint64_t gg = svalues[aux8g[l]];
++                const uint64_t gu = svalues[aux8u[l]];
++                const uint gg_lo = (uint)gg, gg_hi = (uint)(gg >> 32);
++                const uint gu_lo = (uint)gu, gu_hi = (uint)(gu >> 32);
+                 const uint8_t signg = ssigns[(aux32g >> 7*l) & 127];
+                 const uint8_t signu = ssigns[(aux32u >> 7*l) & 127];
+-                for (short j = 0; j < 8; ++j) {
+-                    const float v = yl[8*l + j];
+-                    sg += v * gridg[j] * (signg & ds4_metal_kmask_iq2xs[j] ? -1.f : 1.f);
+-                    su += v * gridu[j] * (signu & ds4_metal_kmask_iq2xs[j] ? -1.f : 1.f);
++                for (short j = 0; j < 4; ++j) {
++                    const float v0 = yl[8*l + j];
++                    const float v1 = yl[8*l + j + 4];
++                    const float g0 = v0 * (float)((gg_lo >> (8*j)) & 0xffu);
++                    const float g1 = v1 * (float)((gg_hi >> (8*j)) & 0xffu);
++                    const float u0 = v0 * (float)((gu_lo >> (8*j)) & 0xffu);
++                    const float u1 = v1 * (float)((gu_hi >> (8*j)) & 0xffu);
++                    sg += ((signg >> j)       & 1) ? -g0 : g0;
++                    sg += ((signg >> (j + 4)) & 1) ? -g1 : g1;
++                    su += ((signu >> j)       & 1) ? -u0 : u0;
++                    su += ((signu >> (j + 4)) & 1) ? -u1 : u1;
+                 }
+             }
+             sumg[row] += dg * sg;
