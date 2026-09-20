@@ -68,17 +68,21 @@ int main(int argc, char **argv) {
     const MTLSize tg = MTLSizeMake(32 * NSG, 1, 1);
     const NSUInteger shmem = 256 * sizeof(uint64_t) + 128;
     const uint32_t zero = 0;
-    double *ms[2];
-    for (int a = 0; a < 2; a++) ms[a] = malloc(rounds * sizeof(double));
+    /* Arm 2 is what the real kernel does: one dispatch whose z extent carries
+     * all the lanes, so every threadgroup is in flight from the start without
+     * asking the encoder for anything. If that already reaches the concurrent
+     * rate, overlapping separate dispatches has nothing left to give. */
+    double *ms[3];
+    for (int a = 0; a < 3; a++) ms[a] = malloc(rounds * sizeof(double));
 
     for (uint32_t r = 0; r < rounds + 1; r++) {
-      for (int arm = 0; arm < 2; arm++) {
+      for (int arm = 0; arm < 3; arm++) {
         id<MTLCommandBuffer> cb = [q commandBuffer];
         for (uint32_t it = 0; it < iters; it++) {
-            id<MTLComputeCommandEncoder> enc = arm
+            id<MTLComputeCommandEncoder> enc = arm == 1
                 ? [cb computeCommandEncoderWithDispatchType:MTLDispatchTypeConcurrent]
                 : [cb computeCommandEncoder];
-            for (uint32_t p = 0; p < pairs; p++) {
+            for (uint32_t p = 0; p < (arm == 2 ? 1u : pairs); p++) {
                 const NSUInteger woff = (NSUInteger)((it * pairs + p) % nexp) * w_bytes;
                 [enc setComputePipelineState:pso];
                 [enc setBuffer:xg offset:woff atIndex:0];
@@ -91,7 +95,8 @@ int main(int argc, char **argv) {
                 [enc setBytes:&zero length:4 atIndex:7];
                 [enc setBytes:&zero length:4 atIndex:8];
                 [enc setThreadgroupMemoryLength:shmem atIndex:0];
-                [enc dispatchThreadgroups:grid threadsPerThreadgroup:tg];
+                [enc dispatchThreadgroups:(arm == 2 ? MTLSizeMake(grid.width, 1, pairs) : grid)
+                     threadsPerThreadgroup:tg];
             }
             [enc endEncoding];
         }
@@ -101,13 +106,16 @@ int main(int argc, char **argv) {
         if (r > 0) ms[arm][r - 1] = t;
       }
     }
-    for (int a = 0; a < 2; a++) qsort(ms[a], rounds, sizeof(double), cmp_d);
-    const double a0 = ms[0][rounds / 2], a1 = ms[1][rounds / 2];
+    for (int a = 0; a < 3; a++) qsort(ms[a], rounds, sizeof(double), cmp_d);
+    const double a0 = ms[0][rounds / 2], a1 = ms[1][rounds / 2], a2 = ms[2][rounds / 2];
     const double gib = 2.0 * w_bytes * pairs / (1024.0*1024.0*1024.0);
     printf("%u independent dispatches a group, %u groups\n", pairs, iters);
     printf("  serial encoder     : %7.2f ms, %6.1f GB/s\n", a0, gib * iters * 1.073741824 / (a0/1000.0));
     printf("  concurrent encoder : %7.2f ms, %6.1f GB/s\n", a1, gib * iters * 1.073741824 / (a1/1000.0));
-    printf("  concurrent is %+.1f%%\n", 100.0 * (a1/a0 - 1.0));
+    printf("  one dispatch, z=%u  : %7.2f ms, %6.1f GB/s\n", pairs, a2,
+           gib * iters * 1.073741824 / (a2/1000.0));
+    printf("  concurrent is %+.1f%% against serial, the single dispatch %+.1f%%\n",
+           100.0 * (a1/a0 - 1.0), 100.0 * (a2/a0 - 1.0));
     return 0;
 }
 }

@@ -100,15 +100,22 @@ to overlap:
 | 2 | 303.2 GB/s | 353.6 | −14.3% |
 | 6 | 303.3 GB/s | **429.6** | **−29.4%** |
 
-So one dispatch does not saturate the machine, and 300 GB/s is a serialisation
-ceiling rather than a memory one.
+So one dispatch of 288 threadgroups does not saturate the machine. The reading
+that suggested itself — that a concurrent encoder is the way to fix it, and
+that a V4.1 layer's shared and routed experts should be overlapped because they
+hang off the same `ffn_norm` — is wrong, and a third arm says why:
 
-What that is worth in a V4.1 layer: the shared expert (Q8_0, 37.6 MiB) and the
-routed experts (IQ2/Q2_K) both depend on the same `ffn_norm` and on nothing of
-each other's, as does the router projection. Serially they cost the sum, about
-0.245 ms a layer; at the concurrent rate about 0.172, which is 2.9 ms of a
-51 ms token.
+| | |
+|---|---|
+| six dispatches, serial encoder | 303.4 GB/s |
+| six dispatches, concurrent encoder | 429.5 GB/s |
+| **one dispatch with z = 6** | **437.9 GB/s** |
 
-It is only available to a path that encodes the whole layer before running any
-of it. The readback path cannot: it does not know what the routed experts are
-until the shared expert has already been encoded and submitted.
+**The gain is threadgroups in flight, not the encoder.** One dispatch whose z
+extent carries all six lanes beats the concurrent encoder, and that is exactly
+what the real kernel already does: `MTLSizeMake(row_groups, 1, pairs)`, 1728
+threadgroups at once. There is nothing here to collect.
+
+It also casts doubt on the 244 GB/s this file quotes for the same kernel
+in situ. That came from `DS4_METAL_MOE_STAGE_PROFILE`, which ends and begins a
+command buffer around each stage it times.
