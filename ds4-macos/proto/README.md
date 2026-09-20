@@ -59,3 +59,30 @@ The resident pass between the signal and the wait is what makes it a result
 rather than a stall in a different shape: without GPU work in that window the
 same experiment measures -6%, because the CPU's service is not hidden behind
 anything.
+
+# Does one big window over the model wire all of itself?
+
+`window.m`. A layer's 384 experts are contiguous in the file, so a single
+no-copy buffer over that range would make every one of them addressable and a
+miss would stop existing — no repair, no stall. The notes above say a large
+window is an eager load; that was measured before a residency set was known to
+work here, so it is worth asking of both routes.
+
+    clang -O2 -fobjc-arc -framework Foundation -framework Metal -o window window.m
+    ./window <gguf> [window GiB] [regions touched] [1=residency set, 0=useResource]
+
+A 3.56 GiB window — one layer's gate, up and down — with six 3 MiB regions
+actually read:
+
+| | first cost |
+|---|---|
+| `addAllocation` + `requestResidency` | 1021 ms |
+| `useResource` on the dispatch | 305 ms |
+
+Both wire the whole window for eighteen megabytes of reads, so the eager-load
+note stands. What is new is the 3.3x between the two routes, and that the cost
+is paid once per window rather than per use.
+
+It does not rescue the idea. Forty layers of 3.56 GiB is 142 GiB of windows on
+a 128 GiB machine, so they cannot all be wired, and wiring one per layer per
+token is a second of work for a 50 ms token.
