@@ -23,8 +23,23 @@
  *
  * What it has to prove, in this order:
  *   1. the output matches the host-driven arm byte for byte;
- *   2. on an all-hit layer the host does no work beyond the signal, counted;
+ *   2. on an all-hit layer the service thread does no work beyond the signal;
  *   3. it is faster, and by how much against the hit rate the model has.
+ *
+ * What it does NOT show, and what a reader of its numbers has to carry:
+ *
+ *   - The host is on the critical path on EVERY layer. The GPU signals, this
+ *     thread wakes, it writes a value back, the GPU waits for it: four
+ *     operations a layer whatever the masks say. Only the encoding thread is
+ *     free of them. The round trip is not removed, its work is.
+ *   - The repair is two pointer stores handing a missing expert another
+ *     expert's bytes. No read, no view, no residency, no eviction, no down
+ *     projection. Both arms read the same wrong expert, which is why they
+ *     agree, and a miss costing two stores is why the hit rate does not
+ *     change the answer.
+ *   - The arms do not have the same shape: host-driven builds two command
+ *     buffers a layer and waits on both. The difference is not the control
+ *     plane's.
  */
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
@@ -65,6 +80,12 @@ typedef struct {
     id<MTLSharedEvent> ev;         /* host -> GPU: this layer is repaired */
     id<MTLSharedEvent> gpu_ev;     /* GPU -> host: this layer's masks are written */
     uint64_t          epoch_base;
+    /* BUG, not yet fixed: this is used as a flag, and the service thread
+     * stores zero to it after the last layer. With two served tokens in a row
+     * that store can land after the main thread has published the next epoch.
+     * The arms alternate today, so the host-driven stretch hides it. A
+     * sequence ring or an explicit completion acknowledgement is needed before
+     * this harness measures anything else. */
     _Atomic uint32_t  epoch;         /* the token this pass belongs to */
     _Atomic uint64_t  installs;      /* experts actually brought in */
     _Atomic uint64_t  layers_with_work;
