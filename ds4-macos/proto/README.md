@@ -199,3 +199,23 @@ filled four values a thread, which assumes 64 threads and writes 4096 bytes
 into a 2176-byte threadgroup allocation at anything wider; and the kernel's row
 assignment is a compile-time function of `NSG` and `NR0`, so a host program
 that disagrees about either has two simdgroups writing the same output row.
+
+# Can a kernel switch off the dispatches encoded after it?
+
+`gateprobe.m`. The abort gate needs one guarantee: a kernel writes zeros into
+the indirect dispatch arguments of dispatches encoded later in the same command
+buffer, and those dispatches then launch nothing.
+
+    clang -O2 -fobjc-arc -framework Foundation -framework Metal -o gateprobe gateprobe.m
+    ./gateprobe <dispatches> <gate index> <rounds> [1 = one shared encoder]
+
+| | ran past the gate | lost before it |
+|---|---|---|
+| 64 dispatches, gate 8, 200 rounds, separate encoders | 0 | 0 |
+| 64 dispatches, gate 8, 200 rounds, one encoder | 0 | 0 |
+| 256 dispatches, gate 40, 100 rounds, one encoder | 0 | 0 |
+
+The single-encoder rows are the ones that matter: ds4 keeps one compute encoder
+across a layer's dispatches, so the kernel doing the switching off and the
+dispatches it switches off are in the same encoder, with no implicit barrier
+between them.
