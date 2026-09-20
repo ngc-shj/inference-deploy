@@ -119,3 +119,63 @@ threadgroups at once. There is nothing here to collect.
 It also casts doubt on the 244 GB/s this file quotes for the same kernel
 in situ. That came from `DS4_METAL_MOE_STAGE_PROFILE`, which ends and begins a
 command buffer around each stage it times.
+
+# Serving the misses instead of being told where they are
+
+`servemoe.m`. The resident arm above reads a host-side array to decide where to
+break the command buffer. A decoder has no such array: the router runs on the
+GPU, so whether a layer's six experts are reachable is known first on the GPU.
+This arm removes the oracle.
+
+    clang -O2 -fobjc-arc -framework Foundation -framework Metal -o servemoe servemoe.m
+    ./servemoe <cached experts> <layers> <% all-hit layers> <rounds>
+
+One command buffer holds the whole token. Per layer:
+
+    router -> validate (writes the lane masks, signals "validated")
+           -> expert pass over the hit lanes
+           -> wait for "repaired"
+           -> expert pass over the repaired lanes, empty and free when nothing missed
+
+A service thread - never the encoding thread - waits on "validated", installs
+addresses for whatever missed, and signals "repaired". On an all-hit layer it
+reads two words and signals.
+
+| all-hit layers | host-driven | served | host work | |
+|---|---|---|---|---|
+| 100% | 0.725 ms/layer | 0.577 | 0 of 320 layers | **−20.5%** |
+| 68% | 0.730 | 0.584 | 104 of 320 | −19.9% |
+| 32% | 0.734 | 0.580 | 216 of 320 | −21.0% |
+| 0% | 0.736 | 0.586 | 320 of 320 | **−20.4%** |
+
+Output identical to the host-driven arm at every row, both arms stable against
+themselves over rounds, and the encoding thread blocks zero times a token
+against the host-driven arm's forty.
+
+**It is flat in the hit rate**, where the oracle arm falls from −47.8% to
+−23.4%: the oracle commits and waits at every miss, and this one never breaks
+the buffer at all. At 0% hit the two are within three points, which is the
+oracle's synchronisation being all that is left of it.
+
+## What it cost to get an answer that means anything
+
+**Metal gives no ordering for memory a running command buffer wrote.** The
+first version had the service thread spin on a word the validate kernel stored,
+which is what the CUDA implementation does with device-side flags. It reports
+−44% and is wrong: the thread can see the new epoch before the masks that go
+with it, call a layer clean, and leave lanes uncomputed. With the spin replaced
+by an event the GPU signals after the validate - the documented ordering point -
+the same arm measures −20%. **The 24 points between them is the price of the
+per-layer GPU-to-host round trip, and it is the next thing to attack**, not a
+result to quote.
+
+**`iq2_pair` overran its threadgroup allocation.** The grid tables were filled
+with a fixed four values a thread, which assumes 64 threads; at the 32*NSG the
+expert pass dispatches it wrote 4096 bytes into 2176. It is now strided by the
+real threadgroup width. `moeproto` dispatches 64 threads and never saw it.
+
+**The kernel's row assignment is coupled to the launch geometry.** `NSG` and
+`NR0` are compile-time in the kernel and repeated in the host program; setting
+them differently makes two simdgroups write the same output row, and the arm
+disagrees with itself by a few hundred floats in 368,640. Both arms have to be
+checked against themselves before either is compared with the other.

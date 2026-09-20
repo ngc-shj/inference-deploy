@@ -97,10 +97,13 @@ static void iq2_pair(device const block_iq2_xxs *xg, device const block_iq2_xxs 
     threadgroup ulong *svalues = (threadgroup ulong *)shmem;
     threadgroup uchar *ssigns  = (threadgroup uchar *)(svalues + 256);
     {
-        int nval = 4, pos = (32*sgitg + tiisg)*nval;
-        for (int i = 0; i < nval; ++i) svalues[pos + i] = ds4_metal_iq2xxs_grid[pos + i];
-        nval = 2; pos = (32*sgitg + tiisg)*nval;
-        for (int i = 0; i < nval; ++i) ssigns[pos+i] = ds4_metal_ksigns_iq2xs[pos+i];
+        /* Strided by the threadgroup's real width. The fixed nval=4 this
+         * replaces assumed 64 threads; at the 32*NSG=128 the expert pass
+         * dispatches, it wrote 4096 bytes into a 2176-byte allocation, and the
+         * corruption is why two runs of the same arm did not agree. */
+        const uint tid = 32u * sgitg + tiisg, width = 32u * NSG;
+        for (uint i = tid; i < 256u; i += width) svalues[i] = ds4_metal_iq2xxs_grid[i];
+        for (uint i = tid; i < 128u; i += width) ssigns[i] = ds4_metal_ksigns_iq2xs[i];
         threadgroup_barrier(mem_flags::mem_threadgroup);
     }
     const int first_row = (tgpig.x * NSG + sgitg) * NR0;
@@ -302,4 +305,90 @@ kernel void proto_expert(device const int *ids [[buffer(0)]],
     device const block_iq2_xxs *xu = reinterpret_cast<device const block_iq2_xxs *>(ua);
     iq2_pair<0>(xg, xu, y, outg + slot * out_stride, outu + slot * out_stride,
                 a.nb32, a.row_blocks, shmem, tgpig, tiisg, sgitg);
+}
+
+/* ---- Served-resident arm -------------------------------------------------
+ * The difference from proto_validate is that nothing outside the GPU decides
+ * anything: the mask the expert pass runs under is written here, and the host
+ * learns a layer is done by watching `progress`, not by being told in advance.
+ * status_all[4*l + 0] = hit mask, +1 = miss mask, +2 = miss count, +3 = spare.
+ */
+kernel void serve_validate(device const int *ids_all [[buffer(0)]],
+        device const ulong *gate_addrs [[buffer(1)]],
+        device const ulong *up_addrs [[buffer(2)]],
+        device atomic_uint *status_all [[buffer(3)]],
+        device atomic_uint *progress [[buffer(4)]],
+        constant proto_args &a [[buffer(5)]],
+        constant uint &layer [[buffer(6)]],
+        constant uint &epoch [[buffer(7)]],
+        uint tid [[thread_position_in_threadgroup]]) {
+    device atomic_uint *st = status_all + 4u * layer;
+    if (tid == 0) {
+        atomic_store_explicit(&st[0], 0u, memory_order_relaxed);
+        atomic_store_explicit(&st[1], 0u, memory_order_relaxed);
+        atomic_store_explicit(&st[2], 0u, memory_order_relaxed);
+    }
+    threadgroup_barrier(mem_flags::mem_device);
+    if (tid < a.n_selected) {
+        const int id = ids_all[layer * a.n_selected + tid];
+        const bool hit = id >= 0 && (uint)id < a.n_total_expert &&
+                         gate_addrs[id] != 0 && up_addrs[id] != 0;
+        atomic_fetch_or_explicit(&st[hit ? 0 : 1], 1u << tid, memory_order_relaxed);
+        if (!hit) atomic_fetch_add_explicit(&st[2], 1u, memory_order_relaxed);
+    }
+    threadgroup_barrier(mem_flags::mem_device);
+    /* Published last, after a device barrier: a host that sees this epoch sees
+     * the masks that go with it. This is the only thing the host waits on, and
+     * on an all-hit layer it is the only thing it does. */
+    if (tid == 0) atomic_store_explicit(&progress[layer], epoch, memory_order_relaxed);
+}
+
+/* One expert pass, restricted to the lanes named by a mask the GPU wrote.
+ * Pass 0 runs the hits; pass 1 runs whatever the host repaired, and does
+ * nothing at all when the mask is empty. */
+kernel void serve_expert(device const int *ids_all [[buffer(0)]],
+        device const ulong *gate_addrs [[buffer(1)]],
+        device const ulong *up_addrs [[buffer(2)]],
+        device const float *y [[buffer(3)]],
+        device float *outg [[buffer(4)]], device float *outu [[buffer(5)]],
+        constant proto_args &a [[buffer(6)]],
+        constant uint &out_stride [[buffer(7)]],
+        device const uint *status_all [[buffer(8)]],
+        constant uint &layer [[buffer(9)]],
+        constant uint &which [[buffer(10)]],
+        threadgroup char *shmem [[threadgroup(0)]],
+        uint3 tgpig [[threadgroup_position_in_grid]],
+        ushort tiisg [[thread_index_in_simdgroup]],
+        ushort sgitg [[simdgroup_index_in_threadgroup]]) {
+    const uint slot = tgpig.z;
+    tgpig.z = 0;
+    const uint mask = status_all[4u * layer + which];
+    if (((mask >> slot) & 1u) == 0u) return;
+    const int id = ids_all[layer * a.n_selected + slot];
+    if (id < 0 || (uint)id >= a.n_total_expert) return;
+    const ulong ga = gate_addrs[id], ua = up_addrs[id];
+    if (ga == 0 || ua == 0) return;
+    device const block_iq2_xxs *xg = reinterpret_cast<device const block_iq2_xxs *>(ga);
+    device const block_iq2_xxs *xu = reinterpret_cast<device const block_iq2_xxs *>(ua);
+    iq2_pair<0>(xg, xu, y, outg + slot * out_stride, outu + slot * out_stride,
+                a.nb32, a.row_blocks, shmem, tgpig, tiisg, sgitg);
+}
+
+/* Router writing into a per-layer slot, so one command buffer can hold the
+ * whole token without the layers overwriting each other's ids. */
+kernel void serve_router(device const float *scores [[buffer(0)]],
+        device int *ids_all [[buffer(1)]], constant proto_args &a [[buffer(2)]],
+        constant uint &layer [[buffer(3)]],
+        uint tid [[thread_position_in_threadgroup]]) {
+    if (tid != 0) return;
+    device int *ids = ids_all + layer * a.n_selected;
+    for (uint k = 0; k < a.n_selected; ++k) {
+        int best = -1; float bv = -1e30f;
+        for (uint e = 0; e < a.n_total_expert; ++e) {
+            bool taken = false;
+            for (uint j = 0; j < k; ++j) if (ids[j] == (int)e) taken = true;
+            if (!taken && scores[e] > bv) { bv = scores[e]; best = (int)e; }
+        }
+        ids[k] = best;
+    }
 }
