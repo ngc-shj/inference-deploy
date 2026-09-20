@@ -86,3 +86,29 @@ is paid once per window rather than per use.
 It does not rescue the idea. Forty layers of 3.56 GiB is 142 GiB of windows on
 a 128 GiB machine, so they cannot all be wired, and wiring one per layer per
 token is a second of work for a 50 ms token.
+
+# Do independent dispatches overlap, and is it worth anything?
+
+`concur.m`. Metal serialises dispatches inside a compute encoder unless the
+encoder is created with `MTLDispatchTypeConcurrent`, and ds4 creates one only
+in two hand-picked places. The expert matvec reaches about 300 GB/s on its own,
+which reads like a bandwidth ceiling until independent copies of it are allowed
+to overlap:
+
+| dispatches in a group | serial | concurrent | |
+|---|---|---|---|
+| 2 | 303.2 GB/s | 353.6 | −14.3% |
+| 6 | 303.3 GB/s | **429.6** | **−29.4%** |
+
+So one dispatch does not saturate the machine, and 300 GB/s is a serialisation
+ceiling rather than a memory one.
+
+What that is worth in a V4.1 layer: the shared expert (Q8_0, 37.6 MiB) and the
+routed experts (IQ2/Q2_K) both depend on the same `ffn_norm` and on nothing of
+each other's, as does the router projection. Serially they cost the sum, about
+0.245 ms a layer; at the concurrent rate about 0.172, which is 2.9 ms of a
+51 ms token.
+
+It is only available to a path that encodes the whole layer before running any
+of it. The readback path cannot: it does not know what the routed experts are
+until the shared expert has already been encoded and submitted.
