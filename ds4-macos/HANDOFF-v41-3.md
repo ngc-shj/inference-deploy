@@ -41,6 +41,10 @@ microbenchmark、帯域表、coverage 表は実装先を選ぶ証拠であって
 | token 末尾一括 prune | 利益検出できず | miss/abort/CB が4アーム同一。既定 OFF |
 | prefill headroom 貸与 | miss は減るが時間が出ない | abort 4.94 → 4.03（決定的、バイト一致）。16 run で平均 +0.05 ms・中央値 −0.71・上位4本 −0.83。最遅2本が貸与側（ロック +7.12 GiB）。既定 OFF |
 | **reactive** な置換 policy | 終了 | LRU / TinyLFU / 2Q / 層別配分のいずれも現行を上回らない。7 policy を offline replay |
+| route prediction（**無条件** top-6 prefetch） | **不採算** | lead 1 で miss recall 38.2%、隠せる abort 1.93 に対し無駄ロード 10.66/token。lead を伸ばすと精度が落ち無駄が増える |
+| route prediction（置換保護） | **利益なし** | 予測 entry を touch するだけの無コスト版でも abort 5.52 → 5.50。lead を増やすと悪化 |
+| route prediction（**閾値つき選択的** prefetch） | **未検証・優先外** | 信号自体はある（miss recall 38.2%）。負けているのは precision であって recall ではない。ただし fetch が間に合う lead 2 の賞金が 1.45 abort＝1.6〜1.8 ms しかなく、完璧な filter でも 2 ms 基準に届かない |
+| predicted segment の shadow 実行 | **終了** | segment 全層一致率 2層 0.450%、3層 0.010%。commit がほぼ起きない |
 | 単純な容量追加 | 保留 | abort は 4.94 → 4.03 と確かに減るが wall 利益が未確定（16 run で平均 +0.05、中央値 −0.71）。テールは悪化 |
 | BF16 丸めの独立 dispatch | **完了・コミット済み** | 586.5 dispatch/token 削除、バイト一致、20.09 → 22.17 tok/s |
 | 行タイル IQ2 / 全アドレステーブル / expert readahead / ディスク律速 | 終了 | 2日目までの記録参照 |
@@ -125,8 +129,12 @@ weighted RMS norm・HC expand・shared SwiGLU・MoE add を個別に。matvec �
 
 **閉じたのは reactive な置換だけで、cache 系統ではない。**
 `Belady = 無限容量` を「cache 終了」の根拠にしたのは誤りだった。Belady が示したのは
-**未来の route が分かれば現容量のまま abort を 4.91 → 3.12 にできる**ことであり、
-終了の証拠ではなく predictive scheduling が効く証拠である。残候補1を見ること。
+**未来の route が分かれば現容量のまま abort を 4.91 → 3.12 にできる**ことである。
+
+**ただしその「未来」は手の届く未来ではなかった。** 4日目に候補1を実測して閉じた
+（下記）。Belady が使っている未来は数百トークン先までの route であって、
+同一トークン内の数層先ではない。evict された expert の最終使用は中央値 571 トークン前
+なので、トークン内の予測が届く範囲に答えはない。
 
 - ghost-view が狙う view 再生成は `load_prepare_avg=0.165 ms/load`（0.8 ms/token）で基準未満。
   しかも `buffer_allocs=0 / buffer_reuses=1722` で**既に再利用されている**。
@@ -153,66 +161,71 @@ weighted RMS norm・HC expand・shared SwiGLU・MoE add を個別に。matvec �
 - **層別配分と admission はいずれも悪化させる。** 「global policy の層間干渉」「一度しか使われない
   expert が hot を追い出す」という仮説はデータが支持しなかった。
 - **Belady が無限容量と一致する** ＝ 容量は足りており、差は全部「未来を知っているか」側。
-  reactive な online policy はその 1.79 abort/token（2.0〜2.3 ms）を 1 本も回収しないが、
-  **これは予測が効くという意味であって、終了の意味ではない。**
+  reactive な online policy はその 1.79 abort/token（2.0〜2.3 ms）を 1 本も回収しない。
+  **そして predictive な policy も回収しない**（候補1、実測済み）。
 
-## 残っている候補（優先順）
+## 候補（優先順）
 
-### 1. route prediction による predictive residency
+**4日目で候補1（無条件版）と候補2が不採算と判明した。** 着手順の先頭は候補3に移る。
 
-**これが現時点の最大候補。** reactive な置換が回収できない 1.79 abort/token を、
-Belady は現容量のまま回収してみせた。差は容量ではなく「未来を知っているか」だけ。
+閉じきっていないものを閉じたことにしないこと: **閾値つき選択的 prefetch**（上表）、
+**sparse attention の候補 ID 予測**、**Engram の hoisting** はいずれも未測定で、
+賞金も見積もられていない。「残るのは候補3だけ」ではなく「今の最優先が候補3」である。
 
-さらに床の 3.12 も「避けられない停止」ではない。無限容量でも初回利用は demand miss として
-数えられるが、**ID を先に知って先行ロードすれば、load は残ってもクリティカルパス上の
-abort からは外せる。** したがって上限は二段ある。
+### ~~1. route prediction による predictive residency~~ — 無条件版は不採算
 
-```
-reactive の上限      : 4.91 − 3.12 = 1.79 abort/token ≒ 1.9〜2.3 ms
-predictive の上限    : demand abort 自体を隠す = 4.91 × 1.08〜1.26 ≒ 5.3〜6.2 ms
-```
+**実測した。** 予測子は「層 T 自身の router を、同一トークンの層 S が既に作った
+norm に当てる」。代理ではなく本物の router なので、学習も offline 再実装も不要で、
+予測 selection は実 selection と同じ規則から出る。
 
-**MTP とは別物。** MTP は未来のトークンを予測し 81〜88% の採択率を要求した。
-route speculation は *現在の正しいトークン内部* の expert 制御を予測し、exact router で
-照合する。誤予測時は既存 gate で修復するので**生成品質は定義上変わらない**。
-「投機デコード終了」を理由にこれを落としてはいけない。
+計器: `DS4_METAL_V41_ROUTE_PREDICT=<path>`（`ds4.c`、gate OFF で使う）。
+offset 0 が self-check で、自分の norm から自分を予測すると 11,240/11,240 完全一致。
+さらに、この probe を入れた build の route は、probe のない build で数日前に取った
+route log と最初の 113 トークン（4,520/4,520）で完全一致する（それ以降は生成自体が
+分岐するので比較の意味がない）。**計器は正しく、グラフを乱していない。**
+route log は gate 内でしか書かれないので、この一致は同時に
+**gate ON/OFF で routing が動かない**ことも示す。gate OFF で取ったトレースで
+gate 裏の機構を値付けしてよい根拠はここにある。
 
-**ただし予測子の作り方は決まっている。以下は実測で潰れている。**
+| lead | recall | exact | **miss した expert の recall** | **欠損集合を全部当てた層** |
+|---|---|---|---|---|
+| 1 | 65.8% | 7.9% | 38.2% | 35.9% |
+| 2 | 57.2% | 3.0% | 30.2% | 28.0% |
+| 4 | 47.2% | 1.0% | 22.7% | 20.5% |
+| 8 | 35.1% | 0.1% | 15.2% | 13.5% |
+| 16 | 20.8% | 0.0% | 9.9% | 8.6% |
 
-前トークン同一層の selected IDs を予測に使う案は使えない（route log 1,162 トークンで実測）:
+**当たるのは resident だった expert で、取りに行く価値のある expert には当たらない。**
+miss 限定の recall は常に全体の約半分。miss の 62% が生成中の初出だという内訳の裏返し。
 
-- 完全一致は **0.3%**、expert の平均重なり **33.6%**（6 中 2、層別に 14〜49%）
-- そして決定的に、**この予測で prefetch しても background load は 0 件、abort も 1 つも減らない。**
-  前トークンで使った expert は定義上すでに LRU の最新端にあり、予測しても取るものがない。
+prefetch した場合の収支（定常価格 1.08〜1.26 ms/abort、baseline は 6.01 load/token）:
 
-過去 route からの予測が届かない理由は miss の内訳にある:
+| lead | 隠せる abort/token | 無駄ロード/token | 比 |
+|---|---|---|---|
+| 1 | 1.93 | 10.66 | 0.18 |
+| 2 | 1.45 | 16.04 | 0.09 |
+| 4 | 1.01 | 20.61 | 0.05 |
+| 8 | 0.58 | 26.34 | 0.02 |
 
-```
-定常 5.36 miss/token
-  初出（この生成で一度も使われていない）: 3.31 = 62%
-  過去に使われて evict された        : 2.05 = 38%
-    最終使用からの経過: 中央値 571 token（p10 482 / p90 811）
-```
+しかも **lead 1 は fetch が間に合わない。** 1トークン 45.10 ms ÷ 40層 = 1.13 ms/層に対し
+page wiring だけで約 1.7 ms/expert。間に合う最短 lead は 2 で、そこでは 1.45 abort
+（1.6〜1.8 ms）のために 16.04 の余分なロードと 16.04 の余分な eviction を払う。
 
-62% は履歴に存在せず、38% も再利用距離が長すぎて recency では届かない（容量側の問題で、
-実際 8,698 で減る）。**したがって予測すべきは「どの expert が hot か」ではなく
-「層 L の router が何を選ぶかを、層 L の実行前に」。**
+ロードを伴わない使い方（予測 entry を touch して LRU の victim から外すだけ）も試した。
+abort 5.52 → 5.50、lead を増やすと 5.64 まで悪化。Belady はこの run で 5.15。
+**evict された expert の最終使用は中央値 571 トークン前 ＝ 22,840 層アクセス前**なので、
+数層先を守っても届かない。
 
-lead time はある。abort の層分布はほぼ均一（1.2/10層）で、**75% が層10以降**にある。
-層10までに当てられれば、そのトークン内で 30 ms 以上の先行時間が取れる。
+**否定したのは無条件版だけである。** 全予測を必ず load するので precision で負けており、
+recall で負けているのではない。router の margin を使った閾値つき選択的 prefetch は未検証。
+ただし fetch が間に合う最短 lead 2 の賞金が 1.45 abort＝1.6〜1.8 ms なので、
+完璧な filter でも 2 ms 基準に届かない。**未検証として記録し、今は追わない。**
 
-**次の担当者が最初にやること:** route log は router の*出力*しか持たないので、この問いに
-答えられない。層 L の selection が、同一トークンの層 L−k の hidden state から予測できるかを
-測るトレースが要る（安価な代理 router でよい）。当たらなければここで閉じる。
+### ~~2. predicted expert execution / transactional direct segment~~ — 不採算
 
-### 2. predicted expert execution / transactional direct segment
-
-候補1が当たるなら、その先。予測した expert を router・shared と並行に **plain dispatch** で
-実行し、exact selected IDs と一致した層の結果だけ採用する。segment 内が全層一致すれば
-plain の結果をそのまま commit、不一致なら shadow を捨てて最初の不一致層から gate で再実行。
-
-**repair と indirect 税 4.13 ms の両方を同時に狙える唯一の機構。** 下の「gate の indirect 税」は
-これを指しており、「機構未発見」ではない。
+候補1が当たらないので土台がない。加えて、segment 入口の state から全層を予測して
+完全一致する率は **2層 0.450%、3層 0.010%**。現行 segment 長では shadow が
+1000 トークンに 999 回捨てられる。自分の encode 分すら回収できない。
 
 ### 3. gate の indirect 税（上限 4.13 ms/token）
 
@@ -222,7 +235,17 @@ N に完全線形。gate は全ゲート対象 dispatch を indirect で出す�
 
 下がらないことが分かっている手: スロット配置（1スロット再利用 vs dispatch ごと別スロット）、
 private storage。compute の `MTLIndirectCommandBuffer` は concurrent dispatch 専用で
-40層の依存鎖に使えない。**残る機構は候補2の shadow execution。**
+40層の依存鎖に使えない。**唯一名前のついていた機構（候補2の shadow execution）は
+上で閉じたので、現在この 4.13 ms に対する機構はない。**
+
+未検証で残る唯一の方向は「全 dispatch を indirect で出すのをやめる」側。gate が
+全部を indirect にしているのは abort 後の dispatch を切るためだが、切る必要があるのは
+**キャリー状態（`previous_kv` / `previous_score` / KV 書き込み / Engram / residual）を
+進めるもの**だけで、上書きされるだけの中間テンソルに書く dispatch は走らせても
+continuation が上書きする。呼び出し元別の census（`DS4_METAL_V41_GATE_CENSUS=1`）は
+既にあるので、どれがどちらかの分類は測れる。ただし分類を1本間違えると静かに壊れる種類の
+変更で、バイト一致で守るしかない。着手前に、分類後に残る indirect 本数を census から
+出して 4.13 ms のどれだけが残るかを先に見ること。
 
 **上限であって保証ではない。** 実現率はカーネル依存で、matvec 386.5 本は予測の91%を回収したが、
 小さい要素ごとカーネル200本を足すと 53% に落ちた（発行が隣の計算と重なって消える）。
@@ -274,6 +297,13 @@ aggregate throughput が目標なら残るが、**単一ストリーム tok/s �
     （3日目は repair-load を外して評価したが、これは補助指標として扱うべきだった。）
 15. **上限は上限として扱う。** 空カーネルの 2.25 µs/dispatch は、matvec では91%回収できたが
     小さい要素ごとカーネルでは53%だった。発行が隣の計算と重なる分は取れない。
+16. **予測子は、自分の出力ではなく、防ぎたい事象の上で採点する。** 全体 recall 65.8% に対し
+    「実際に miss した expert」の recall は 38.2%。簡単な事例と役に立つ事例が重ならない。
+    前者だけを報告していれば実装が正当化されていた。
+17. **false positive を true positive と同じ単位で値付けする。** どの lead も recall は
+    弁護できる値だが、全て損をする。コストを % ではなくロード数と eviction 数で数えると出る。
+18. **lead time は、隠したい対象より長くて初めて lead。** lead 1 は全精度列で最良だが
+    fetch が終わらない（1.13 ms/層 対 約 1.7 ms/expert の page wiring）。
 
 ## 有用な env と計器
 
@@ -285,6 +315,7 @@ aggregate throughput が目標なら残るが、**単一ストリーム tok/s �
 | `DS4_METAL_V41_COLD_SWEEP=q_b\|output_a\|output_b` + `_LAPS` | dense cold sweep |
 | `DS4_METAL_MISS_RESIDENCY=8 DS4_METAL_MISS_RESIDENCY_SAMPLE=16` | miss 時の in-core 率 |
 | `DS4_METAL_V41_GATE_ROUTE_LOG=<path>` | route log（容量シミュレーション用） |
+| `DS4_METAL_V41_ROUTE_PREDICT=<path>` | 層 L−d の hidden state から層 L の route を予測するトレース（gate OFF で使う） |
 | `DS4_METAL_V41_REPAIR_BATCH=1` | residency transaction + 末尾 prune（既定 OFF） |
 | `DS4_METAL_V41_DECODE_LEND_HEADROOM=1` | prefill headroom 貸与（既定 OFF） |
 | `DS4_V41_VERIFY_SELFTEST=k` + `_ROUNDS` | batch 行コストと損益分岐 |
