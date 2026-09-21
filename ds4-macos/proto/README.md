@@ -269,3 +269,83 @@ previous kernel's execution, so 2.25 µs is what an empty chain costs, not
 necessarily what each one adds to a chain that is also computing. It is an
 upper bound on the saving, which is the direction that matters for deciding
 whether to build something.
+
+# Which step of the router's weight tail changes the bits
+
+`routerbits.m`. Replacing the generic five-kernel tail with
+`kernel_dsv4_router_weights_one` changed the model's output, and three things
+change at once: the sum over six entries goes from a tree reduction to index
+order, the divide and the 1.5 scale stop being separate kernels with an f32
+round-trip between them, and `clamp(sum, eps, inf)` becomes `max(sum, eps)`.
+Attributing it to the first without measuring was a guess; this measures it.
+Twenty thousand rounds of six weights, probabilities drawn over the range
+`sqrt(softplus(logit))` actually produces:
+
+| | differ |
+|---|---|
+| divide and scale in one expression against two | **0 (0.00%)** |
+| index-order sum against a tree sum | **18,928 (94.64%)** |
+| both at once | 18,928 (94.64%) |
+
+**The expression fusion is innocent and the sum order is the whole of it.** The
+worry that `-ffast-math` would reassociate `a / sum * 1.5f` or swap in a
+reciprocal does not show up at this width and range: not one round in twenty
+thousand.
+
+And the sum order is not a rare last-bit event. Six addends are few, but
+`sqrt(softplus(x))` spreads them over about one and a half decades, so the
+exponents do not line up and the association shows through on **19 rounds in
+20**. A six-element sum being "small enough not to matter" is the intuition
+this kills.
+
+So the fused tail is usable if its sum is written to match the reduction the
+generic path performs - a strided per-thread partial followed by a simdgroup
+reduction, not the shared-memory halving this probe uses for its tree arm. That
+is a kernel change with a byte comparison behind it, not a flag.
+
+# What a narrow projection reaches, and what merging them recovers
+
+`narrowmv.m`. DeepSeek V4.1's layer is low-rank and compressed throughout, so
+its projections are narrow: the indexer projection is 7168x32, `attn_kv` and
+the KV compressor 7168x512, `attn_output_a` 7168x1024, `attn_q_a` 7168x1280. A
+narrow output is few rows, few rows are few threadgroups, and the call-site
+census finds 59.1 dispatches a token at **24 threadgroups** on a forty-core GPU.
+
+Same geometry as the real kernel - 256 threads, eight simdgroups, a row to a
+simdgroup - and a cold slab every lap so a weight is gone before it comes round
+again:
+
+| projection | threadgroups | GB/s |
+|---|---|---|
+| `indexer_proj` 7168x32 | 1 | **1.2** |
+| `attn_kv` 7168x512 | 10 | **19.0** |
+| KV compressor 7168x512 | 10 | 19.1 |
+| `attn_output_a` 7168x1024 | 19 | 37.1 |
+| `attn_q_a` 7168x1280 | 24 | **45.9** |
+| the five, one dispatch each | | **24.9** |
+| the five as five lanes of one dispatch | 120 | **203.8** |
+
+**8.2 times, and the rate tracks the threadgroup count almost exactly** - 1
+group 1.2, 10 groups 19.0, 24 groups 45.9, 120 groups 203.8. Nothing here is
+bandwidth-limited. It is limited by how much of the machine one dispatch asks
+for, and a narrow projection asks for almost none of it. Against the 560 GB/s
+the dense projections reach in situ, `attn_q_a` alone gets a twelfth.
+
+`concur.m` had already found that 288 threadgroups does not saturate. These are
+at 1 to 24, far below where that curve was even sampled.
+
+## What it does not settle
+
+**The absolute times do not transfer.** Five projections a layer is 45.6 MiB,
+1.82 GiB a token, which at 24.9 GB/s would be 73 ms - larger than the whole
+token. So in the engine they are not running at the cold-slab rate: they
+overlap other work in the layer, and their weights are resident rather than
+freshly streamed. **Read the 8.2x ratio, not the 73 ms.** Sizing the change
+needs an A/B in the engine, not this file.
+
+What it does establish is the direction and the mechanism: the five all read
+`norm`, none depends on another, and they go out one at a time at a fraction of
+the machine. Merging them needs a matvec that can carry lanes of different
+weight type and output width in one grid - the shared expert already has a
+two-lane form, but it requires both lanes to share a type and a width, which
+these do not.
