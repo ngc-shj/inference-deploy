@@ -166,7 +166,7 @@ weighted RMS norm・HC expand・shared SwiGLU・MoE add を個別に。matvec �
 
 ## 候補（優先順）
 
-**4日目で候補1（無条件版）と候補2が不採算と判明した。** 着手順の先頭は候補3に移る。
+**4日目で候補1（無条件版）と候補2が不採算と判明し、候補3の第1段階を実装した。**
 
 閉じきっていないものを閉じたことにしないこと: **閾値つき選択的 prefetch**（上表）、
 **sparse attention の候補 ID 予測**、**Engram の hoisting** はいずれも未測定で、
@@ -227,7 +227,57 @@ recall で負けているのではない。router の margin を使った閾値�
 完全一致する率は **2層 0.450%、3層 0.010%**。現行 segment 長では shadow が
 1000 トークンに 999 回捨てられる。自分の encode 分すら回収できない。
 
-### 3. gate の indirect 税（上限 4.13 ms/token）
+### 3. gate の indirect 税 — 第1段階（direct prefix）実装済み、第2段階が次
+
+**第1段階は実装してある。** command buffer の最初の validate より前の dispatch は
+**必ず走る**ので、indirect で出す意味がない。構造としてこう言える:
+
+1. segment は厳密に1 command buffer（`segment_begin` は buffer ごと、`end_commands` が commit して待つ）
+2. miss 記録は `segment_begin` 内で host が memset、直前 buffer は完了済み
+3. validate kernel がその記録の唯一の書き手
+4. buffer 内の dispatch は encode 順に実行
+
+実装は `g_gate_armed`（`segment_begin` で降ろし、`ds4_gpu_gate_encode_validate` が
+**自分の dispatch を encode した直後**に上げる）。`DS4_METAL_V41_GATE_DIRECT_PREFIX=0` で戻る。
+
+**同時に直した 1 箇所:** validate が zero 化を始める slot が `slots_used() + 1` 固定だった。
+buffer の最初の validate は自分では slot を取らないので
+`slots_used() + (次の gated dispatch が slot を取るか ? 1 : 0)` に修正。
+ここを1つ間違えると abort 裏に生きた dispatch が残り、それは
+`ds4_gpu_gate_slots_left_live()` が数える値なので、既存の readback がこの行の検査になる。
+
+結果:
+
+| | 値 |
+|---|---|
+| plain へ戻した dispatch | **855.7〜936.2 /token（eligible の約37%）** |
+| 残る indirect | 1,499.3〜1,543.5 /token |
+| バイト一致 | 6プロンプト（最長2048トークン生成）で**完全一致** |
+| gate 失敗 / gate 不能 | 全窓・全20本で **0 / 0** |
+| 上限 | 1.33〜1.45 ms/token |
+| **raw wall（20本・5 ABBA block）** | **平均 −1.58、中央値 −1.38、95% CI [−3.73, +0.58]、4/5 block が有利** |
+| commit-to-done（説明用） | −1.18 ms、**5/5 block が同じ向き** |
+
+**確定値として書かないこと。** block 差の sd が 1.73 ms あり、5 block では半幅 2.15 で
+1.6 ms を分離できない。同じばらつきなら **8 block（32本）** が要る。
+このセッションの機体は全期間 swap 21 GB で、45.10 ms のトークンを 55〜57 ms で回していた。
+変更自体は保持してよい（バイト一致、indirect が厳密に減るだけで悪化する機構がない）。
+
+**第2段階（次にやること）:** census を call site 別の live/zero 回数へ拡張する。
+各 dispatch が取った slot を記録し、validate が渡された `gate_from` を層ごとに保存し、
+buffer 完了後に突き合わせれば、各 call site の「走った / 切られた」が出る。期待利益は
+
+```
+live率 × 1.55 µs − zero率 × (実カーネル時間 + 0.70 − 1.85) µs
+```
+
+だが**右半分の実カーネル時間は Metal が dispatch 単位で出さない**。grid 形状は既に
+site ごとに記録されているので、「1.55 µs を超えようがない小ささの grid」で候補を絞り、
+最後は raw wall の A/B で決める。分類を1本間違えると静かに壊れるので、
+キャリー状態（`previous_kv` / `previous_score` / KV / Engram / residual / route log /
+counter）を進める dispatch は絶対に plain 化しないこと。
+
+### ~~3-old. gate の indirect 税（上限 4.13 ms/token）~~ — 上の第1段階が着手した
 
 `proto/dispatchcost.m` で実測: plain 0.70 µs / indirect 2.25 µs / ゼログリッド 1.85 µs、
 N に完全線形。gate は全ゲート対象 dispatch を indirect で出すので、実測 2,666.6 本に対し
