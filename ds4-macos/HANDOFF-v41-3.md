@@ -6,7 +6,10 @@
 - モデル: `~/ghq/github.com/antirez/ds4/gguf/DeepSeek-V4.1-Flash-Q2.gguf`（340.6 GiB）
 - 記録: `~/ghq/github.com/ngc-shj/inference-deploy` の `ds4-macos/V4.1-TUNING.md`（ブランチ `docs/v41-tuning`、**未PR**）
 - 機体: MacBook Pro / Apple M5 Max / 128 GB、GPU 40コア
-- 現状: 実生成で持続 **19 tok/s 前後**、1トークン 46〜55 ms
+- 現状: 実生成で持続 **22 tok/s 前後**、1トークン 45 ms 前後
+  （3日目の BF16 融合で 20.09 → 22.17 tok/s。融合前は 19〜20 tok/s）
+- コミット済み: `ds4-v41` の `6c21cac`（BF16 融合、**未push**）、
+  `inference-deploy` の `c639e8e`（記録、**未PR**）
 
 現行 baseline の起動:
 
@@ -36,7 +39,9 @@ microbenchmark、帯域表、coverage 表は実装先を選ぶ証拠であって
 | router 直後 signal-only | 優先外 | shared expert の runway が約 0.35 ms/token しかない（40層 encoder 分割税を引く前） |
 | residency commit のバッチ化 | 利益検出できず | 11.29 → 6.18 commit/token、時間は動かず。既定 OFF |
 | token 末尾一括 prune | 利益検出できず | miss/abort/CB が4アーム同一。既定 OFF |
-| prefill headroom 貸与 | 機構は確認、値は 0.25 ms | 既定 OFF |
+| prefill headroom 貸与 | miss は減るが時間が出ない | abort 4.94 → 4.03（決定的、バイト一致）。16 run で平均 +0.05 ms・中央値 −0.71・上位4本 −0.83。最遅2本が貸与側（ロック +7.12 GiB）。既定 OFF |
+| expert cache の policy 全般 | 終了 | 7 policy を offline replay。現行は実質 LRU、層別配分と admission は悪化、Belady が無限容量と一致。貸与後に oracle が残すのは 0.91 abort ≒ 1.0 ms |
+| BF16 丸めの独立 dispatch | **完了・コミット済み** | 586.5 dispatch/token 削除、バイト一致、20.09 → 22.17 tok/s |
 | 行タイル IQ2 / 全アドレステーブル / expert readahead / ディスク律速 | 終了 | 2日目までの記録参照 |
 
 数値の詳細はすべて `V4.1-TUNING.md` にある。
@@ -50,12 +55,20 @@ gate over tokens N-N+63: 17.5 command buffers, 5.20 aborts, 240.0 expert ids,
   5.65 misses, 5.65 evictions a token
 ```
 
-miss の限界費用は **wall 0.19〜0.38 ms/miss**（うち CPU 側 0.20、commit-to-done 側 0.00〜0.14）。
-切片は主張しないこと（窓は 2.3〜13 miss、0-miss 窓は `gate_repair` が呼ばれない別レジーム）。
+**この限界費用は取り直した。**「0.19〜0.38 ms/miss」は *cache が充填中* の値で、
+定常の値ではない。同一 run を regime で割ると、充填中（tok<449、abort 7〜28）の
+repair〜abort 傾きは 0.222 ms、cache 満杯後の11窓では 1.51 ms。7倍違う。
 
-## 残っている候補（優先順）
+**定常の値は wall 1.08 ms/abort**（7 run・77窓、run ごとに中心化して run 間ドリフトが
+混入しない形でプール、R²=0.48）、run 内回帰の中央値 1.26。
+一度報告した 2.19 ms/abort は1 run 11窓の値で、これも撤回した。
 
-### 1. ~~context 位置依存~~ — 終了。本命ではない
+**充填中の限界費用で定常の変更を値付けしないこと。** miss が何をするかが regime で違う。
+切片は依然として主張しないこと。
+
+## 3日目に閉じた候補
+
+### ~~context 位置依存~~ — 終了。本命ではない
 
 生成256トークンを固定し、context 長だけを変えた ABBA を2周（short-long-long-short x2、
 `D-*`）。`PAD=0` と `PAD=400`（プロンプト先頭に無意味な行を400行挿入）。
@@ -84,34 +97,76 @@ long アームの wall 69-74 s のうちストリーム中は 22 s で、残り�
 **結果として、`38 ms 窓と 50-55 ms 窓の差は依然として未説明`。** miss（限界 0.3 ms/個）
 でも context 長でもない。次の候補2・3はこの差を説明できるとは限らないことに注意。
 
-### 2. 40層本体の kernel fusion
+### ~~40層本体の kernel fusion~~ — 完了。コミット済み
 
-2,736 dispatch/token。GPU command processor の固定費が 2〜5 µs/dispatch なら 5.5〜13.7 ms。
-**未測定の仮説だが、routed の 0.64 ms よりはるかに大きい。** 先に固定費を実測すること
-（例: 空カーネルを N 個並べた CB の GPU span を N で回帰）。
+`ds4-v41` の `6c21cac`。
 
-融合候補（演算順序を保てばビット一致可能）:
-- GEMV producer 内で BF16 丸めまで行い、独立 BF16 kernel を消す
-- HC weighted sum + RMSNorm
-- attention 後の expand → BF16 → HC mix → weighted sum → norm
-- routed + shared 加算 → BF16
-- shared gate/up → SwiGLU → BF16
+呼び出し元別 census（`DS4_METAL_V41_GATE_CENSUS=1`、2フレーム記録）で、1トークンの
+gated dispatch 2,666.6 のうち **759.5（28%）が `ds4_gpu_dsv41_quantize`** だった。
+decode 経路のほぼ全ての matmul と norm の直後に、書いたばかりの行を読み直して BF16 に
+丸めるだけの dispatch が1本ついていた。producer が store 直前に丸めれば同じビットになる。
 
-1個の巨大 fusion より、40層すべてで 2〜4 dispatch ずつ消す方を優先。
+`helper_mv_reduce_and_write`（全 matvec が通る唯一の store）で Q8_0 / F16 / F32 を一括、
+weighted RMS norm・HC expand・shared SwiGLU・MoE add を個別に。matvec 系は丸められたかを
+`*rounded` で返し、できない経路では呼び出し側が従来 pass に落ちる。
 
-### 3. ghost-view cache
+- **2,666.6 → 2,080.1 dispatch/token**（減少分は全て quantize: 759.5 → 373.0）
+- 6プロンプト（最長2048トークン生成）で gate ON/OFF ともバイト完全一致
+- 8本ずつの ABBA ×2、定常 wall **49.79 → 45.10 ms、20.09 → 22.17 tok/s**、アーム間に重なりなし
+- `DS4_METAL_V41_FUSE_BF16=0` で従来経路に戻る（2,666.6 に戻ることを確認済み）
 
-miss の 92.8% が in-core なので、現在の miss はデータ不在ではなく
-「exact `MTLBuffer` view を破棄 → GPU VA/residency を破棄 → 同じ expert で再生成」
-というオブジェクト churn が主。
+`rms_norm_plain_rows_tensor` は融合対象なし（唯一の呼び出し元 `ds41_hc_mix` の後続に丸め pass がない）。
 
-resident cache とは別に bounded ghost-view cache（residency set と address table
-からは外すが `MTLBuffer` object だけ一定数保持）を持ち、再 miss 時に
-`newBufferWithBytesNoCopy` をやり直さず既存 view を residency へ戻す。
-GPU wiring がどれだけ保持されるかは A/B が必要。**限界 0.20 ms/miss × 5.65 miss が上限**
-なので、期待値は 1 ms 程度であることを先に認識しておくこと。
+**残り 373 のうち、なお畳めるのは約80本（flash attention heads、attn_out_low_q8_direct）で
+0.18 ms 相当、着手基準未満。** 残りは block 幅の `simd_max` を要する FP8/FP4 で producer に畳めない。
 
-### 4. 総スループットが目標なら continuous batching
+### ~~ghost-view cache~~ — cache 系統ごと終了
+
+ghost-view 単体ではなく、容量・admission・eviction・oracle 上限まで見て閉じた。
+
+- ghost-view が狙う view 再生成は `load_prepare_avg=0.165 ms/load`（0.8 ms/token）で基準未満。
+  しかも `buffer_allocs=0 / buffer_reuses=1722` で**既に再利用されている**。
+  repair の内訳も `0.00 already resident, 全て genuinely absent` で、想定した churn は起きていない。
+  高いのは `load_install_avg=0.658 ms`（residency 更新側）。
+- route log の offline replay（追加トレース不要、`cachesim.py`）。指標は expert miss ではなく
+  **miss を含む層数＝abort 数**（同一層の複数 miss は1 abort・1 repair にまとまるため）。
+
+| policy | cap 7,930 | cap 8,698 |
+|---|---|---|
+| current（実装どおり再現） | 4.91 | 3.82 |
+| global LRU | 4.91 | 3.82 |
+| TinyLFU admission | 4.91 | 3.82 |
+| 2Q | 5.25 | 3.88 |
+| 層別 LRU（均等） | 6.21 | 5.16 |
+| 層別 LRU（working set 比例） | 5.29 | 4.03 |
+| Belady | 3.12 | 3.12 |
+| 無限容量 | 3.12 | 3.12 |
+
+シミュレータは実機と2度一致（4.91 vs 実測 4.94、貸与後 3.82 vs 実測 4.03）。
+
+- **現行 policy は LRU に退化している。** hotness を16トークンごとに半減するため
+  ほぼ全エントリが 0 になり、タイブレークの `last_used` が支配する。TinyLFU が同値なのも同理由。
+- **層別配分と admission はいずれも悪化させる。** 「global policy の層間干渉」「一度しか使われない
+  expert が hot を追い出す」という仮説はデータが支持しなかった。
+- **Belady が無限容量と一致する** ＝ 容量は足りており、差は全部 policy 側。その全量は
+  1.79 abort/token ＝ 2.0〜2.3 ms だが、試した online policy はその 1 本も回収しない。
+
+## 残っている候補（優先順）
+
+### 1. gate の indirect 税（上限 4.13 ms/token、機構未発見）
+
+`proto/dispatchcost.m` で実測: plain 0.70 µs / indirect 2.25 µs / ゼログリッド 1.85 µs、
+N に完全線形。gate は全ゲート対象 dispatch を indirect で出すので、実測 2,666.6 本に対し
+2,666.6 × (2.25 − 0.70) = **4.13 ms/token**。GPU 項 39 ms の10%。
+
+下がらないことが分かっている手: スロット配置（1スロット再利用 vs dispatch ごと別スロット）、
+private storage。compute の `MTLIndirectCommandBuffer` は concurrent dispatch 専用で
+40層の依存鎖に使えない。
+
+**上限であって保証ではない。** 実現率はカーネル依存で、matvec 386.5 本は予測の91%を回収したが、
+小さい要素ごとカーネル200本を足すと 53% に落ちた（発行が隣の計算と重なって消える）。
+
+### 2. 総スループットが目標なら continuous batching
 
 単一ストリーム tok/s の最大化が目標なら MTP が第一だったが、それは上で終了した。
 aggregate throughput が目標なら複数 session の continuous batching が残る。
@@ -139,6 +194,19 @@ aggregate throughput が目標なら複数 session の continuous batching が�
 9. **連続起動でページキャッシュを壊さない。** 1400トークン×8本を連続で回したら
    0.88〜17.76 tok/s まで崩壊した。40〜60秒の間隔を空け、崩れた run は破棄する。
 10. **A/B トグルが実際に効いているかを毎回確認する。** 印字で経路が走った証拠を出す。
+11. **同一仕事の窓が機体状態で2倍動く。** tok129 は 14.00 CB / 0.00 abort / 0.00 MiB で
+    全 run 同一の仕事だが、commit-to-done は静かな機体で 35.08 ms、swap 24 GB 使用時に
+    64.07〜77.31 ms。A/B の前に既知の窓を既知の値と照合し、各アームで `vm_stat` を記録する。
+12. **routing は run をまたいで決定的。** 同一プロンプトなら窓ごとの abort が
+    27.95 / 14.75 / 0.00 / 7.44 / 10.84 / 11.08 と全 run で一致する。解析で assert すること。
+    窓を揃えた比較が厳密に paired になり、アームの取り違えも捕まる。
+13. **run を捨てずに共変量を使う。** 全 run に存在する 0-abort 窓を機体状態の代理にして
+    `定常 ~ 状態 + アーム` を当てると、11 run を1本も捨てずにアーム効果が出て、
+    ばらつきのどれだけが機体だったかも状態係数として読める。
+14. **repair-load はその変更が触れない項なら外して評価する。** BF16 融合の16 run では
+    ある1本が repair 10.68（他は 3.3〜4.4）で生の wall 回帰を壊した（R²=0.48、状態係数 +0.10）。
+15. **上限は上限として扱う。** 空カーネルの 2.25 µs/dispatch は、matvec では91%回収できたが
+    小さい要素ごとカーネルでは53%だった。発行が隣の計算と重なる分は取れない。
 
 ## 有用な env と計器
 
@@ -154,8 +222,13 @@ aggregate throughput が目標なら複数 session の continuous batching が�
 | `DS4_METAL_V41_DECODE_LEND_HEADROOM=1` | prefill headroom 貸与（既定 OFF） |
 | `DS4_V41_VERIFY_SELFTEST=k` + `_ROUNDS` | batch 行コストと損益分岐 |
 | `DS4_METAL_V41_WEIGHT_LEDGER=1` | shape からの weight bytes 積み上げ |
+| `DS4_METAL_V41_FUSE_BF16=0` | BF16 融合を切り従来 pass に戻す（既定 ON） |
+| `DS4_METAL_V41_GATE_CENSUS=1` | gated dispatch の呼び出し元別 census（2フレーム、既定 OFF） |
+| `DS4_METAL_STREAMING_EXPERT_TIMING_SUMMARY=1` | expert ロードの prepare / pread / install 分解 |
 
-route log の容量シミュレータ（LRU、実測と一致）は前セッション scratchpad の `sim.py`。
+route log の policy シミュレータは 3日目 scratchpad の `cachesim.py`
+（7 policy、指標は abort 数、実機と2度一致）。dispatch 単価のプローブは
+`ds4-macos/proto/dispatchcost.m`（README に表と build 行）。
 
 ## 仕様として残る発見
 
