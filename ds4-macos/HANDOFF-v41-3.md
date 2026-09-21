@@ -166,7 +166,10 @@ weighted RMS norm・HC expand・shared SwiGLU・MoE add を個別に。matvec �
 
 ## 候補（優先順）
 
-**4日目で候補1（無条件版）と候補2が不採算と判明し、候補3の第1段階を実装した。**
+**4日目で候補1（無条件版）と候補2が不採算と判明し、候補3は第1段階を実装して
+第2段階を閉じた。** 単一ストリームで着手可能な既知候補はこれで尽きている。
+未測定で残るのは、閾値つき選択的 prefetch・sparse attention の候補 ID 予測・
+Engram hoisting の3つで、いずれも賞金が見積もられていない。
 
 閉じきっていないものを閉じたことにしないこと: **閾値つき選択的 prefetch**（上表）、
 **sparse attention の候補 ID 予測**、**Engram の hoisting** はいずれも未測定で、
@@ -227,7 +230,7 @@ recall で負けているのではない。router の margin を使った閾値�
 完全一致する率は **2層 0.450%、3層 0.010%**。現行 segment 長では shadow が
 1000 トークンに 999 回捨てられる。自分の encode 分すら回収できない。
 
-### 3. gate の indirect 税 — 第1段階（direct prefix）実装済み、第2段階が次
+### ~~3. gate の indirect 税~~ — 第1段階 実装済み、第2段階 終了
 
 **第1段階は実装してある。** command buffer の最初の validate より前の dispatch は
 **必ず走る**ので、indirect で出す意味がない。構造としてこう言える:
@@ -263,21 +266,41 @@ buffer の最初の validate は自分では slot を取らないので
 このセッションの機体は全期間 swap 21 GB で、45.10 ms のトークンを 55〜57 ms で回していた。
 変更自体は保持してよい（バイト一致、indirect が厳密に減るだけで悪化する機構がない）。
 
-**第2段階（次にやること）:** census を call site 別の live/zero 回数へ拡張する。
-各 dispatch が取った slot を記録し、validate が渡された `gate_from` を層ごとに保存し、
-buffer 完了後に突き合わせれば、各 call site の「走った / 切られた」が出る。期待利益は
+**第2段階は実施して閉じた。** census を call site 別の live/zero へ拡張した
+（`DS4_METAL_V41_GATE_CENSUS=1`、既定 OFF）。結果は2段階で否定:
+
+**(a) live/zero は site を選別しない。** 定常窓 54 site で live 率は 76.8〜89.1%、
+平均 82.2%。abort は層境界で切り、全 site は全層に現れるので同率で切られる。
+期待利益の式の左半分は定数になり、判定は単一の損益分岐に潰れる:
 
 ```
-live率 × 1.55 µs − zero率 × (実カーネル時間 + 0.70 − 1.85) µs
+0.822 × 1.55 = 0.178 × (k − 1.15)  →  k = 8.29 µs
 ```
 
-だが**右半分の実カーネル時間は Metal が dispatch 単位で出さない**。grid 形状は既に
-site ごとに記録されているので、「1.55 µs を超えようがない小ささの grid」で候補を絞り、
-最後は raw wall の A/B で決める。分類を1本間違えると静かに壊れるので、
-キャリー状態（`previous_kv` / `previous_score` / KV / Engram / residual / route log /
-counter）を進める dispatch は絶対に plain 化しないこと。
+**(b) 閾値を通る site は全部 unsafe。** シンボル解決（`nm -n`、census は unslid
+アドレスを記録）で 1 threadgroup の 19 site・529.4 dispatch/token を名前に落とすと、
+**全件が continuation の読む状態を書いていた。残り 0.0。**
 
-### ~~3-old. gate の indirect 税（上限 4.13 ms/token）~~ — 上の第1段階が着手した
+理由は構造的で、コードから読める3点:
+
+1. `DS41_SCRATCH` はテンソルを**1組だけ**確保する（層ごとではない）
+2. continuation は失敗層の **routed stage から**再開し、その層の `before_moe` /
+   `route_row` / `validate` を再実行しない（`il == start && resume_from_moe` が飛ばす）
+3. continuation が最初に走らせる `ds41_moe_experts_row` は
+   `g->selected` / `g->route_weights` / `g->norm` を**読む**
+
+つまり後続層の router や norm を plain にして abort 後に走らせると、共有 scratch 上で
+continuation がこれから読む値をそのまま壊す。そして安価な dispatch とは、まさにその
+router（`encode_router_select` 内 192.0/token）と norm（`ds41_norm` 経由 112.2/token）
+だった。閾値の反対側は routed expert カーネル本体（640・1,728 threadgroup）で、
+これは欠損アドレスを読む dispatch＝gate の存在理由そのもの。
+
+**「8 µs 未満」かつ「安全」の交差は空で、それは構造的に空である。** 分類を丁寧に
+やり直せば埋まる穴ではない。これ以上進めるには `norm` / `selected` / `route_weights`
+を層ごとに持つ必要があり、確保コストとグラフ全体への波及に対し、残る税の実現可能分は
+上限 1,500 × 1.55 µs = 2.3 ms/token で、その実現率は未知。
+
+### ~~3-old. gate の indirect 税（上限 4.13 ms/token）~~ — 第1段階で取れる分は取り、その先は閉じた
 
 `proto/dispatchcost.m` で実測: plain 0.70 µs / indirect 2.25 µs / ゼログリッド 1.85 µs、
 N に完全線形。gate は全ゲート対象 dispatch を indirect で出すので、実測 2,666.6 本に対し
