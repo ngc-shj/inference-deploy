@@ -167,8 +167,17 @@ weighted RMS norm・HC expand・shared SwiGLU・MoE add を個別に。matvec �
 ## 候補（優先順）
 
 **4日目で候補1（無条件版）と候補2が不採算と判明し、候補3は第1段階を実装して
-第2段階を閉じた。** 未測定で残るのは、閾値つき選択的 prefetch・sparse attention の
-候補 ID 予測・Engram hoisting の3つで、いずれも賞金が見積もられていない。
+第2段階を閉じた。残っていた3件も見積もり、全て基準未満だった。**
+
+| 残候補 | 見積もり | 判定 |
+|---|---|---|
+| 閾値つき選択的 prefetch | 3/3 合意でも 隠せる 0.63 abort（0.68〜0.79 ms）に対し無駄ロード 2.43（2.6〜3.1 ms） | **終了**。precision と recall が同じ速さで落ち交差点がない |
+| sparse attention の候補 ID 予測 | indexer + candidates は **52.9 dispatch/token**。全部消えても indirect で 0.12 ms | **基準未満**。トレースを作る価値がない |
+| Engram hoisting | `ds41_engram_layer` は層1と14のみ。census で **1.0 dispatch/token**（4 threadgroup） | **終了**。「2 ms 以上あり得る」は2桁違い |
+
+**サイズの付いた候補は全て実装済みか終了した。** 単一ストリームで残るのは機体の性質
+（冷却時 45.1 ms、加熱時 55〜57 ms）と、目的が単一ストリームだから外していた
+continuous batching だけである。
 
 ### 45 ms と 55〜57 ms の差は熱だった（最重要）
 
