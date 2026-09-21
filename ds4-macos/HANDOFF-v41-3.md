@@ -40,7 +40,8 @@ microbenchmark、帯域表、coverage 表は実装先を選ぶ証拠であって
 | residency commit のバッチ化 | 利益検出できず | 11.29 → 6.18 commit/token、時間は動かず。既定 OFF |
 | token 末尾一括 prune | 利益検出できず | miss/abort/CB が4アーム同一。既定 OFF |
 | prefill headroom 貸与 | miss は減るが時間が出ない | abort 4.94 → 4.03（決定的、バイト一致）。16 run で平均 +0.05 ms・中央値 −0.71・上位4本 −0.83。最遅2本が貸与側（ロック +7.12 GiB）。既定 OFF |
-| expert cache の policy 全般 | 終了 | 7 policy を offline replay。現行は実質 LRU、層別配分と admission は悪化、Belady が無限容量と一致。貸与後に oracle が残すのは 0.91 abort ≒ 1.0 ms |
+| **reactive** な置換 policy | 終了 | LRU / TinyLFU / 2Q / 層別配分のいずれも現行を上回らない。7 policy を offline replay |
+| 単純な容量追加 | 保留 | abort は 4.94 → 4.03 と確かに減るが wall 利益が未確定（16 run で平均 +0.05、中央値 −0.71）。テールは悪化 |
 | BF16 丸めの独立 dispatch | **完了・コミット済み** | 586.5 dispatch/token 削除、バイト一致、20.09 → 22.17 tok/s |
 | 行タイル IQ2 / 全アドレステーブル / expert readahead / ディスク律速 | 終了 | 2日目までの記録参照 |
 
@@ -120,9 +121,12 @@ weighted RMS norm・HC expand・shared SwiGLU・MoE add を個別に。matvec �
 **残り 373 のうち、なお畳めるのは約80本（flash attention heads、attn_out_low_q8_direct）で
 0.18 ms 相当、着手基準未満。** 残りは block 幅の `simd_max` を要する FP8/FP4 で producer に畳めない。
 
-### ~~ghost-view cache~~ — cache 系統ごと終了
+### ~~ghost-view cache~~ / ~~reactive な置換 policy~~ — 終了
 
-ghost-view 単体ではなく、容量・admission・eviction・oracle 上限まで見て閉じた。
+**閉じたのは reactive な置換だけで、cache 系統ではない。**
+`Belady = 無限容量` を「cache 終了」の根拠にしたのは誤りだった。Belady が示したのは
+**未来の route が分かれば現容量のまま abort を 4.91 → 3.12 にできる**ことであり、
+終了の証拠ではなく predictive scheduling が効く証拠である。残候補1を見ること。
 
 - ghost-view が狙う view 再生成は `load_prepare_avg=0.165 ms/load`（0.8 ms/token）で基準未満。
   しかも `buffer_allocs=0 / buffer_reuses=1722` で**既に再利用されている**。
@@ -148,12 +152,69 @@ ghost-view 単体ではなく、容量・admission・eviction・oracle 上限ま
   ほぼ全エントリが 0 になり、タイブレークの `last_used` が支配する。TinyLFU が同値なのも同理由。
 - **層別配分と admission はいずれも悪化させる。** 「global policy の層間干渉」「一度しか使われない
   expert が hot を追い出す」という仮説はデータが支持しなかった。
-- **Belady が無限容量と一致する** ＝ 容量は足りており、差は全部 policy 側。その全量は
-  1.79 abort/token ＝ 2.0〜2.3 ms だが、試した online policy はその 1 本も回収しない。
+- **Belady が無限容量と一致する** ＝ 容量は足りており、差は全部「未来を知っているか」側。
+  reactive な online policy はその 1.79 abort/token（2.0〜2.3 ms）を 1 本も回収しないが、
+  **これは予測が効くという意味であって、終了の意味ではない。**
 
 ## 残っている候補（優先順）
 
-### 1. gate の indirect 税（上限 4.13 ms/token、機構未発見）
+### 1. route prediction による predictive residency
+
+**これが現時点の最大候補。** reactive な置換が回収できない 1.79 abort/token を、
+Belady は現容量のまま回収してみせた。差は容量ではなく「未来を知っているか」だけ。
+
+さらに床の 3.12 も「避けられない停止」ではない。無限容量でも初回利用は demand miss として
+数えられるが、**ID を先に知って先行ロードすれば、load は残ってもクリティカルパス上の
+abort からは外せる。** したがって上限は二段ある。
+
+```
+reactive の上限      : 4.91 − 3.12 = 1.79 abort/token ≒ 1.9〜2.3 ms
+predictive の上限    : demand abort 自体を隠す = 4.91 × 1.08〜1.26 ≒ 5.3〜6.2 ms
+```
+
+**MTP とは別物。** MTP は未来のトークンを予測し 81〜88% の採択率を要求した。
+route speculation は *現在の正しいトークン内部* の expert 制御を予測し、exact router で
+照合する。誤予測時は既存 gate で修復するので**生成品質は定義上変わらない**。
+「投機デコード終了」を理由にこれを落としてはいけない。
+
+**ただし予測子の作り方は決まっている。以下は実測で潰れている。**
+
+前トークン同一層の selected IDs を予測に使う案は使えない（route log 1,162 トークンで実測）:
+
+- 完全一致は **0.3%**、expert の平均重なり **33.6%**（6 中 2、層別に 14〜49%）
+- そして決定的に、**この予測で prefetch しても background load は 0 件、abort も 1 つも減らない。**
+  前トークンで使った expert は定義上すでに LRU の最新端にあり、予測しても取るものがない。
+
+過去 route からの予測が届かない理由は miss の内訳にある:
+
+```
+定常 5.36 miss/token
+  初出（この生成で一度も使われていない）: 3.31 = 62%
+  過去に使われて evict された        : 2.05 = 38%
+    最終使用からの経過: 中央値 571 token（p10 482 / p90 811）
+```
+
+62% は履歴に存在せず、38% も再利用距離が長すぎて recency では届かない（容量側の問題で、
+実際 8,698 で減る）。**したがって予測すべきは「どの expert が hot か」ではなく
+「層 L の router が何を選ぶかを、層 L の実行前に」。**
+
+lead time はある。abort の層分布はほぼ均一（1.2/10層）で、**75% が層10以降**にある。
+層10までに当てられれば、そのトークン内で 30 ms 以上の先行時間が取れる。
+
+**次の担当者が最初にやること:** route log は router の*出力*しか持たないので、この問いに
+答えられない。層 L の selection が、同一トークンの層 L−k の hidden state から予測できるかを
+測るトレースが要る（安価な代理 router でよい）。当たらなければここで閉じる。
+
+### 2. predicted expert execution / transactional direct segment
+
+候補1が当たるなら、その先。予測した expert を router・shared と並行に **plain dispatch** で
+実行し、exact selected IDs と一致した層の結果だけ採用する。segment 内が全層一致すれば
+plain の結果をそのまま commit、不一致なら shadow を捨てて最初の不一致層から gate で再実行。
+
+**repair と indirect 税 4.13 ms の両方を同時に狙える唯一の機構。** 下の「gate の indirect 税」は
+これを指しており、「機構未発見」ではない。
+
+### 3. gate の indirect 税（上限 4.13 ms/token）
 
 `proto/dispatchcost.m` で実測: plain 0.70 µs / indirect 2.25 µs / ゼログリッド 1.85 µs、
 N に完全線形。gate は全ゲート対象 dispatch を indirect で出すので、実測 2,666.6 本に対し
@@ -161,15 +222,15 @@ N に完全線形。gate は全ゲート対象 dispatch を indirect で出す�
 
 下がらないことが分かっている手: スロット配置（1スロット再利用 vs dispatch ごと別スロット）、
 private storage。compute の `MTLIndirectCommandBuffer` は concurrent dispatch 専用で
-40層の依存鎖に使えない。
+40層の依存鎖に使えない。**残る機構は候補2の shadow execution。**
 
 **上限であって保証ではない。** 実現率はカーネル依存で、matvec 386.5 本は予測の91%を回収したが、
 小さい要素ごとカーネル200本を足すと 53% に落ちた（発行が隣の計算と重なって消える）。
 
-### 2. 総スループットが目標なら continuous batching
+### 4. continuous batching（現在の目標では主候補ではない）
 
-単一ストリーム tok/s の最大化が目標なら MTP が第一だったが、それは上で終了した。
-aggregate throughput が目標なら複数 session の continuous batching が残る。
+aggregate throughput が目標なら残るが、**単一ストリーム tok/s の最大化が目標である限り
+主候補に数えないこと。**
 
 ## 計測の作法（このセッションで実際に踏んだ罠）
 
@@ -200,11 +261,17 @@ aggregate throughput が目標なら複数 session の continuous batching が�
 12. **routing は run をまたいで決定的。** 同一プロンプトなら窓ごとの abort が
     27.95 / 14.75 / 0.00 / 7.44 / 10.84 / 11.08 と全 run で一致する。解析で assert すること。
     窓を揃えた比較が厳密に paired になり、アームの取り違えも捕まる。
-13. **run を捨てずに共変量を使う。** 全 run に存在する 0-abort 窓を機体状態の代理にして
-    `定常 ~ 状態 + アーム` を当てると、11 run を1本も捨てずにアーム効果が出て、
-    ばらつきのどれだけが機体だったかも状態係数として読める。
-14. **repair-load はその変更が触れない項なら外して評価する。** BF16 融合の16 run では
-    ある1本が repair 10.68（他は 3.3〜4.4）で生の wall 回帰を壊した（R²=0.48、状態係数 +0.10）。
+13. **共変量は「アームの影響を受けないもの」でなければならない。** run を捨てる代わりに
+    0-abort 窓を機体状態の代理にしたが、**この窓自体が BF16 融合の影響を受ける**
+    （同じ dispatch を含む）。post-treatment covariate であり、効果の一部を吸収する。
+    実際それが起きた: 生の差は −4.57 ms（16 run 併合、分布に重なりなし）なのに、
+    共変量モデルは −1.04 しか出さなかった。**3日目に「保守的な推定」として報告した
+    −1.04 / −1.24 は 0 方向に偏っており、主結果は生の −4.57 の方である。**
+    共変量にしてよいのは、アームで変化しないと確認できた固定 probe だけ。
+14. **生の wall を必ず主結果として残す。** 「その変更が触れない項だから外す」を一般則に
+    してはいけない。変更は GPU と CPU の重なりや資源競合を変えうる。加算的かつ独立だと
+    確認できた項だけを、分散低減用の共変量または補助指標として使うこと。
+    （3日目は repair-load を外して評価したが、これは補助指標として扱うべきだった。）
 15. **上限は上限として扱う。** 空カーネルの 2.25 µs/dispatch は、matvec では91%回収できたが
     小さい要素ごとカーネルでは53%だった。発行が隣の計算と重なる分は取れない。
 
