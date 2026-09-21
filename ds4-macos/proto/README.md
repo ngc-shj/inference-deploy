@@ -219,3 +219,53 @@ The single-encoder rows are the ones that matter: ds4 keeps one compute encoder
 across a layer's dispatches, so the kernel doing the switching off and the
 dispatches it switches off are in the same encoder, with no implicit barrier
 between them.
+
+# What does one dispatch cost, and what does sending it indirect add?
+
+    clang -O2 -fobjc-arc -framework Foundation -framework Metal -o dispatchcost dispatchcost.m
+    ./dispatchcost 11
+
+Perfectly linear in N from 256 to 4096; the figures below are µs a dispatch of
+GPU span, taken as the best of eleven laps, on an idle machine.
+
+| shape | what it is | µs a dispatch |
+|---|---|---|
+| plain | one pipeline, no rebinding | 0.70 |
+| pipe | a `setComputePipelineState` between every dispatch | 0.70 |
+| bind | a 16-byte `setBytes` between every dispatch | 0.70 |
+| indirect | `dispatchThreadgroupsWithIndirectBuffer`, one slot reused | 2.28 |
+| slotted | the same, a distinct slot a dispatch — **what the gate encodes** | 2.25 |
+| private | slotted, table in private storage | 2.22 |
+| gatedoff | slotted, grid zeroed — what is left behind an abort | 1.85 |
+
+Three things follow.
+
+**Neither the pipeline switch nor the binding costs anything.** A dispatch is
+0.70 µs whatever the encoder does between them, so "fewer dispatches" is worth
+exactly 0.70 µs each with the gate off, and the encode-side saving is separate.
+
+**The indirect form costs 1.55 µs more, and nothing moves it.** A distinct slot
+a dispatch reads the same as one slot reused, so the table is not a cache
+effect; private storage is 0.03 µs cheaper, which is noise. The cost is the
+command processor reading the arguments, and the only way to stop paying it is
+to stop sending the dispatch indirect.
+
+**A switched-off dispatch still costs 1.85 µs.** `launched` is checked as 0 for
+that shape, so the gate's guarantee holds — and the header's claim that the
+dispatches after an abort "still cost their issue" is now a number: at ~290
+such dispatches a token they are 0.54 ms.
+
+Against a token's measured 2,666.6 gated dispatches (zero-abort window) this
+prices the gate itself:
+
+    as encoded      2,666.6 x 2.25 us = 6.00 ms of a 39.3 ms GPU term
+    were they plain 2,666.6 x 0.70 us = 1.87 ms
+    the gate's tax                      4.13 ms a token
+
+## What it does not settle
+
+The probe's kernel does nothing. A real dispatch's issue may overlap the
+previous kernel's execution, so 2.25 µs is what an empty chain costs, not
+necessarily what each one adds to a chain that is also computing. It is an
+upper bound on the saving, which is the direction that matters for deciding
+whether to build something.
