@@ -173,7 +173,7 @@ section が通る日には overlap は2行。HC fork は address-table カーネ
 
 ## 次にやること（順に）
 
-### 1. shared ∥ routed overlap — 採用方向、区間の確定だけ残り
+### 1. shared ∥ routed overlap — 完了・計測済み（`ds4-v41` の `83106f5`）
 
 実装済み（`DS4_METAL_V41_FFN_OVERLAP=1`）。構造は section 2つで、**SwiGLU と finish の add は section の外**に置く。これを守らないと AGX が
 `insertIndirectTGOptKernel` で落ちる（bisect は下の表）。
@@ -189,9 +189,22 @@ producer が丸めを畳めない構成（`FUSE_BF16=0`、`SHARED_PAIR_MODE≠0`
 丸め pass が発生するので **section の外に出す**（`ds41_matmul_deferred` と
 `ds41_moe_shared_round`）。この扱いを含めて 7 構成でバイト一致 6/6 を確認済み。
 
-**計測（10 block ABBA、mode 1 対 mode 0）**: 6 block 時点で平均 −0.88、
-中央値 −0.77 ms/token、6/6 同符号（符号検定 両側 p=0.031）。
-最終区間は10 block で確定する。
+**計測（10 block ABBA・40 run、mode 1 対 mode 0、全検査通過）**:
+
+| 指標 | 差 | 95% CI | block |
+|---|---|---|---|
+| raw wall（主） | **−1.95**（中央値 −1.05） | [−3.98, +0.09] | **10/10** |
+| commit-to-done | −1.95 | [−3.80, −0.11] | 10/10 |
+| GPU envelope | −2.08 | [−4.02, −0.15] | 10/10 |
+| host encode | +0.14 | [+0.10, +0.17] | 0/10 |
+
+符号検定 両側 p=0.002。raw wall の区間が 0 を 0.09 だけ含むのは block 1 が
+campaign 最初の run（3519秒アイドル、52.48 ms/token、他39本は59.9〜67.3）を
+on アームに抱えているため。以降9 block は平均 −1.09。
+**帳簿上は約 1.0 ms/token として扱う。**
+
+既定は OFF（`DS4_METAL_V41_FFN_OVERLAP=1` で有効）。既定 ON にするかは
+次セッションの判断。
 
 ### 2. 次は perfect oracle で expert 投機の上限を測る（予測器の改良ではない）
 
@@ -281,7 +294,7 @@ AGX のクラッシュ条件を踏まない設計に移す道でもある。
 
 ## 最終状態
 
-- **`ds4-v41`**: 4コミット（`0ff6f35` census の grid keying / `bfda5d9` concurrent
+- **`ds4-v41`**: 5コミット（`83106f5` shared ∥ routed overlap を追加）+ 従来の4（`0ff6f35` census の grid keying / `bfda5d9` concurrent
   section と lane 形式の道具 / `a48d690` 2つの重ね方、両方とも既定 OFF・測定済み /
   `b557ad3` shared expert の level 分割、既定 OFF・バイト一致）。**未push。**
   未コミットは encode-ahead の275行のみ。ビルドは通り、既定経路はバイト一致 6/6
