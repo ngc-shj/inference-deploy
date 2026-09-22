@@ -52,6 +52,40 @@ kernel void mv(device const half *w, device const float *x, device float *out,
         if (lane_id == 0) out[lane * lane_rows + row] = acc;
     }
 }
+
+/* The same walk, but every lane carries its own width and its own weight and
+ * output base, which is what a real merge of these five would need - they are
+ * 32, 512, 512, 1024 and 1280 rows wide, so padding them all to the widest
+ * would read nearly twice the bytes the layer actually reads. A threadgroup
+ * finds its lane by walking the group counts; with five lanes that is cheaper
+ * than a division. */
+kernel void mvx(device const half *w, device const float *x, device float *out,
+                constant uint &n_in, constant uint &rows_per_group,
+                constant uint &n_lanes, constant uint *lane_rows,
+                constant uint *lane_groups, constant ulong *lane_woff,
+                constant uint *lane_ooff,
+                uint3 tg [[threadgroup_position_in_grid]],
+                uint sgid [[simdgroup_index_in_threadgroup]],
+                uint nsg [[simdgroups_per_threadgroup]],
+                uint lane_id [[thread_index_in_simdgroup]]) {
+    uint lane = 0u, base = 0u;
+    while (lane + 1u < n_lanes && tg.x >= base + lane_groups[lane]) {
+        base += lane_groups[lane];
+        lane++;
+    }
+    const uint g_in_lane = tg.x - base;
+    const uint rows = lane_rows[lane];
+    device const half *wl = w + lane_woff[lane];
+    for (uint r = sgid; r < rows_per_group; r += nsg) {
+        const uint row = g_in_lane * rows_per_group + r;
+        if (row >= rows) continue;
+        device const half *src = wl + (ulong)row * n_in;
+        float acc = 0.0f;
+        for (uint i = lane_id; i < n_in; i += 32u) acc += float(src[i]) * x[i];
+        acc = simd_sum(acc);
+        if (lane_id == 0) out[lane_ooff[lane] + row] = acc;
+    }
+}
 )MSL";
 
 typedef struct { const char *name; uint32_t rows; } shape;
@@ -68,6 +102,9 @@ int main(int argc, const char **argv) {
         id<MTLComputePipelineState> pso =
             [dev newComputePipelineStateWithFunction:[lib newFunctionWithName:@"mv"] error:&err];
         if (!pso) { NSLog(@"pso: %@", err); return 1; }
+        id<MTLComputePipelineState> psox =
+            [dev newComputePipelineStateWithFunction:[lib newFunctionWithName:@"mvx"] error:&err];
+        if (!psox) { NSLog(@"psox: %@", err); return 1; }
         id<MTLCommandQueue> q = [dev newCommandQueue];
 
         /* The five that all read `norm` in one V4.1 layer. */
@@ -164,6 +201,102 @@ int main(int argc, const char **argv) {
             printf("%-28s %6u %10.1f %8.2f %9.1f\n", "  five lanes, one dispatch",
                    tgs, bytes / 1048576.0, ms, bytes / (ms / 1000.0) / 1e9);
         }
+
+        /* The three arms above leave the engine question open. Merging the
+         * five into one grid needs a matvec carrying lanes of different weight
+         * type and output width, a kernel that does not exist yet; letting
+         * five ordinary dispatches overlap needs only an encoder created
+         * concurrent, which the engine already does in two places. concur.m
+         * answered this for six identical 288-threadgroup dispatches - 429.6
+         * GB/s concurrent against 437.9 for one grid - but these sit at 1 to
+         * 24 threadgroups, so it has to be asked again here.
+         *
+         * The answer depends on something the arms above hide: in the engine
+         * a decode segment is ONE encoder, so a merged dispatch joins it for
+         * free while a concurrent section has to close it and open two more.
+         * These arms therefore hold the encoder count fixed on purpose - the
+         * bytes are the five projections' own, not the widest lane five times
+         * over, and each lane writes its own slice of the output rather than
+         * racing the others at offset zero. */
+        const uint64_t true_bytes = (double)merged_rows * n_in * 2ull * laps;
+        uint32_t lane_rows[8], lane_groups[8], lane_ooff[8], merged_tgs = 0, orow = 0;
+        uint64_t lane_woff[8];
+        for (uint32_t sh = 0; sh < n_shapes; sh++) {
+            lane_rows[sh] = shapes[sh].rows;
+            lane_groups[sh] = (shapes[sh].rows + rpg - 1u) / rpg;
+            lane_ooff[sh] = orow;
+            orow += shapes[sh].rows;
+            merged_tgs += lane_groups[sh];
+        }
+        const uint64_t zero = 0;
+
+        /* mode 0: one encoder for the whole run, five dispatches a lap - the
+         *         engine as it stands, where the segment is a single encoder.
+         * mode 1: the same five, but an encoder a lap, so the difference from
+         *         mode 0 is what one encoder boundary costs.
+         * mode 2: an encoder a lap, created concurrent.
+         * mode 3: one encoder for the whole run, one merged dispatch a lap. */
+        const char *mode_name[4] = {
+            "  five, one shared encoder", "  five, an encoder a lap",
+            "  five, a concurrent encoder", "  five lanes, true widths",
+        };
+        double mode_ms[4];
+        for (int mode = 0; mode < 4; mode++) {
+            id<MTLCommandBuffer> cb = [q commandBuffer];
+            id<MTLComputeCommandEncoder> shared = (mode == 0 || mode == 3)
+                ? [cb computeCommandEncoder] : nil;
+            for (uint32_t lap = 0; lap < laps; lap++) {
+                id<MTLComputeCommandEncoder> e = shared ? shared
+                    : (mode == 2 ? [cb computeCommandEncoderWithDispatchType:MTLDispatchTypeConcurrent]
+                                 : [cb computeCommandEncoder]);
+                if (mode == 3) {
+                    for (uint32_t sh = 0; sh < n_shapes; sh++)
+                        lane_woff[sh] = slab * ((uint64_t)sh * laps + lap) / sizeof(uint16_t);
+                    [e setComputePipelineState:psox];
+                    [e setBuffer:w offset:0 atIndex:0];
+                    [e setBuffer:x offset:0 atIndex:1];
+                    [e setBuffer:o offset:0 atIndex:2];
+                    [e setBytes:&n_in length:4 atIndex:3];
+                    [e setBytes:&rpg length:4 atIndex:4];
+                    [e setBytes:&n_shapes length:4 atIndex:5];
+                    [e setBytes:lane_rows length:sizeof(uint32_t) * n_shapes atIndex:6];
+                    [e setBytes:lane_groups length:sizeof(uint32_t) * n_shapes atIndex:7];
+                    [e setBytes:lane_woff length:sizeof(uint64_t) * n_shapes atIndex:8];
+                    [e setBytes:lane_ooff length:sizeof(uint32_t) * n_shapes atIndex:9];
+                    [e dispatchThreadgroups:MTLSizeMake(merged_tgs, 1, 1)
+                      threadsPerThreadgroup:MTLSizeMake(32, 8, 1)];
+                } else {
+                    [e setComputePipelineState:pso];
+                    for (uint32_t sh = 0; sh < n_shapes; sh++) {
+                        const uint32_t rows = shapes[sh].rows;
+                        const uint32_t tgs = (rows + rpg - 1u) / rpg;
+                        [e setBuffer:w offset:(NSUInteger)(slab * ((uint64_t)sh * laps + lap)) atIndex:0];
+                        [e setBuffer:x offset:0 atIndex:1];
+                        [e setBuffer:o offset:(NSUInteger)lane_ooff[sh] * 4u atIndex:2];
+                        [e setBytes:&n_in length:4 atIndex:3];
+                        [e setBytes:&rpg length:4 atIndex:4];
+                        [e setBytes:&rows length:4 atIndex:5];
+                        [e setBytes:&zero length:8 atIndex:6];
+                        [e dispatchThreadgroups:MTLSizeMake(tgs, 1, 1)
+                          threadsPerThreadgroup:MTLSizeMake(32, 8, 1)];
+                    }
+                }
+                if (!shared) [e endEncoding];
+            }
+            if (shared) [shared endEncoding];
+            [cb commit];
+            [cb waitUntilCompleted];
+            mode_ms[mode] = ([cb GPUEndTime] - [cb GPUStartTime]) * 1000.0;
+            printf("%-28s %6u %10.1f %8.2f %9.1f\n", mode_name[mode],
+                   mode == 3 ? merged_tgs : 0u, true_bytes / 1048576.0,
+                   mode_ms[mode], true_bytes / (mode_ms[mode] / 1000.0) / 1e9);
+        }
+        printf("\n  an encoder boundary costs %.1f us (%.2f ms over %u laps)\n",
+               (mode_ms[1] - mode_ms[0]) / laps * 1000.0, mode_ms[1] - mode_ms[0], laps);
+        printf("  a concurrent section in the engine has to close the segment's\n"
+               "  encoder and open two more, so its cost is the concurrent arm\n"
+               "  plus one more boundary a lap: %.2f ms against %.2f merged\n",
+               mode_ms[2] + (mode_ms[1] - mode_ms[0]), mode_ms[3]);
     }
     return 0;
 }

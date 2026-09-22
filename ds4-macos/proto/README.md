@@ -325,14 +325,77 @@ again:
 | the five, one dispatch each | | **24.9** |
 | the five as five lanes of one dispatch | 120 | **203.8** |
 
-**8.2 times, and the rate tracks the threadgroup count almost exactly** - 1
-group 1.2, 10 groups 19.0, 24 groups 45.9, 120 groups 203.8. Nothing here is
+**The rate tracks the threadgroup count almost exactly** - 1 group 1.2, 10
+groups 19.0, 24 groups 45.9, 120 groups 203.8. Nothing here is
 bandwidth-limited. It is limited by how much of the machine one dispatch asks
 for, and a narrow projection asks for almost none of it. Against the 560 GB/s
 the dense projections reach in situ, `attn_q_a` alone gets a twelfth.
 
 `concur.m` had already found that 288 threadgroups does not saturate. These are
 at 1 to 24, far below where that curve was even sampled.
+
+**The 8.2x that figure suggests is not the saving.** The merged arm above pads
+every lane to the widest, so it reads 8400 MiB where the five read 4410; as a
+rate that is fine, as a saving it is not, because the engine would carry the
+real widths. Four more arms, holding the bytes and the encoder count fixed:
+
+| arm | ms | GB/s |
+|---|---|---|
+| five, one shared encoder | 172.82 | 26.8 |
+| five, an encoder a lap | 174.95 | 26.4 |
+| five, a concurrent encoder | **39.92** | 115.8 |
+| five lanes, true widths | **39.18** | 118.0 |
+
+**4.4 times, and a concurrent encoder gets there without a new kernel.** That
+last part contradicts `concur.m`, which concluded the gain was threadgroups in
+flight rather than the encoder - but that was measured at 288 threadgroups a
+dispatch, and at 1 to 24 the encoder is within 2% of the grid.
+
+**An encoder boundary costs 22.2 us here**, the only difference between the
+first two arms - but see `barrier.m`: a boundary drains whatever is in flight,
+so that figure belongs to these dispatches and not to boundaries in general.
+With tiny ones it is free.
+
+## What this file got wrong, and how
+
+**Its geometry is not the geometry of the projections it names.** 54 rows a
+threadgroup in 256 threads was chosen so `attn_q_a` would land on the 24
+threadgroups the census reported for it. But the census had keyed the grid
+shape on the call site alone, and the 24-threadgroup site is the F16 matvec.
+`attn_q_a` is Q8_0, the Q8_0 decode matvec takes two rows a threadgroup in
+32x4 threads, and 1280 rows is therefore **640 threadgroups**, not 24;
+`attn_kv` is 256. Neither is short of threadgroups, and the engine A/B agrees:
+carried as two lanes of one dispatch they are 2.16 ms a token slower. See
+V4.1-TUNING.md. **Read this file as a curve of rate against threadgroup count,
+which it measures correctly, and not as a statement about these five.**
+
+# What a one-threadgroup dispatch costs, and what ordering two costs
+
+`barrier.m`. The census, re-keyed on the grid, finds a third of a decode
+token's 1,511.7 gated dispatches running a SINGLE threadgroup - the row norms,
+the Sinkhorn, the rope and quantize passes. One threadgroup is one core of
+forty.
+
+    clang -O2 -fobjc-arc -framework Foundation -framework Metal -o barrier barrier.m
+    ./barrier [dispatches]
+
+512 independent one-threadgroup dispatches of 1024 threads with `ds41_norm`'s
+shape, 64 laps:
+
+| arm | us a dispatch |
+|---|---|
+| independent, one serial encoder | 2.16 |
+| independent, one concurrent encoder | **0.11** |
+| independent, an encoder each | 1.88 |
+| dependent, an encoder between each | 2.06 |
+| dependent, a barrier in one concurrent encoder | 2.48 |
+
+**Twenty times, and 2.06 us a dispatch.** Ordering a dependent pair costs 0.31
+us as a barrier and nothing measurable as an encoder boundary at this size -
+so a whole segment could be one concurrent encoder with barriers on the graph
+edges, rather than a serial encoder ordering everything whether it needs it or
+not. What that is worth is set by how much of a decode layer is independent,
+which this file does not answer.
 
 ## What it does not settle
 
