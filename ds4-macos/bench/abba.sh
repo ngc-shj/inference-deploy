@@ -50,6 +50,25 @@ else
     echo "-1" > "$S/ab-$NAME.gap"
 fi
 vm_stat | head -4 > "$S/ab-$NAME.vm"
+# How much CPU anything other than this arm took while it ran.
+#
+# The thermal gate watches a fixed GPU kernel, so it says nothing about the
+# host - and the host is on the critical path, because every miss is repaired
+# by it. A campaign was lost to a security scanner that woke at 23:19 and sat
+# at 124% CPU: same bytes a token, same routes, 70 ms a token instead of 55,
+# and repair-load 14.1 instead of 10.2. Pairing did not cancel it because the
+# contention varied between arms.
+#
+# Total CPU-seconds of every process except the server, sampled either side.
+# pair.py refuses a campaign whose arms did not get the same machine.
+host_cpu() {
+    ps -Ao comm=,time= | awk '$1 !~ /ds4-server/ {
+        n = split($2, t, ":")
+        s = (n == 3 ? t[1]*3600 + t[2]*60 + t[3] : t[1]*60 + t[2])
+        total += s
+    } END { printf "%.0f\n", total }'
+}
+host_cpu > "$S/ab-$NAME.cpu"
 env DS4_METAL_V41_DECODE_QUEUE=1 DS4_METAL_IQ2_SELECTED_SHARED_EVENT=1 \
     DS4_METAL_STREAM_SPLIT_MIN_MISSING=1 DS4_METAL_ZERO_COPY_EXPERTS=1 \
     DS4_METAL_V41_ABORT_GATE=40 DS4_METAL_V41_ABORT_GATE_SEG=3 \
@@ -90,6 +109,7 @@ open(f"{S}/ab-{NAME}.sha", "w").write(f"{h} {n}\n")
 print(f"  [{NAME}] {n} chunks in {time.time()-t0:.1f}s  {h[:16]}")
 PY
 vm_stat | head -4 >> "$S/ab-$NAME.vm"
+host_cpu >> "$S/ab-$NAME.cpu"
 kill "$pid" 2>/dev/null
 wait_for_no_server
 date +%s > "$S/.last-arm-end"

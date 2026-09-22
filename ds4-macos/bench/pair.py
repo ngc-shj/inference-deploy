@@ -117,6 +117,35 @@ A, B = load(args[0], 'on'), load(args[1], 'off')
 print(f"runs with windows: {len(A)} on, {len(B)} off (every run kept, none discarded)")
 if not A or not B:
     sys.exit(1)
+# CPU-seconds everything other than the server took while an arm ran. A
+# campaign lost to a background scanner looked exactly like a real regression -
+# same bytes, same routes, 70 ms a token instead of 55 - and the thermal gate
+# saw nothing, because it watches a GPU kernel and this is the host. Arms that
+# did not get the same machine are not a paired comparison.
+def host_cpu(run):
+    try:
+        v = [float(x) for x in open(run['path'].replace('.log', '.cpu'))]
+    except Exception:
+        return None
+    return v[1] - v[0] if len(v) >= 2 else None
+
+cpu = {id(r): host_cpu(r) for r in A + B}
+if all(v is not None for v in cpu.values()):
+    ca = [cpu[id(r)] for r in A]
+    cb = [cpu[id(r)] for r in B]
+    print(f"host CPU taken by everything else, per arm: on {st.mean(ca):.0f}s, "
+          f"off {st.mean(cb):.0f}s (range {min(ca + cb):.0f}-{max(ca + cb):.0f})")
+    # An arm is ~130 s. A busy core for a third of it is enough to move
+    # repair-load, which is on the token's critical path.
+    CPU_TOL = 40.0
+    if max(ca + cb) - min(ca + cb) > CPU_TOL:
+        sys.exit("REFUSING: the arms did not get the same machine - host CPU "
+                 "taken by other processes varies by "
+                 f"{max(ca + cb) - min(ca + cb):.0f} s between runs. Find what "
+                 "woke up and run it again when the machine is quiet.")
+else:
+    print("host CPU contention: not recorded for every run (logs predate it)")
+
 gaps = [r['gap'] for r in A + B if r['gap'] is not None and r['gap'] >= 0]
 if gaps:
     print(f"idle before an arm: {min(gaps)}-{max(gaps)} s (median {st.median(gaps):.0f})")

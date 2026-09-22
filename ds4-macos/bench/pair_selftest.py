@@ -34,7 +34,7 @@ ds4:   of the address-table holes repaired a token: 0.00 already resident, 4.77 
 """
 
 def run(name, arm, block, wall, *, nwin=20, cbs=17.0, att=None, op=None,
-        behind=195.0, sha="abc", gated=1500.0, mib=45.0):
+        behind=195.0, sha="abc", gated=1500.0, mib=45.0, cpu=10.0):
     if att is None: att = 80.0 if arm == "on" else 0.0
     if op is None: op = att
     p = f"ab-{arm}{block}-{name}.log"
@@ -44,6 +44,8 @@ def run(name, arm, block, wall, *, nwin=20, cbs=17.0, att=None, op=None,
                              wall=wall, gated=gated, behind=behind, att=att, op=op))
     open(p.replace('.log', '.sha'), 'w').write(f"{sha} 1400\n")
     open(p.replace('.log', '.gap'), 'w').write("60\n")
+    # CPU-seconds everything but the server took while the arm ran.
+    open(p.replace('.log', '.cpu'), 'w').write(f"1000\n{1000 + cpu}\n")
 
 def check(label, expect_refuse, setup, extra=()):
     # Only ever inside the directory this run created.
@@ -81,6 +83,13 @@ def behind_differs():
         run(f"c{b}", "off", b, 51.0, behind=150.0)
         run(f"d{b}", "off", b, 51.2, behind=150.0)
 
+def busy_machine():
+    """One arm ran while something else had a core. This is the campaign that
+    was lost to a security scanner: same bytes, same routes, same dispatches,
+    15 ms a token slower, and nothing else in the analyser could see it."""
+    good()
+    for b in (1, 2): run(f"a{b}", "on", b, 50.0, cpu=90.0)
+
 def gated_shift():
     good()
     for b in (1, 2):
@@ -98,6 +107,7 @@ res = [
     check("more bytes loaded in one arm is refused", True,
           lambda: (good(), run("x", "off", 1, 51.0, mib=46.0))),
     check("an on arm that fell back to serial is refused", True, fell_back),
+    check("an arm that ran on a busy machine is refused", True, busy_machine),
     check("an off arm that opened sections is refused", True, off_sections),
     check("an undeclared behind-abort difference is refused", True, behind_differs),
     check("a systematic gated-dispatch shift is refused", True, gated_shift),
