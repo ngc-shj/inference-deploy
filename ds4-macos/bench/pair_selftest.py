@@ -3,12 +3,25 @@
 An analyser whose refusals have never fired is not evidence that the arms did
 the same work - it is only evidence that nothing checked. This builds logs in
 the exact shape the server prints, breaks one thing at a time, and asserts the
-comparison is refused. Run it in a scratch directory beside a copy of pair.py:
+comparison is refused.
 
-    mkdir -p /tmp/paircheck && cp pair.py pair_selftest.py /tmp/paircheck
-    cd /tmp/paircheck && python3 pair_selftest.py
+    python3 pair_selftest.py        # pair.py must be beside it
+
+It works in a directory it creates itself and deletes nothing outside it. An
+earlier version cleared `ab-*` from its working directory, which is also the
+name a campaign gives its logs; run once in the wrong place it destroyed half
+a campaign. A test that can delete the measurement is not a test.
 """
-import os, subprocess, sys
+import os, shutil, subprocess, sys, tempfile
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+PAIR = os.path.join(HERE, 'pair.py')
+if not os.path.exists(PAIR):
+    sys.exit(f"pair.py is not beside this file ({HERE})")
+WORK = os.path.realpath(tempfile.mkdtemp(prefix='pair-selftest-'))
+shutil.copy(PAIR, WORK)
+os.chdir(WORK)
+print(f"working in {WORK}")
 
 W = """ds4: gate over tokens {s}-{e}: {cbs:.2f} command buffers, {ab:.2f} aborts, 240.0 expert ids accounted, {mib:.2f} MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
 ds4:   one token, exclusive, same window: entry 0.00 + encode 2.50 + commit-to-done 38.00 + repair-load 8.00 + accounting 0.28 + tail 1.48 = 50.26 of a {wall:.2f} ms wall, residual 0.04
@@ -33,6 +46,10 @@ def run(name, arm, block, wall, *, nwin=20, cbs=17.0, att=None, op=None,
     open(p.replace('.log', '.gap'), 'w').write("60\n")
 
 def check(label, expect_refuse, setup, extra=()):
+    # Only ever inside the directory this run created.
+    # realpath on both: mkdtemp hands back /var/... and getcwd /private/var/...
+    assert os.path.realpath(os.getcwd()) == WORK, \
+        "refusing to clear logs outside the scratch dir"
     for f in os.listdir('.'):
         if f.startswith('ab-'): os.remove(f)
     setup()
@@ -88,4 +105,6 @@ res = [
           extra=('--declare=the shared expert moved behind the validate',)),
 ]
 print(f"\n{sum(res)}/{len(res)} checks of the analyser passed")
+os.chdir(HERE)
+shutil.rmtree(WORK, ignore_errors=True)
 sys.exit(0 if all(res) else 1)
