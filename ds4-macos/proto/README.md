@@ -436,11 +436,18 @@ on the first indirect dispatch after the section.
 | concurrent, indirect + barrier + indirect | ok |
 | concurrent indirect, closed, then indirect in a serial encoder | ok |
 | concurrent, indirect, threadgroup memory then none | ok |
+| concurrent, a kernel writes the grid, then indirect off it | ok |
+
+and all of them with a **residency set on the queue**, which is how the engine
+lets the masked kernels reach expert weights through raw addresses no dispatch
+names.
 
 **None of it reproduces.** So indirect dispatch inside a concurrent encoder is
-not broken in itself, and neither is a barrier beside it, nor the encoder
-boundary the engine dies just after. Whatever the engine is doing differently
-- the residency set the expert cache lives in, the grid table that both the
-host and a kernel write, the number of buffers bound, the timeline encoder
-path - is still unidentified, and this file is where the next candidate gets
-added one at a time.
+not broken in itself; neither is a barrier beside it, nor the encoder boundary
+the engine dies just after, nor a kernel writing the grid table that the
+dispatches after it read as their arguments, nor an untracked allocation
+reached through a residency set. Whatever the engine has that this does not -
+the number of buffers bound, the timeline encoder path, the size of the
+dispatches, how many encoders the command buffer already holds - is still
+unidentified, and this file is where the next candidate gets added one at a
+time.

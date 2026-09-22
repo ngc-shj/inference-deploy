@@ -29,6 +29,13 @@ kernel void bump(device float *out, constant uint &slot,
 /* The same, but with a threadgroup allocation whose size the encoder supplies
  * - which is what every matvec on the decode path has and what the SwiGLU and
  * the adds between them do not. */
+/* What the gate's validate does: a kernel that writes the very grid table the
+ * dispatches after it read as their indirect arguments. */
+kernel void zero_grid(device uint *grid, constant uint &from,
+                      uint tid [[thread_position_in_threadgroup]]) {
+    if (tid == 0) for (uint i = from; i < 64u; i++) grid[3u*i] = 1u;
+}
+
 kernel void bump_tg(device float *out, constant uint &slot,
                     threadgroup float *shmem [[threadgroup(0)]],
                     uint tid [[thread_position_in_threadgroup]]) {
@@ -58,8 +65,31 @@ int main(int argc, const char **argv) {
             [dev newComputePipelineStateWithFunction:[lib newFunctionWithName:@"bump"] error:&err];
         id<MTLComputePipelineState> psotg =
             [dev newComputePipelineStateWithFunction:[lib newFunctionWithName:@"bump_tg"] error:&err];
-        if (!pso || !psotg) { NSLog(@"pso: %@", err); return 1; }
+        id<MTLComputePipelineState> psoz =
+            [dev newComputePipelineStateWithFunction:[lib newFunctionWithName:@"zero_grid"] error:&err];
+        if (!pso || !psotg || !psoz) { NSLog(@"pso: %@", err); return 1; }
         id<MTLCommandQueue> q = [dev newCommandQueue];
+        /* The engine keeps the expert cache in a residency set on the queue,
+         * so the masked kernels reach weights through raw addresses in a table
+         * that no dispatch names. That is the most obvious thing this file has
+         * that the engine does not, so put one on the queue here too. */
+        id<MTLBuffer> untracked = [dev newBufferWithLength:1u << 20
+                                                   options:MTLResourceStorageModePrivate];
+        if (@available(macOS 15.0, *)) {
+            MTLResidencySetDescriptor *rd = [[MTLResidencySetDescriptor alloc] init];
+            rd.label = @"indirconc";
+            NSError *rerr = nil;
+            id<MTLResidencySet> rs = [dev newResidencySetWithDescriptor:rd error:&rerr];
+            if (rs) {
+                [rs addAllocation:untracked];
+                [rs commit];
+                [rs requestResidency];
+                [q addResidencySet:rs];
+                fprintf(stderr, "residency set on the queue\n");
+            } else {
+                fprintf(stderr, "no residency set: %s\n", rerr.localizedDescription.UTF8String);
+            }
+        }
         id<MTLBuffer> out = [dev newBufferWithLength:256 * 4 options:MTLResourceStorageModeShared];
         /* The grid table the gate keeps: three words a slot. */
         id<MTLBuffer> grid = [dev newBufferWithLength:64 * 3 * 4
@@ -67,13 +97,14 @@ int main(int argc, const char **argv) {
         uint32_t *g = (uint32_t *)grid.contents;
         for (int i = 0; i < 64; i++) { g[3*i] = 1; g[3*i+1] = 1; g[3*i+2] = 1; }
 
-        const char *names[7] = {
+        const char *names[8] = {
             "serial, direct", "serial, indirect", "concurrent, direct",
             "concurrent, indirect", "concurrent, indirect + barrier + indirect",
             "concurrent indirect, closed, then indirect in a serial encoder",
             "concurrent, indirect, threadgroup memory then none",
+            "concurrent, a kernel writes the grid, then indirect off it",
         };
-        for (int c = 0; c < 7; c++) {
+        for (int c = 0; c < 8; c++) {
             if (only >= 0 && c != only) continue;
             fprintf(stderr, "case %d: %-58s ", c, names[c]);
             fflush(stderr);
@@ -84,6 +115,16 @@ int main(int argc, const char **argv) {
                 id<MTLComputeCommandEncoder> e = conc
                     ? [cb computeCommandEncoderWithDispatchType:MTLDispatchTypeConcurrent]
                     : [cb computeCommandEncoder];
+                if (c == 7) {
+                    /* The validate, encoded into the same concurrent encoder
+                     * and writing the grid the dispatches below read. */
+                    uint32_t from = 0;
+                    [e setComputePipelineState:psoz];
+                    [e setBuffer:grid offset:0 atIndex:0];
+                    [e setBytes:&from length:4 atIndex:1];
+                    [e dispatchThreadgroups:MTLSizeMake(1, 1, 1)
+                      threadsPerThreadgroup:MTLSizeMake(32, 1, 1)];
+                }
                 for (uint32_t i = 0; i < 4; i++) {
                     if (c == 4 && i == 2) [e memoryBarrierWithScope:MTLBarrierScopeBuffers];
                     /* Two dispatches that ask for threadgroup memory, then two
