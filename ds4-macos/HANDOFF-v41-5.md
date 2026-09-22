@@ -108,24 +108,90 @@ Q8_0 射影は表の反対側（640〜16,384）。
 **独立な1 threadgroup dispatch は20.5倍重なる**（2.06 µs/本 回収）。
 依存を順序づける費用は **barrier 0.31 µs**、encoder 境界はこの規模では測定不能。
 
-## 次にやること（順に）
+## 層は鎖ではなかった（5日目の後半に判明、上の「次にやること」は差し替え）
 
-1. **層の antichain を数える。機械不要。** 488.7本 × 2.16 µs = 1.06 ms、上の帯も
-   合わせればもっとある。ただし回収できるのは互いに独立な分だけで、デコード層は
-   ほぼ鎖である（`ds41_hc_mix` は norm→matmul→sinkhorn の3連鎖、`ds41_norm` は
-   直後の matmul に食われる）。**はっきりした antichain は
-   `q_a→norm→q_b` と `kv→norm` の2本だけで、しかも太い方が支配する。**
-   まずグラフを読んで、独立な隣接対が1層に何本あるかを数えること。数が出ない限り
-   次の実装に進まない
-2. **数が出たら: segment 全体を1つの concurrent encoder にし、グラフの実際の辺
-   にだけ barrier を置く。** section を広げるのではなく、serial encoder をやめる。
-   1,511.7本を無条件に順序づけているのを、必要な所だけにする。今週試したどれより
-   大きい変更で、賞金はまだ未知
-3. **encode-ahead（4日目の (b)）。ワークツリーに未コミットで残っている（268行、
-   既定 OFF、未検証）。** `DS4_METAL_V41_GATE_ENCODE_AHEAD=1`。投機的中率 78〜79%、
-   GPU の下に隠した encode 0.92 ms/token を実測済み。バイト一致と仕事量一致を
-   取り直してから ABBA。4日目の欠陥修正2件が入った後の検証はまだ
-4. continuous batching（単一ストリームの目的外だが、集約目標では未着手）
+上の第1項「層の antichain を数える」は**答えが出た。層は鎖ではない。**
+私は `ds41_hc_mix` の内部（norm→matmul→sinkhorn）を見て鎖と判断したが、
+**見るべきは枝の内部ではなく、枝の出力がいつ消費されるか**だった。出力で読むと:
+
+- `ds41_hc_mix(ffn=false)` は `attn_split` を書く。直後の `hc_weighted_sum_bf16` が
+  読むのは `residual` と `pre` で `attn_split` ではない。最初の消費者は
+  `ds41_graph_after_attention` の `hc_expand`、つまり**attention 全体の後**。
+  → **HC-attn 枝は attention を跨いで fork している**
+- `ds41_hc_mix(ffn=true)` は `ffn_split` を書き、消費者は MoE 後の `hc_expand`。
+  → **HC-ffn 枝は MoE を跨いで fork している**
+- shared expert と routed experts は同じ `ffn_norm` しか読まず、
+  `ds41_moe_finish` の加算まで独立。→ **互いに fork している**
+
+**1層に2つ、1トークンに80の fork。** 最大は shared ∥ routed で、
+shared は 1.50 GB/token（gate/up [5120→2304]・down [2304→5120] の Q8_0 ×40層）、
+routed は 2.19 GiB/token。どちらも帯域律速で、今は互いを待っている。
+
+### shared/routed を level に切るところまでは通った
+
+両者は同じ2レベル構造で、レベルが揃う:
+
+| level | routed | shared |
+|---|---|---|
+| 1 | gate/up pair-SwiGLU、1728 threadgroup | gate 1152、up 1152 |
+| 2 | （SwiGLU は level 1 に融合済み） | SwiGLU |
+| 3 | down sum over six、640 | down 2560 |
+
+`ds4_gpu_routed_moe_one_gated` は既に `which` ビットマスク（1=gate/up、2=down）を
+持つので新カーネルは要らない。`DS4_METAL_V41_FFN_OVERLAP=2` で
+この順に直列発行して**バイト一致 6/6**（最長2048トークン）。コミット済み（`b557ad3`）。
+
+**構造上の制約が1つ。** 継続（abort 後の再開）は routed と finish しか再実行しない
+ので、shared を自層の validate の後ろに置けるのは継続が shared も覆う場合だけ。
+routed stage に入れるとそれが満たされ、費用もゼロ（abort した層の shared は
+そもそも走らず、継続で1回走る）。
+
+### そして driver が受け付けない
+
+level を concurrent section に入れると **AGX が segfault する**
+（`insertIndirectTGOptKernel` の NULL 参照）。落ちるのは必ず
+**section の後の最初の indirect dispatch**。この経路の dispatch は全て indirect
+（abort gate が grid table 経由で発行するため）。6通りの二分（各回サーバ起動）:
+
+| section の中身 | 結果 |
+|---|---|
+| routed L1・shared gate/up・SwiGLU・routed L2・shared down、間に barrier | `ds41_moe_finish` の add で落ちる |
+| 同、level 区切りを encoder 境界に | shared SwiGLU で落ちる |
+| 同、level 区切りなし | shared SwiGLU で落ちる |
+| **shared gate と up だけ、routed は外** | **正常** |
+| shared の3レベル＋barrier、routed は外 | `ds41_moe_finish` の add で落ちる |
+| 並べ替えのみ（`=2`、section なし） | 正常、バイト一致 6/6 |
+
+`proto/indirconc.m` に最小再現を7通り書いた（concurrent encoder 内の indirect、
+barrier 併用、encoder 境界跨ぎ、threadgroup メモリ有無の混在）が
+**どれも再現しない**。エンジン側の別の状態が要る。候補は expert cache が入っている
+residency set、host と kernel の両方が書く grid table、bind 数、timeline encoder 経路。
+
+**これが塞いでいるもの:** Metal 3 が提供する唯一の overlap 手段が concurrent encoder で、
+それが MoE では今使えない。**塞いでいないもの:** 並べ替えはバイト一致でコミット済みなので、
+section が通る日には overlap は2行。HC fork は address-table カーネルに触らない。
+
+## 次にやること（順に、5日目終了時点）
+
+1. **AGX クラッシュの trigger を特定する。** `proto/indirconc.m` に候補を1つずつ足す。
+   最有力は **residency set**（`DS4_METAL_V41_EXPERT_RESIDENCY_SET=1` で
+   expert cache が queue の residency set に入る）と、**host と kernel の両方が書く
+   grid buffer**。機械時間は安く、これが通れば下の2と3が同時に開く
+2. **shared ∥ routed の overlap**（`DS4_METAL_V41_FFN_OVERLAP=1`）。実装済み・
+   バイト一致の並べ替えの上に section を被せるだけ。賞金は ms 単位:
+   両者で 3.69 GB/token を読み、直列だと 375〜525 GB/s、`concur.m` は
+   concurrent で 429.6 GB/s（単独 303）まで上がることを示している
+3. **HC fork**（1層2回、80回/token）。`hc_mix` は1トークンあたり 167 dispatch
+   （1 tg の row norm・24 tg の F16 射影・1 tg の Sinkhorn がそれぞれ 55.7本）。
+   attention / MoE の陰に隠す。address-table カーネルを含まないので
+   クラッシュ条件を踏まない見込み
+4. **Q/KV defer と source 層の compression/indexer fork**（1層あたり小さい。
+   既存コメントで KV 側は約 9 µs/layer）
+5. **Engram table の非同期読みと projection hoist**（table 0 は層1まで、
+   table 1 は層14まで不要）
+6. **Metal 4。** 現コードは Metal 4 queue 対応を検出しているが実行には使っていない。
+   concurrency-by-default で encoder 間依存を barrier で表現できるので、
+   1が解けない場合の本筋はこちら
 
 ## 探索終了（再挑戦不要）
 
@@ -153,9 +219,10 @@ Q8_0 射影は表の反対側（640〜16,384）。
 
 ## 最終状態
 
-- **`ds4-v41`**: 3コミット（`0ff6f35` census の grid keying / `bfda5d9` concurrent
-  section と lane 形式の道具 / `a48d690` 2つの重ね方、両方とも既定 OFF・測定済み）。
-  **未push。** 未コミットは encode-ahead の268行のみ（上の3）。ビルドは通る
-- **`inference-deploy`**: 記録2コミットと `bench/` の追加。**未PR**
+- **`ds4-v41`**: 4コミット（`0ff6f35` census の grid keying / `bfda5d9` concurrent
+  section と lane 形式の道具 / `a48d690` 2つの重ね方、両方とも既定 OFF・測定済み /
+  `b557ad3` shared expert の level 分割、既定 OFF・バイト一致）。**未push。**
+  未コミットは encode-ahead の275行のみ。ビルドは通り、既定経路はバイト一致 6/6
+- **`inference-deploy`**: 記録4コミットと `bench/`・`proto/` の追加。**未PR**
 - プロセス: サーバ・計測とも 0。最後の ABBA が 11:02 に終わっているので、
   次の測定前に休ませること（規則22）
