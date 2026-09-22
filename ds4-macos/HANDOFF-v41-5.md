@@ -206,43 +206,42 @@ on アームに抱えているため。以降9 block は平均 −1.09。
 既定は OFF（`DS4_METAL_V41_FFN_OVERLAP=1` で有効）。既定 ON にするかは
 次セッションの判断。
 
-### 2. 次は perfect oracle で expert 投機の上限を測る（予測器の改良ではない）
+### 2. per-expert speculative reuse — 実装済み、残り1点（最優先）
 
-**前に閉じた expert prefetch とは別物。** 全 expert 集合の完全一致（7.9%）ではなく、
-当たった expert の中間結果を個別に再利用する話。lead 1 の expert 単位 recall は 65.8%
-＝平均 3.95/6 本が一致する。
+`ds4-v41` の `8fdc715`。**oracle は別実験ではなく、この本番経路に「予測IDに実IDを与えるモード」として載っている。**
 
-ただしこの機体には構造的上限がある。
+```
+section A: actual router  ||  predicted IDs で routed gate/up → spec_mid
+match:     実IDごとに予測IDを検索。resident かつ一致した lane だけ spec_mid を
+           実 lane へコピーし、残りを need_mask に残す（GPU 上）
+validate
+section B: need_mask の lane だけ routed L1  ||  shared gate/up
+shared SwiGLU
+section C: routed down  ||  shared down
+```
 
-- expert の入力 `ffn_norm` はその層の attention 完了後にしか存在しない
-- したがって expert GEMV を前層から走らせることはできない
-- EP 通信がないので、**隠せるのは router → select → validate の窓だけ**
-- routed GEMV は帯域律速なので、投機が router を遅くし得る
+設計上の要点（実装済み）:
 
-**手順0（安い事前判定、これを先にやる）**: `apply-router-shadow.py` を当てて
-`DS4_METAL_V41_SHADOW_ROUTER=1` で router 射影と select を二重に encode し、
-envelope の増分で窓を測る。idempotent なので答えは動かない。validate は
-zero 範囲が位置依存で idempotent でないため二重化しない（窓の下限になる）。
-**窓が 1 ms 未満なら oracle を作らずに閉じる。**
+- **予測 expert をロードしない。** address table に無い予測は match しない
+  （masked kernel が null address で早期終了しており、`spec_mid` が未計算のため）。
+  false positive は lane 1本分の GEMV の無駄だけで、eviction にも cache policy にも触れない
+- 集合完全一致を要求しない。expert 単位で一致した分だけ再利用する
+- 不一致 lane は現行カーネルで計算するので品質は不変
+- 下流の down sum と route weight 適用は現行のまま
+- 継続（abort 後）は投機しない。`l1_mask` は 0x3f に戻る
 
-**手順1（oracle の実装）**:
+**残っている1点**: routed L1 が route weight を store に融合している
+（`mid_f32[out_row] = silu * u * route_weight`）。投機は router より前に走るので
+**古い重みが乗る**。バイト検査がこれを捕まえている（6プロンプト中2つのハッシュが相違）。
 
-- トレース: `DS4_METAL_V41_GATE_ROUTE_LOG=<path>` が層ごとに
-  `int32 [層, n, id0..id5, pad]` を 40 件/token で書く。温度0なので再現する
-- `ffn_norm` 完成直後に concurrent section を開き、
-  **oracle の id を別バッファに入れた routed level 1** と **router 射影＋select** を並べる
-- section を閉じ、実物の `selected` で validate
-- GPU 側の比較カーネルで `selected` と oracle を突き合わせ、不一致数を数える。
-  **perfect oracle では 0 でなければならない**（0 でなければ計測は無効）
-- routed level 2（down + sum）は実物の `selected` と route weight のまま、
-  投機が書いた `mid` を読む。**重み付き総和の順序を変えない**ので bit 一致が保てる
-- gate/up だけを対象にする理由: routed 6.38 ms のうち 3.91 ms を占め、
-  出力側の保存・重み付け・加算順に触らずに済む
+**修正方針（bit 一致を保てる）**: 投機時はカーネルに `silu * u` だけを書かせ、
+match のコピー時に実重みを掛ける。Metal は f32 に丸めて格納し、baseline の式も
+左結合なので、**同じ2回の乗算を同じ順序で同じ値に**適用することになる。
+`ds4_gpu_dsv4_moe_swiglu_weight_args` に「重みを後回しにする」フラグを1つ足すのが
+最小の変更。
 
-**3アームで測る**: baseline / oracle 投機して結果を捨てる（競合と余分な帯域の費用）/
-oracle 投機して再利用する（完全予測時の正味上限）。
-**再利用でも 1 ms 未満なら、この機体では router 窓が短すぎる**と結論して閉じる。
-1 ms 以上出たときだけ、投機数 m=1…6 の precision 曲線へ進む。
+これを直せば、同じ実装で
+**baseline / 投機して捨てる（MODE=2）/ 投機して再利用（MODE=1）** の3アームが測れる。
 
 ### 3. HC fork（1層2回、80回/token）
 
