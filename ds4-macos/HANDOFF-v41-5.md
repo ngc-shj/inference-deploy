@@ -171,27 +171,89 @@ residency set、host と kernel の両方が書く grid table、bind 数、timel
 それが MoE では今使えない。**塞いでいないもの:** 並べ替えはバイト一致でコミット済みなので、
 section が通る日には overlap は2行。HC fork は address-table カーネルに触らない。
 
-## 次にやること（順に、5日目終了時点）
+## 次にやること（順に）
 
-1. **AGX クラッシュの trigger を特定する。** `proto/indirconc.m` に候補を1つずつ足す。
-   最有力は **residency set**（`DS4_METAL_V41_EXPERT_RESIDENCY_SET=1` で
-   expert cache が queue の residency set に入る）と、**host と kernel の両方が書く
-   grid buffer**。機械時間は安く、これが通れば下の2と3が同時に開く
-2. **shared ∥ routed の overlap**（`DS4_METAL_V41_FFN_OVERLAP=1`）。実装済み・
-   バイト一致の並べ替えの上に section を被せるだけ。賞金は ms 単位:
-   両者で 3.69 GB/token を読み、直列だと 375〜525 GB/s、`concur.m` は
-   concurrent で 429.6 GB/s（単独 303）まで上がることを示している
-3. **HC fork**（1層2回、80回/token）。`hc_mix` は1トークンあたり 167 dispatch
-   （1 tg の row norm・24 tg の F16 射影・1 tg の Sinkhorn がそれぞれ 55.7本）。
-   attention / MoE の陰に隠す。address-table カーネルを含まないので
-   クラッシュ条件を踏まない見込み
-4. **Q/KV defer と source 層の compression/indexer fork**（1層あたり小さい。
-   既存コメントで KV 側は約 9 µs/layer）
-5. **Engram table の非同期読みと projection hoist**（table 0 は層1まで、
-   table 1 は層14まで不要）
-6. **Metal 4。** 現コードは Metal 4 queue 対応を検出しているが実行には使っていない。
-   concurrency-by-default で encoder 間依存を barrier で表現できるので、
-   1が解けない場合の本筋はこちら
+### 1. shared ∥ routed overlap — 採用方向、区間の確定だけ残り
+
+実装済み（`DS4_METAL_V41_FFN_OVERLAP=1`）。構造は section 2つで、**SwiGLU と finish の add は section の外**に置く。これを守らないと AGX が
+`insertIndirectTGOptKernel` で落ちる（bisect は下の表）。
+
+```
+section   routed gate/up/SwiGLU 1728 群  ||  shared gate 1152, up 1152
+------    shared SwiGLU（1 dispatch、重ねる相手がない）
+section   routed down sum 640            ||  shared down 2560
+------    producer が畳めなかった BF16 丸め（既定では発生しない）
+```
+
+producer が丸めを畳めない構成（`FUSE_BF16=0`、`SHARED_PAIR_MODE≠0`）では
+丸め pass が発生するので **section の外に出す**（`ds41_matmul_deferred` と
+`ds41_moe_shared_round`）。この扱いを含めて 7 構成でバイト一致 6/6 を確認済み。
+
+**計測（10 block ABBA、mode 1 対 mode 0）**: 6 block 時点で平均 −0.88、
+中央値 −0.77 ms/token、6/6 同符号（符号検定 両側 p=0.031）。
+最終区間は10 block で確定する。
+
+### 2. 次は perfect oracle で expert 投機の上限を測る（予測器の改良ではない）
+
+**前に閉じた expert prefetch とは別物。** 全 expert 集合の完全一致（7.9%）ではなく、
+当たった expert の中間結果を個別に再利用する話。lead 1 の expert 単位 recall は 65.8%
+＝平均 3.95/6 本が一致する。
+
+ただしこの機体には構造的上限がある。
+
+- expert の入力 `ffn_norm` はその層の attention 完了後にしか存在しない
+- したがって expert GEMV を前層から走らせることはできない
+- EP 通信がないので、**隠せるのは router → select → validate の窓だけ**
+- routed GEMV は帯域律速なので、投機が router を遅くし得る
+
+**手順0（安い事前判定、これを先にやる）**: `apply-router-shadow.py` を当てて
+`DS4_METAL_V41_SHADOW_ROUTER=1` で router 射影と select を二重に encode し、
+envelope の増分で窓を測る。idempotent なので答えは動かない。validate は
+zero 範囲が位置依存で idempotent でないため二重化しない（窓の下限になる）。
+**窓が 1 ms 未満なら oracle を作らずに閉じる。**
+
+**手順1（oracle の実装）**:
+
+- トレース: `DS4_METAL_V41_GATE_ROUTE_LOG=<path>` が層ごとに
+  `int32 [層, n, id0..id5, pad]` を 40 件/token で書く。温度0なので再現する
+- `ffn_norm` 完成直後に concurrent section を開き、
+  **oracle の id を別バッファに入れた routed level 1** と **router 射影＋select** を並べる
+- section を閉じ、実物の `selected` で validate
+- GPU 側の比較カーネルで `selected` と oracle を突き合わせ、不一致数を数える。
+  **perfect oracle では 0 でなければならない**（0 でなければ計測は無効）
+- routed level 2（down + sum）は実物の `selected` と route weight のまま、
+  投機が書いた `mid` を読む。**重み付き総和の順序を変えない**ので bit 一致が保てる
+- gate/up だけを対象にする理由: routed 6.38 ms のうち 3.91 ms を占め、
+  出力側の保存・重み付け・加算順に触らずに済む
+
+**3アームで測る**: baseline / oracle 投機して結果を捨てる（競合と余分な帯域の費用）/
+oracle 投機して再利用する（完全予測時の正味上限）。
+**再利用でも 1 ms 未満なら、この機体では router 窓が短すぎる**と結論して閉じる。
+1 ms 以上出たときだけ、投機数 m=1…6 の precision 曲線へ進む。
+
+### 3. HC fork（1層2回、80回/token）
+
+`hc_mix` の出力 `attn_split` は attention 後の `hc_expand` まで、`ffn_split` は
+MoE 後の `hc_expand` まで消費されない。1トークンあたり 167 dispatch
+（1 群の row norm・24 群の F16 射影・1 群の Sinkhorn が各 55.7 本）。
+address-table カーネルを含まないので、上の section 構造がそのまま使える見込み。
+
+### 4. Q/KV defer と source 層の compression/indexer fork
+
+小さい（既存コメントで KV 側は約 9 µs/layer）。上の3つの後。
+
+### 5. Engram の非同期化
+
+decode 入口で `ds4_engram_read_batch` を2テーブル分、**GPU を開始する前に**
+読み切っている（`ds41_graph_step` 冒頭）。table 0 は層1、table 1 は層14まで不要。
+`DS4_V41_DECODE_PROFILE=1` が `engram` の ms/token を既に出すので、
+**まず1回走らせて大きさを見る**こと。
+
+### 6. Metal 4
+
+現コードは Metal 4 queue 対応を検出しているが実行に使っていない。
+concurrency-by-default で encoder 間依存を barrier で表現できる。
+AGX のクラッシュ条件を踏まない設計に移す道でもある。
 
 ## 探索終了（再挑戦不要）
 
