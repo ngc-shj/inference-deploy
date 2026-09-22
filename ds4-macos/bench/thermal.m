@@ -10,12 +10,22 @@
  * Waiting ten minutes by the clock assumes the recovery; this measures it.
  *
  *   clang -O2 -fobjc-arc -framework Foundation -framework Metal -o thermal thermal.m
- *   ./thermal              one reading
- *   ./thermal --until 0.97 wait until the reading is within 3% of the best
- *                          seen in this run, or twenty minutes have passed
+ *   ./thermal                 one reading
+ *   ./thermal --record        write this reading to thermal.cool as the
+ *                             reference for a machine that has settled
+ *   ./thermal --until 0.97    wait until the reading reaches 97% of that
+ *                             reference, or twenty minutes have passed
+ *
+ * The reference has to be absolute. An earlier version compared against the
+ * best reading seen in the same invocation, which a machine that is hot but
+ * steady passes on its second reading - it measures nothing. Measured on this
+ * machine: 996 GFLOP/s straight after an hour of generation, 1216 five minutes
+ * later, and flat after that. Eighteen percent, and the recovery is about five
+ * minutes rather than the ten the page assumes.
  */
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
+#include <libgen.h>
 
 static const char *kSrc = R"MSL(
 #include <metal_stdlib>
@@ -32,8 +42,27 @@ kernel void spin(device float *out, constant uint &iters,
 int main(int argc, const char **argv) {
     @autoreleasepool {
         double until = 0.0;
-        for (int i = 1; i < argc - 1; i++)
-            if (!strcmp(argv[i], "--until")) until = atof(argv[i + 1]);
+        int record = 0;
+        for (int i = 1; i < argc; i++) {
+            if (!strcmp(argv[i], "--record")) record = 1;
+            if (!strcmp(argv[i], "--until") && i + 1 < argc) until = atof(argv[i + 1]);
+        }
+        char refpath[4096];
+        snprintf(refpath, sizeof refpath, "%s/thermal.cool",
+                 dirname((char *)argv[0]));
+        double reference = 0.0;
+        if (until > 0.0) {
+            FILE *f = fopen(refpath, "r");
+            if (!f || fscanf(f, "%lf", &reference) != 1 || reference <= 0.0) {
+                fprintf(stderr, "no settled reference in %s - run --record once "
+                                "on a machine that has been idle\n", refpath);
+                if (f) fclose(f);
+                return 2;
+            }
+            fclose(f);
+            printf("settled reference %.1f GFLOP/s, waiting for %.0f%% of it\n",
+                   reference, until * 100.0);
+        }
         id<MTLDevice> dev = MTLCreateSystemDefaultDevice();
         NSError *err = nil;
         id<MTLLibrary> lib = [dev newLibraryWithSource:[NSString stringWithUTF8String:kSrc]
@@ -63,10 +92,18 @@ int main(int argc, const char **argv) {
             const double gflops = (double)threads * iters * 4.0 / (ms / 1000.0) / 1e9;
             if (gflops > best) best = gflops;
             printf("%.1f GFLOP/s (%.3f ms)%s\n", gflops, ms,
-                   until > 0.0 ? (gflops >= until * best ? "  - settled" : "  - still warm") : "");
+                   until > 0.0 ? (gflops >= until * reference ? "  - settled"
+                                                             : "  - still warm") : "");
             fflush(stdout);
+            if (record) {
+                FILE *f = fopen(refpath, "w");
+                if (!f) { perror("thermal.cool"); return 2; }
+                fprintf(f, "%.1f\n", gflops);
+                fclose(f);
+                printf("recorded as the settled reference in %s\n", refpath);
+            }
             if (until <= 0.0) break;
-            if (gflops >= until * best && round > 0) break;
+            if (gflops >= until * reference) break;
             if (round > 240) { printf("gave up waiting\n"); break; }
             usleep(5 * 1000 * 1000);
         }

@@ -213,7 +213,12 @@ def per_run(rs, f):
 
 for f, label, primary in (('wall', 'raw wall', True),
                           ('c2d', 'commit-to-done', False),
-                          ('gpu', 'GPU running', False),
+                          # ds4_gpu_take_span_ms is the command buffer's
+                          # GPUStartTime to GPUEndTime, which contains the gaps
+                          # between its encoders. It is not time the GPU spent
+                          # running, and calling it that invites reading a
+                          # shorter envelope as more work done.
+                          ('gpu', 'GPU command-buffer envelope', False),
                           ('encode', 'host encode', False),
                           ('repair', 'repair-load', False)):
     ra, rb = per_run(A, f), per_run(B, f)
@@ -227,7 +232,11 @@ for f, label, primary in (('wall', 'raw wall', True),
     for bl in sorted({r['block'] for r in A + B}):
         xa = [st.median(r['w'][k][f] for k in csteady) for r in A if r['block'] == bl]
         xb = [st.median(r['w'][k][f] for k in csteady) for r in B if r['block'] == bl]
-        if not xa or not xb:
+        # A block is two of each arm. One of either side is not a block - its
+        # difference carries whatever position that single run happened to sit
+        # in, which is exactly what the alternation is there to cancel.
+        if len(xa) != 2 or len(xb) != 2:
+            print(f"  block {bl}: {len(xa)} on and {len(xb)} off - not a block, skipped")
             continue
         d = st.mean(xa) - st.mean(xb)
         diffs.append(d)
