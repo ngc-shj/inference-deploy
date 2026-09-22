@@ -30,7 +30,14 @@ LOG=$S/cf-$NAME.log
 cd "$HOME/ghq/github.com/antirez/ds4-v41" || exit 1
 wait_for_no_server() {
     local n=0
-    while pgrep -f 'ds4-v41/ds4-server' >/dev/null; do
+    # -x matches the process name, not the command line. Both earlier forms
+    # were wrong in opposite directions: "ds4-server -m" matched the waiting
+    # shell itself, so an arm refused to start because it could see its own
+    # watcher; "ds4-v41/ds4-server" matched nothing at all, because the server
+    # is started as ./ds4-server and the directory never appears in its
+    # command line - the guard was inert, and a run that overran its arm went
+    # unnoticed until a port collision surfaced it somewhere else.
+    while pgrep -x ds4-server >/dev/null; do
         n=$((n+1)); [ "$n" -gt 180 ] && { echo "a ds4-server is still running"; exit 1; }
         sleep 2
     done

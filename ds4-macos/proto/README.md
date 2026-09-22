@@ -451,3 +451,41 @@ the number of buffers bound, the timeline encoder path, the size of the
 dispatches, how many encoders the command buffer already holds - is still
 unidentified, and this file is where the next candidate gets added one at a
 time.
+
+
+# Does the compiler keep `a * b * c` in the order it is written?
+
+`assoc.m`. The speculative expert reuse wanted to cut the routed gate/up kernel
+in two: store `silu * u` in the speculation and let the match apply the route
+weight as it copies the row. In the engine that did not survive a byte
+comparison - 1,066 floats of a 2,048-wide row came back different, 93% of them
+by exactly one ulp - and the obvious suspect was the multiplication being
+reassociated under Metal's fast math.
+
+    clang -O2 -fobjc-arc -framework Foundation -framework Metal -o assoc assoc.m
+    ./assoc [n]
+
+It is not the multiplication. Over 2^20 random f32 triples spread across
+twenty binades, against `d = a * b * c`:
+
+| arm | fast math on | fast math off |
+|---|---|---|
+| `t = a * b; d = t * c` | identical | identical |
+| store `a * b`, load in another encoder, `* c` | **identical** | **identical** |
+| `d = a * (b * c)` | identical | 34.84% differ, 3,739 by more than an ulp |
+
+So a store and a load do not move a rounding, and the association the source
+writes is kept when it matters. What fast math does here is make *all* the
+arms agree, including the one IEEE says should not - it picks one form for the
+whole expression and uses it everywhere.
+
+**Which is the point.** The engine's expression is not three multiplies: it is
+`g / (1 + exp(-g)) * u * route_weight`, one chain through a reciprocal, and
+fast math contracts the whole of it. Cutting such a chain in half does not
+give two halves of it. Cutting *before* it - at the GEMV's output, where the
+speculation and the real pass both have plain values that no later arithmetic
+has been folded into - gives zero differing floats, which is what shipped.
+
+The lesson generalises past this kernel: **a reuse boundary belongs where the
+values are, not where the loop is convenient.** Anything downstream of it has
+to be the untouched expression, or it is a different expression.

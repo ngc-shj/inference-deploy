@@ -1,1 +1,8 @@
 thermal
+# What a run leaves behind. The logs are the measurement, but they belong to
+# one machine state on one afternoon; the numbers that outlive them go in
+# ../V4.1-TUNING.md.
+ab-*
+cf-*
+co-*
+.last-arm-end
