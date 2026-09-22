@@ -10,15 +10,25 @@ LOG=$S/ab-$NAME.log
 cd "$HOME/ghq/github.com/antirez/ds4-v41" || exit 1
 wait_for_no_server() {
     local n=0
-    while pgrep -f "ds4-server -m" >/dev/null; do
+    # Match the binary's path, not the string "ds4-server -m": a shell waiting
+    # on that string matches itself, and an arm then refuses to start because
+    # it can see its own watcher.
+    while pgrep -f 'ds4-v41/ds4-server' >/dev/null; do
         n=$((n+1))
         [ "$n" -gt 180 ] && { echo "a ds4-server is still running after 6 min"; exit 1; }
         sleep 2
     done
 }
 wait_for_no_server
-# Rule 11: a window of identical work moves by a factor of two with machine
-# state, so record what the machine was doing around each arm.
+# How long the machine was idle before this arm. An hour of running costs 6-7
+# ms a token and ten minutes idle returns it, so the gap belongs beside the
+# result rather than in a file nothing reads.
+now=$(date +%s)
+if [ -f "$S/.last-arm-end" ]; then
+    echo "$((now - $(cat "$S/.last-arm-end")))" > "$S/ab-$NAME.gap"
+else
+    echo "-1" > "$S/ab-$NAME.gap"
+fi
 vm_stat | head -4 > "$S/ab-$NAME.vm"
 env DS4_METAL_V41_DECODE_QUEUE=1 DS4_METAL_IQ2_SELECTED_SHARED_EVENT=1 \
     DS4_METAL_STREAM_SPLIT_MIN_MISSING=1 DS4_METAL_ZERO_COPY_EXPERTS=1 \
@@ -32,24 +42,35 @@ until grep -q 'listening on' "$LOG"; do
     kill -0 "$pid" 2>/dev/null || { echo "server exited"; tail -20 "$LOG"; exit 1; }
     sleep 5
 done
-NTOK="${NTOK:-1400}" python3 - "$PORT" "$NAME" <<'PY'
-import json, os, sys, time, urllib.request
+NTOK="${NTOK:-1400}" S="$S" NAME="$NAME" python3 - "$PORT" <<'PY'
+# The performance run hashes its own output. A separate six-prompt check is
+# still the byte-identity proof, but an arm that quietly generated something
+# else is not a paired comparison, and only its own bytes can say.
+import hashlib, json, os, sys, time, urllib.request
 URL = f"http://127.0.0.1:{sys.argv[1]}/v1/chat/completions"
+S, NAME = os.environ["S"], os.environ["NAME"]
 P = ("Explain how a modern CPU executes an instruction, from fetch to retire, "
      "in as much detail as you can.")
 body = json.dumps({"model":"deepseek-v4-flash","messages":[{"role":"user","content":P}],
                    "max_tokens":int(os.environ["NTOK"]),"temperature":0,"think":False,
                    "stream":True}).encode()
 req = urllib.request.Request(URL, body, {"Content-Type":"application/json"})
-n, t0 = 0, time.time()
+n, t0, text = 0, time.time(), []
 with urllib.request.urlopen(req, timeout=3600) as r:
     for line in r:
         if line.startswith(b"data: ") and line[6:].strip() != b"[DONE]":
             d = json.loads(line[6:])
-            if d["choices"][0].get("delta", {}).get("content") is not None: n += 1
-print(f"  [{sys.argv[2]}] {n} chunks in {time.time()-t0:.1f}s")
+            c = d["choices"][0].get("delta", {}).get("content")
+            if c is not None:
+                n += 1
+                text.append(c)
+out = "".join(text)
+h = hashlib.sha256(out.encode()).hexdigest()
+open(f"{S}/ab-{NAME}.sha", "w").write(f"{h} {n}\n")
+print(f"  [{NAME}] {n} chunks in {time.time()-t0:.1f}s  {h[:16]}")
 PY
 vm_stat | head -4 >> "$S/ab-$NAME.vm"
 kill "$pid" 2>/dev/null
 wait_for_no_server
+date +%s > "$S/.last-arm-end"
 sleep 45
