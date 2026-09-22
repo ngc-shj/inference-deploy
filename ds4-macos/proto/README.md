@@ -412,3 +412,35 @@ the machine. Merging them needs a matvec that can carry lanes of different
 weight type and output width in one grid - the shared expert already has a
 two-lane form, but it requires both lanes to share a type and a width, which
 these do not.
+
+
+# Can the gate's indirect dispatch share a concurrent encoder?
+
+`indirconc.m`. The plan to run a V4.1 layer as its DAG rather than as its call
+order rests on `MTLDispatchTypeConcurrent`, because a Metal 3 compute encoder
+serialises everything otherwise. Every dispatch on the decode path goes out
+**indirect** - the abort gate writes each grid into a table so an aborting
+layer can zero what follows it - and putting the MoE's dispatches inside a
+concurrent section **segfaults inside AGX**, in `insertIndirectTGOptKernel`,
+on the first indirect dispatch after the section.
+
+    clang -O2 -fobjc-arc -framework Foundation -framework Metal -o indirconc indirconc.m
+    ./indirconc
+
+| case | result |
+|---|---|
+| serial encoder, direct dispatch | ok |
+| serial encoder, indirect dispatch | ok |
+| concurrent encoder, direct dispatch | ok |
+| concurrent encoder, indirect dispatch | ok |
+| concurrent, indirect + barrier + indirect | ok |
+| concurrent indirect, closed, then indirect in a serial encoder | ok |
+| concurrent, indirect, threadgroup memory then none | ok |
+
+**None of it reproduces.** So indirect dispatch inside a concurrent encoder is
+not broken in itself, and neither is a barrier beside it, nor the encoder
+boundary the engine dies just after. Whatever the engine is doing differently
+- the residency set the expert cache lives in, the grid table that both the
+host and a kernel write, the number of buffers bound, the timeline encoder
+path - is still unidentified, and this file is where the next candidate gets
+added one at a time.
