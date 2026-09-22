@@ -102,7 +102,14 @@ res = [
     check("an undeclared behind-abort difference is refused", True, behind_differs),
     check("a systematic gated-dispatch shift is refused", True, gated_shift),
     check("the same difference, declared, is compared", False, behind_differs,
-          extra=('--declare=the shared expert moved behind the validate',)),
+          extra=('--declare-fields=behind',
+                 '--declare=the shared expert moved behind the validate')),
+    check("a declaration without named fields is refused", True, behind_differs,
+          extra=('--declare=no fields named',)),
+    check("declaring one counter does not excuse another", True,
+          lambda: (behind_differs(), [run(f"c{b}", "off", b, 51.0, behind=150.0,
+                                          gated=1400.0) for b in (1, 2)]),
+          extra=('--declare-fields=behind', '--declare=only behind was declared')),
 ]
 print(f"\n{sum(res)}/{len(res)} checks of the analyser passed")
 os.chdir(HERE)

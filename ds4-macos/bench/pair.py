@@ -106,6 +106,12 @@ opts = {a.split('=', 1)[0]: a.split('=', 1)[1] if '=' in a else ''
         for a in sys.argv[1:] if a.startswith('--')}
 expect = opts.get('--expect-sections', 'on')
 declared = opts.get('--declare')
+# Declaring a difference exempts only the counters named, so a second one
+# moving for a reason nobody thought about still refuses.
+declared_fields = set(f for f in opts.get('--declare-fields', '').split(',') if f)
+if declared and not declared_fields:
+    sys.exit("REFUSING: --declare needs --declare-fields naming which counters "
+             "may move. A reason without a list exempts everything.")
 
 A, B = load(args[0], 'on'), load(args[1], 'off')
 print(f"runs with windows: {len(A)} on, {len(B)} off (every run kept, none discarded)")
@@ -162,29 +168,30 @@ for k in common:
     for f in NEAR:
         xs = [r['w'][k][f] for r in A + B]
         spread[f] = max(spread[f], max(xs) - min(xs))
-        if max(xs) - min(xs) > WINDOW_TOL + EPS and not declared:
+        if max(xs) - min(xs) > WINDOW_TOL + EPS and f not in declared_fields:
             bad.append(k)
             break
 for f in NEAR:
     ma = st.mean(st.mean(r['w'][k][f] for k in common) for r in A)
     mb = st.mean(st.mean(r['w'][k][f] for k in common) for r in B)
-    if abs(ma - mb) > MEAN_TOL + EPS and not declared:
+    if abs(ma - mb) > MEAN_TOL + EPS and f not in declared_fields:
         sys.exit(f"REFUSING: {f} differs systematically between the arms - "
                  f"on {ma:.3f}, off {mb:.3f}, {ma-mb:+.3f} a token. Within-run "
                  f"jitter is one unit in the last printed digit; this is not that.")
 print(f"{len(common)} windows in every run; windows where the arms did not do "
       f"identical work: {len(bad)}" + ("" if bad else "  - the comparison is paired")
       + "; largest within-window spread " + ", ".join(f"{f} {spread[f]:.2f}" for f in NEAR))
-if bad and not declared:
+if bad:
     sys.exit("\nREFUSING to print a wall comparison. The arms are not doing the same "
              "work, so a difference between them is not the change - it is the change "
              "plus whatever moved those counts. Find that first, or declare it.")
 if declared:
-    for f in NEAR:
+    print(f"declared: {declared}")
+    for f in sorted(declared_fields):
         a = st.mean(st.mean(r['w'][k][f] for k in common) for r in A)
         b = st.mean(st.mean(r['w'][k][f] for k in common) for r in B)
-        if abs(a - b) > 0.1:
-            print(f"declared: {declared}\n  {f}: on {a:.2f}, off {b:.2f}, {a-b:+.2f}")
+        print(f"  {f}: on {a:.2f}, off {b:.2f}, {a-b:+.2f}"
+              + ("" if abs(a - b) > 0.1 else "  - declared but did not move"))
 
 sa = [r['w'][k]['sec_att'] for r in A for k in common]
 oa = [r['w'][k]['sec_open'] for r in A for k in common]

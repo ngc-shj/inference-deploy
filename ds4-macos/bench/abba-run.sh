@@ -18,6 +18,17 @@ if [ -x "$S/thermal" ] && [ "${SKIP_THERMAL:-0}" = 0 ]; then
     echo "waiting for the machine to settle:"
     "$S/thermal" --until "${SETTLE:-0.97}" | sed 's/^/  /'
 fi
+# One arm before the first block, thrown away. Every arm waits 20 s for the one
+# before it; the first waits however long the machine has been idle, and that
+# run is faster than any other - 52.48 ms a token against 59.9-67.3 for the
+# other nineteen, in the campaign where it happened - so whichever arm goes
+# first collects a bias the alternation cannot cancel.
+if [ "${SKIP_WARMUP:-0}" = 0 ]; then
+    echo "warm-up arm (discarded):"
+    WARM="warmup-$$"
+    "$S/abba.sh" "$WARM" $OFF_ENV | sed 's/^/  /'
+    rm -f "$S/ab-$WARM.log" "$S/ab-$WARM.vm" "$S/ab-$WARM.sha" "$S/ab-$WARM.gap"
+fi
 for i in $(seq 1 "$R"); do
   if [ $((i % 2)) -eq 1 ]; then order="on off off on"; else order="off on on off"; fi
   for arm in $order; do
