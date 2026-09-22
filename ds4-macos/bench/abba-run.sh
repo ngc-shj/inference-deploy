@@ -12,6 +12,12 @@ ON_ENV=${ON_ENV:-DS4_METAL_V41_FFN_OVERLAP=1}
 OFF_ENV=${OFF_ENV:-DS4_METAL_V41_FFN_OVERLAP=2}
 echo "on:  $ON_ENV"
 echo "off: $OFF_ENV"
+# Start when the machine has settled, not when a clock says it should have.
+# thermal.m runs a fixed compute-bound kernel; its rate is what the heat moves.
+if [ -x "$S/thermal" ] && [ "${SKIP_THERMAL:-0}" = 0 ]; then
+    echo "waiting for the machine to settle:"
+    "$S/thermal" --until "${SETTLE:-0.97}" | sed 's/^/  /'
+fi
 for i in $(seq 1 "$R"); do
   if [ $((i % 2)) -eq 1 ]; then order="on off off on"; else order="off on on off"; fi
   for arm in $order; do

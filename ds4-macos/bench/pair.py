@@ -140,22 +140,41 @@ if len(sets) != 1:
              f"window by window.")
 common = sorted(next(iter(sets)))
 
-EXACT = ('cbs', 'aborts', 'ids', 'gated', 'plain', 'misses', 'evict')
-NEAR = ('behind', 'mib')
+# Counts that reproduce exactly run to run, and must: a difference in any of
+# them is a difference in the work.
+EXACT = ('cbs', 'aborts', 'ids', 'misses', 'evict', 'mib')
+# Per-token averages printed to one decimal. Two runs of the SAME arm differ by
+# one unit in the last digit here - measured, not assumed: over seven runs the
+# within-arm spread reaches 0.100 while the arm means agree to 0.002. So the
+# per-window tolerance is that digit, and a systematic shift is caught by the
+# arm means instead, at a bound twenty times tighter than any real change has
+# ever been (the lane pair moved this by 45 a token).
+NEAR = ('gated', 'plain', 'behind')
+# The epsilon is not slack: 1559.2 - 1559.1 is 0.10000000000002 in binary, and
+# a bare > comparison rejects exactly the one-digit jitter the tolerance exists
+# to allow.
+WINDOW_TOL, MEAN_TOL, EPS = 0.1, 0.05, 1e-6
 bad, spread = [], {f: 0.0 for f in NEAR}
 for k in common:
-    if any(len({round(r['w'][k][f], 2) for r in A + B}) != 1 for f in EXACT):
+    if any(len({round(r['w'][k][f], 3) for r in A + B}) != 1 for f in EXACT):
         bad.append(k)
         continue
     for f in NEAR:
         xs = [r['w'][k][f] for r in A + B]
         spread[f] = max(spread[f], max(xs) - min(xs))
-        if max(xs) - min(xs) > 0.1 and not declared:
+        if max(xs) - min(xs) > WINDOW_TOL + EPS and not declared:
             bad.append(k)
             break
+for f in NEAR:
+    ma = st.mean(st.mean(r['w'][k][f] for k in common) for r in A)
+    mb = st.mean(st.mean(r['w'][k][f] for k in common) for r in B)
+    if abs(ma - mb) > MEAN_TOL + EPS and not declared:
+        sys.exit(f"REFUSING: {f} differs systematically between the arms - "
+                 f"on {ma:.3f}, off {mb:.3f}, {ma-mb:+.3f} a token. Within-run "
+                 f"jitter is one unit in the last printed digit; this is not that.")
 print(f"{len(common)} windows in every run; windows where the arms did not do "
       f"identical work: {len(bad)}" + ("" if bad else "  - the comparison is paired")
-      + "; largest spread " + ", ".join(f"{f} {spread[f]:.2f}" for f in NEAR))
+      + "; largest within-window spread " + ", ".join(f"{f} {spread[f]:.2f}" for f in NEAR))
 if bad and not declared:
     sys.exit("\nREFUSING to print a wall comparison. The arms are not doing the same "
              "work, so a difference between them is not the change - it is the change "

@@ -64,6 +64,12 @@ def behind_differs():
         run(f"c{b}", "off", b, 51.0, behind=150.0)
         run(f"d{b}", "off", b, 51.2, behind=150.0)
 
+def gated_shift():
+    good()
+    for b in (1, 2):
+        run(f"c{b}", "off", b, 51.0, gated=1500.4)
+        run(f"d{b}", "off", b, 51.2, gated=1500.4)
+
 res = [
     check("a clean pair is compared", False, good),
     check("a different command-buffer count is refused", True,
@@ -77,6 +83,7 @@ res = [
     check("an on arm that fell back to serial is refused", True, fell_back),
     check("an off arm that opened sections is refused", True, off_sections),
     check("an undeclared behind-abort difference is refused", True, behind_differs),
+    check("a systematic gated-dispatch shift is refused", True, gated_shift),
     check("the same difference, declared, is compared", False, behind_differs,
           extra=('--declare=the shared expert moved behind the validate',)),
 ]
