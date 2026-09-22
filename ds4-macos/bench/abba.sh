@@ -5,6 +5,22 @@ set -u
 S=$(cd "$(dirname "$0")" && pwd)
 MODEL=$HOME/ghq/github.com/antirez/ds4/gguf/DeepSeek-V4.1-Flash-Q2.gguf
 NAME=$1; shift
+# An argument with a space in it is one variable whose value swallowed the
+# rest: zsh does not word-split an unquoted $VAR, so `run $ENVS` arrives as a
+# single VAR=value with the other assignments inside it. The server then runs
+# with most of the configuration missing and reports something that looks like
+# a regression. Refuse it.
+for a in "$@"; do
+    case "$a" in
+        *[!A-Za-z0-9_]*=*) ;;
+    esac
+    case "$a" in
+        *" "*) echo "environment argument contains a space: $a" >&2
+               echo "pass each VAR=VALUE as its own word" >&2; exit 2 ;;
+        *=*) ;;
+        *) echo "not a VAR=VALUE assignment: $a" >&2; exit 2 ;;
+    esac
+done
 PORT=8015
 LOG=$S/ab-$NAME.log
 cd "$HOME/ghq/github.com/antirez/ds4-v41" || exit 1

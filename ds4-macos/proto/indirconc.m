@@ -159,6 +159,103 @@ int main(int argc, const char **argv) {
                 fprintf(stderr, "ok%s\n", cb.error ? " (with a command buffer error)" : "");
             }
         }
+        /* Threadgroup width. Every dispatch that crashed in the engine was
+         * one with a 1-D threadgroup of 256 threads - the SwiGLU and the adds
+         * - while the ones that did not were matvecs at 32x4. The cases above
+         * all used 32x1, so this sweeps the width. */
+        if (only < 0) {
+            const MTLSize tpts[] = {
+                MTLSizeMake(32, 1, 1), MTLSizeMake(32, 4, 1), MTLSizeMake(32, 8, 1),
+                MTLSizeMake(128, 1, 1), MTLSizeMake(256, 1, 1), MTLSizeMake(1024, 1, 1),
+            };
+            for (uint32_t ti = 0; ti < 6; ti++) {
+                if (tpts[ti].width * tpts[ti].height > pso.maxTotalThreadsPerThreadgroup) {
+                    fprintf(stderr, "width %4lux%lu: over the pipeline limit, skipped\n",
+                            (unsigned long)tpts[ti].width, (unsigned long)tpts[ti].height);
+                    continue;
+                }
+                fprintf(stderr, "width %4lux%lu in a concurrent encoder, indirect ",
+                        (unsigned long)tpts[ti].width, (unsigned long)tpts[ti].height);
+                fflush(stderr);
+                @autoreleasepool {
+                    id<MTLCommandBuffer> cb = [q commandBuffer];
+                    id<MTLComputeCommandEncoder> ee =
+                        [cb computeCommandEncoderWithDispatchType:MTLDispatchTypeConcurrent];
+                    for (uint32_t i = 0; i < 4; i++) {
+                        [ee setComputePipelineState:pso];
+                        [ee setBuffer:out offset:0 atIndex:0];
+                        [ee setBytes:&i length:4 atIndex:1];
+                        [ee dispatchThreadgroupsWithIndirectBuffer:grid
+                                              indirectBufferOffset:i * 3u * 4u
+                                             threadsPerThreadgroup:tpts[ti]];
+                    }
+                    [ee endEncoding];
+                    /* and one after it, which is where the engine died */
+                    id<MTLComputeCommandEncoder> es = [cb computeCommandEncoder];
+                    [es setComputePipelineState:pso];
+                    [es setBuffer:out offset:0 atIndex:0];
+                    uint32_t slot = 0;
+                    [es setBytes:&slot length:4 atIndex:1];
+                    [es dispatchThreadgroupsWithIndirectBuffer:grid
+                                          indirectBufferOffset:0
+                                         threadsPerThreadgroup:tpts[ti]];
+                    [es endEncoding];
+                    [cb commit];
+                    [cb waitUntilCompleted];
+                    fprintf(stderr, "ok%s\n", cb.error ? " (command buffer error)" : "");
+                }
+            }
+        }
+
+        /* Scale. The seven cases above put four indirect dispatches in one
+         * encoder; a decode command buffer holds on the order of ninety, and
+         * the engine opens a concurrent section several times a layer. If the
+         * driver reserves per-encoder state for the indirect threadgroup
+         * optimisation out of a pool, the fault is a limit rather than a
+         * combination, and it will appear as the counts rise. */
+        if (only < 0) {
+            const uint32_t enc_counts[] = { 1, 8, 64, 256 };
+            const uint32_t per_enc[] = { 8, 64, 512 };
+            for (uint32_t ei = 0; ei < 4; ei++)
+                for (uint32_t pi = 0; pi < 3; pi++) {
+                    const uint32_t ne = enc_counts[ei], np = per_enc[pi];
+                    fprintf(stderr, "scale: %4u concurrent encoders x %4u indirect "
+                                    "dispatches ", ne, np);
+                    fflush(stderr);
+                    @autoreleasepool {
+                        id<MTLCommandBuffer> cb = [q commandBuffer];
+                        for (uint32_t e2 = 0; e2 < ne; e2++) {
+                            id<MTLComputeCommandEncoder> ee =
+                                [cb computeCommandEncoderWithDispatchType:MTLDispatchTypeConcurrent];
+                            for (uint32_t i = 0; i < np; i++) {
+                                [ee setComputePipelineState:pso];
+                                [ee setBuffer:out offset:0 atIndex:0];
+                                uint32_t slot = i & 63u;
+                                [ee setBytes:&slot length:4 atIndex:1];
+                                [ee dispatchThreadgroupsWithIndirectBuffer:grid
+                                                      indirectBufferOffset:(i & 63u) * 3u * 4u
+                                                     threadsPerThreadgroup:MTLSizeMake(32, 1, 1)];
+                            }
+                            [ee endEncoding];
+                            /* And a serial encoder between them, as the engine
+                             * has: the section closes and ordinary work
+                             * resumes. */
+                            id<MTLComputeCommandEncoder> es = [cb computeCommandEncoder];
+                            [es setComputePipelineState:pso];
+                            [es setBuffer:out offset:0 atIndex:0];
+                            uint32_t slot = 0;
+                            [es setBytes:&slot length:4 atIndex:1];
+                            [es dispatchThreadgroupsWithIndirectBuffer:grid
+                                                  indirectBufferOffset:0
+                                                 threadsPerThreadgroup:MTLSizeMake(32, 1, 1)];
+                            [es endEncoding];
+                        }
+                        [cb commit];
+                        [cb waitUntilCompleted];
+                        fprintf(stderr, "ok%s\n", cb.error ? " (command buffer error)" : "");
+                    }
+                }
+        }
     }
     return 0;
 }
