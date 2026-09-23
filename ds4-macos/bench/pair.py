@@ -127,6 +127,12 @@ def host_cpu(run):
         v = [float(x) for x in open(run['path'].replace('.log', '.cpu'))]
     except Exception:
         return None
+    # One number is the arm's external CPU-seconds, computed from the kernel's
+    # tick counters. Two is the older form, a difference of process-time sums,
+    # which could not see a process that began and ended inside the arm - the
+    # campaigns recorded that way are void for other reasons anyway.
+    if len(v) == 1:
+        return v[0]
     return v[1] - v[0] if len(v) >= 2 else None
 
 cpu = {id(r): host_cpu(r) for r in A + B}

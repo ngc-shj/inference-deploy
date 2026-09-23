@@ -44,8 +44,9 @@ def run(name, arm, block, wall, *, nwin=20, cbs=17.0, att=None, op=None,
                              wall=wall, gated=gated, behind=behind, att=att, op=op))
     open(p.replace('.log', '.sha'), 'w').write(f"{sha} 1400\n")
     open(p.replace('.log', '.gap'), 'w').write("60\n")
-    # CPU-seconds everything but the server took while the arm ran.
-    open(p.replace('.log', '.cpu'), 'w').write(f"1000\n{1000 + cpu}\n")
+    # CPU-seconds everything but the server took while the arm ran, in the
+    # form abba.sh writes: one number, from the kernel's tick counters.
+    open(p.replace('.log', '.cpu'), 'w').write(f"{cpu}\n")
 
 def check(label, expect_refuse, setup, extra=()):
     # Only ever inside the directory this run created.

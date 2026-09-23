@@ -12,3 +12,5 @@ attempts/
 when-quiet.log
 campaign-*/
 old-campaign/
+cputicks
+load.log

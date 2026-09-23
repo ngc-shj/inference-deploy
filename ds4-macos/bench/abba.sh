@@ -61,16 +61,22 @@ vm_stat | head -4 > "$S/ab-$NAME.vm"
 # and repair-load 14.1 instead of 10.2. Pairing did not cancel it because the
 # contention varied between arms.
 #
-# Total CPU-seconds of every process except the server, sampled either side.
+# Measured from the kernel's per-core tick counters rather than by summing
+# live processes' CPU time: the latter cannot see a process that starts and
+# ends inside the window, which is what a scanner's helpers are. The server's
+# own share is taken off by name, and for that a process sum is sound - it is
+# one long-lived process, alive at both ends by construction.
+#
 # pair.py refuses a campaign whose arms did not get the same machine.
-host_cpu() {
-    ps -Ao comm=,time= | awk '$1 !~ /ds4-server/ {
-        n = split($2, t, ":")
-        s = (n == 3 ? t[1]*3600 + t[2]*60 + t[3] : t[1]*60 + t[2])
-        total += s
-    } END { printf "%.0f\n", total }'
+cpu_mark() { "$S/cputicks"; date +%s; }
+server_cpu() {
+    [ -n "${pid:-}" ] || { echo 0; return; }
+    ps -o time= -p "$pid" 2>/dev/null | awk '{
+        n = split($1, t, ":")
+        printf "%.0f", (n == 3 ? t[1]*3600 + t[2]*60 + t[3] : t[1]*60 + t[2])
+    }' || echo 0
 }
-host_cpu > "$S/ab-$NAME.cpu"
+cpu_before=$(cpu_mark)
 env DS4_METAL_V41_DECODE_QUEUE=1 DS4_METAL_IQ2_SELECTED_SHARED_EVENT=1 \
     DS4_METAL_STREAM_SPLIT_MIN_MISSING=1 DS4_METAL_ZERO_COPY_EXPERTS=1 \
     DS4_METAL_V41_ABORT_GATE=40 DS4_METAL_V41_ABORT_GATE_SEG=3 \
@@ -111,7 +117,22 @@ open(f"{S}/ab-{NAME}.sha", "w").write(f"{h} {n}\n")
 print(f"  [{NAME}] {n} chunks in {time.time()-t0:.1f}s  {h[:16]}")
 PY
 vm_stat | head -4 >> "$S/ab-$NAME.vm"
-host_cpu >> "$S/ab-$NAME.cpu"
+# CPU-seconds everything except the server took over this arm.
+{
+    echo "$cpu_before"
+    cpu_mark
+    server_cpu
+} | awk 'NR==1{u=$1;s=$2;i=$3;n=$4;c=$5} NR==2{t0=$1}
+         NR==3{du=$1-u;ds=$2-s;di=$3-i;dn=$4-n} NR==4{t1=$1} NR==5{srv=$1}
+         END {
+             tot = du + ds + di + dn
+             wall = t1 - t0
+             busy = 0
+             if (tot > 0) busy = (du + ds + dn) / tot * c
+             v = (busy * wall) - srv
+             if (v < 0) v = 0
+             printf "%.0f\n", v
+         }' > "$S/ab-$NAME.cpu"
 kill "$pid" 2>/dev/null
 wait_for_no_server
 date +%s > "$S/.last-arm-end"
