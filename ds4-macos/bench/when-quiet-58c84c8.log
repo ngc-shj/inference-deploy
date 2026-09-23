@@ -1,0 +1,21 @@
+09-23 17:35:01 frozen binary: /Users/noguchi/ghq/github.com/antirez/ds4-v41-compact at 58c84c8
+09-23 17:35:01 start condition: cutoff 1.39  range 0.17  windows 4  
+09-23 17:35:01 on:  DS4_METAL_V41_FFN_OVERLAP=1 DS4_METAL_V41_ORACLE=/Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench/attempts/route-ab.bin DS4_METAL_V41_ORACLE_MODE=1
+09-23 17:35:01 off: DS4_METAL_V41_FFN_OVERLAP=1
+last 4 windows: max 2.116, range 0.380 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 2.116, range 0.658 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 2.274, range 0.816 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 2.274, range 0.569 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 2.001, range 0.574 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 1.817, range 0.390 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 1.817, range 0.162 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 1.984, range 0.294 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 1.984, range 0.772 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 1.561, range 0.349 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 1.789, range 0.419 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 1.962, range 0.523 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 1.962, range 0.407 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 1.781, range 0.226 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 1.781, range 0.530 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 1.517, range 0.426 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 1.540, range 0.449 (need <= 1.39 and <= 0.17) - wait

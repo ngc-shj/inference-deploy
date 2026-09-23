@@ -19,3 +19,21 @@ swing 0.09
 cutoff 1.39
 range 0.17
 windows 4
+
+# The decision rule, fixed before the campaign that answers it.
+#
+# Subject: perf/v41-tri-parallel 88d1b5e, ORACLE_MODE=1 against the same
+# binary with no oracle, both with the FFN overlap on. 58c84c8 is kept frozen
+# but no longer measured: it is a causal decomposition, not a candidate.
+#
+#   raw wall improves by 1 ms/token or more, and the blocks agree
+#       -> build the real predictor
+#   raw wall improves by 0 to 1 ms
+#       -> close it. That is the ceiling with a perfect predictor, and nothing
+#          of it survives a real one at 65.8% per-expert recall
+#   raw wall is worse
+#       -> close this speculation structure for single-stream decode
+#
+# Winning is not a performance result. It establishes that the implementation
+# reaches its ceiling. The result is a real predictor - lead-1 or otherwise -
+# beating the baseline with its own cost included.
