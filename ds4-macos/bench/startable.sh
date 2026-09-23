@@ -30,6 +30,32 @@ fi
 
 have=$(wc -l < "$LOG")
 if [ "$have" -lt "$n" ]; then echo "only $have windows, need $n"; exit 1; fi
+
+# The last n lines are not the last n windows unless the logger ran without a
+# break. After a gap they are two sessions stitched together, and the condition
+# then describes neither: a quiet machine six hours ago can hold the maximum
+# up, and - the way that matters - a quiet machine six hours ago can also let a
+# busy one through. Only the final run of contiguous windows counts, where
+# contiguous means each within two periods of the one before it.
+#
+# The thresholds are untouched by this. What changes is which windows they are
+# applied to, and after a gap the answer is "not enough of them yet" rather
+# than a number made of two different machines.
+# BSD awk has no mktime, and a handful of date calls a check is nothing
+# beside the forty minutes this is guarding.
+contig=0
+prev=0
+while read -r d t _; do
+    now=$(date -j -f '%Y-%m-%d %H:%M:%S' "$d $t" +%s 2>/dev/null || echo 0)
+    [ "$now" -eq 0 ] && continue
+    if [ "$prev" -ne 0 ] && [ $((now - prev)) -gt $((2 * WINDOW)) ]; then contig=0; fi
+    prev=$now
+    contig=$((contig + 1))
+done < <(tail -"$((n * 4))" "$LOG")
+if [ "$contig" -lt "$n" ]; then
+    echo "only $contig contiguous windows since the last gap, need $n"
+    exit 1
+fi
 read -r mx mn <<<"$(tail -"$n" "$LOG" | awk '{v=$3; if (NR==1 || v>hi) hi=v; if (NR==1 || v<lo) lo=v} END {print hi, lo}')"
 spread=$(echo "$mx $mn" | awk '{printf "%.3f", $1 - $2}')
 verdict=$(echo "$mx $spread $cutoff $range" | awk '{print ($1 <= $3 && $2 <= $4) ? "start" : "wait"}')
