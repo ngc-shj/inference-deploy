@@ -8,3 +8,7 @@ co-*
 .last-arm-end
 old-campaign/
 campaign-vs-baseline/
+attempts/
+when-quiet.log
+campaign-*/
+old-campaign/
