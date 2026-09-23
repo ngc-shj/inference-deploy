@@ -42,7 +42,11 @@ for try in $(seq 1 "$MAX_TRIES"); do
     # waiting on a dead logger is the silent failure this harness keeps making
     # - so it stops instead.
     while true; do
-        set +e; "$S/startable.sh" >> "$LOG" 2>&1; rc=$?; set -e
+        # Capture the code without touching errexit. Turning it on here -
+        # in a script that never had it - meant the first refusal from pair.py
+        # killed the runner instead of archiving the attempt and trying again,
+        # after a campaign had already spent forty minutes. Nothing said so.
+        rc=0; "$S/startable.sh" >> "$LOG" 2>&1 || rc=$?
         [ "$rc" -eq 0 ] && break
         if [ "$rc" -ge 2 ]; then
             say "the load log is not usable; stopping rather than waiting on it"
@@ -55,7 +59,7 @@ for try in $(seq 1 "$MAX_TRIES"); do
     for f in "$S"/ab-o*; do [ -e "$f" ] && rm -f "$f"; done
     DS4_BIN="$BIN" ON_ENV="$ON" OFF_ENV="$OFF" \
         bash "$S/abba-run.sh" "$BLOCKS" >> "$LOG" 2>&1
-    out=$(cd "$S" && "${ANALYSE[@]}" 2>&1)
+    out=$(cd "$S" && "${ANALYSE[@]}" 2>&1) || true
     keep="$S/attempts/try$try-$(date +%m%d-%H%M)"
     mkdir -p "$keep"
     for f in "$S"/ab-o*; do [ -e "$f" ] && mv "$f" "$keep/"; done

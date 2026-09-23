@@ -222,7 +222,10 @@ Belady 3.12**、シミュレータは実機を 4.91 対実測 4.94 で当てて�
 
 | 対象 | 判定 |
 |---|---|
-| per-expert 投機再利用（層ごと dispatch・射影と overlap） | **この形は閉** 仕事量を揃えてなお +0.98 ms/token [+0.25, +1.70]。精度では解決しない。**別の形は未測定** |
+| per-expert 投機再利用 | **閉**。compact 化（launch も削減）と shared 三者並列化まで実装しても速くならず。完全 oracle・240 lane・バイト一致で、3 block とも遅い側。精度では解決しない |
+| 層内の投機的 expert 並列化そのもの | **閉**。隠れる相手が router 射影1本しかなく、shared を並べても足りない |
+| continuous batching | **対象外**（単一ストリーム改善が目標）。なお既に実装済みで、grouped MoE も `DS4_METAL_V41_BATCH_STREAM_EXPERTS` にあり未検証 |
+| grouped GEMM による weight 再利用 | **実測済み・見送り**。幅4で gate/up の 81.7%、限界行の約6%。24.6/48 のうち 14.58 が単一行 expert |
 | Engram の非同期化 | **閉** 0.82 ms/token しかない |
 | 狭い射影5本の統合 | **閉**（5日目）前提が計器の誤り |
 | encoder 境界が高いという見立て | **撤回**（5日目）測定限界以下 |
