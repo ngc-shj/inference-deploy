@@ -22,7 +22,9 @@ for a in "$@"; do
 done
 PORT=8014
 LOG=$S/co-$NAME.log
-cd "$HOME/ghq/github.com/antirez/ds4-v41" || exit 1
+# DS4_BIN lets a worktree be measured without disturbing the main one.
+# Both arms must use the same one - that is the point of a paired run.
+cd "${DS4_BIN:-$HOME/ghq/github.com/antirez/ds4-v41}" || exit 1
 # A killed server holds ds4's lock while it unmaps 340 GiB; starting the next
 # arm without waiting either fails outright or runs beside it.
 wait_for_no_server() {

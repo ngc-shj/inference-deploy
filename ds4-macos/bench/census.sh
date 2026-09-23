@@ -7,7 +7,9 @@ MODEL=$HOME/ghq/github.com/antirez/ds4/gguf/DeepSeek-V4.1-Flash-Q2.gguf
 NAME=$1; shift
 PORT=8015
 LOG=$S/cs-$NAME.log
-cd "$HOME/ghq/github.com/antirez/ds4-v41" || exit 1
+# DS4_BIN lets a worktree be measured without disturbing the main one.
+# Both arms must use the same one - that is the point of a paired run.
+cd "${DS4_BIN:-$HOME/ghq/github.com/antirez/ds4-v41}" || exit 1
 wait_for_no_server() {
     local n=0
     # -x matches the process name, not the command line. Both earlier forms

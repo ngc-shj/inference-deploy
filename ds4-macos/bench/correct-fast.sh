@@ -27,7 +27,9 @@ for a in "$@"; do
 done
 PORT=8014
 LOG=$S/cf-$NAME.log
-cd "$HOME/ghq/github.com/antirez/ds4-v41" || exit 1
+# DS4_BIN lets a worktree be checked without disturbing the main one, which
+# is where a campaign's binary lives.
+cd "${DS4_BIN:-$HOME/ghq/github.com/antirez/ds4-v41}" || exit 1
 wait_for_no_server() {
     local n=0
     # -x matches the process name, not the command line. Both earlier forms
