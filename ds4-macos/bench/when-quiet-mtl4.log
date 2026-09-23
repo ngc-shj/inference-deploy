@@ -1,0 +1,36 @@
+09-24 03:14:41 frozen binary: /Users/noguchi/ghq/github.com/antirez/ds4-v41-mtl4dag at 33163b4
+09-24 03:14:41 start condition: cutoff 1.39  range 0.17  windows 4  
+09-24 03:14:41 on:  DS4_METAL_V41_FFN_OVERLAP=1 DS4_METAL_V41_GATE_ENCODE_AHEAD=1 DS4_METAL_V41_MTL4=1
+09-24 03:14:41 off: DS4_METAL_V41_FFN_OVERLAP=1 DS4_METAL_V41_GATE_ENCODE_AHEAD=1
+last 4 windows: max 1.859, range 0.250 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 1.841, range 0.406 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 1.745, range 0.736 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 1.210, range 0.429 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 2.119, range 1.338 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 2.119, range 1.373 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 0.968, range 0.222 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 1.808, range 1.058 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 1.808, range 1.075 (need <= 1.39 and <= 0.17) - wait
+last 4 windows: max 0.838, range 0.105 (need <= 1.39 and <= 0.17) - start
+09-24 03:59:42 attempt 1: machine is quiet, starting a 3-block campaign
+on:  DS4_METAL_V41_FFN_OVERLAP=1 DS4_METAL_V41_GATE_ENCODE_AHEAD=1 DS4_METAL_V41_MTL4=1
+off: DS4_METAL_V41_FFN_OVERLAP=1 DS4_METAL_V41_GATE_ENCODE_AHEAD=1
+waiting for the machine to settle:
+  settled reference 1215.7 GFLOP/s, waiting for 97% of it
+  1213.0 GFLOP/s (0.553 ms)  - settled
+warm-up arm (discarded):
+    [warmup-76133] 1400 chunks in 78.7s  5dd35c0f891b9b63
+  [on1-29534] 1400 chunks in 77.1s  5dd35c0f891b9b63
+  [off1-25917] 1400 chunks in 88.0s  5dd35c0f891b9b63
+  [off1-23743] 1400 chunks in 92.5s  5dd35c0f891b9b63
+  [on1-26807] 1400 chunks in 97.8s  5dd35c0f891b9b63
+  [off2-26073] 1400 chunks in 96.9s  5dd35c0f891b9b63
+  [on2-6279] 1400 chunks in 100.3s  5dd35c0f891b9b63
+  [on2-29736] 1400 chunks in 101.1s  5dd35c0f891b9b63
+  [off2-10603] 1400 chunks in 100.3s  5dd35c0f891b9b63
+  [on3-10210] 1400 chunks in 104.0s  5dd35c0f891b9b63
+  [off3-20158] 1400 chunks in 100.2s  5dd35c0f891b9b63
+  [off3-3081] 1400 chunks in 98.9s  5dd35c0f891b9b63
+  [on3-7689] 1400 chunks in 100.7s  5dd35c0f891b9b63
+09-24 04:31:40 attempt 1 passed every check; the result is in /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench/attempts/mtl4-try1-0924-0431/pair.txt
+runs with windows: 0 on, 6 off (every run kept, none discarded)

@@ -56,7 +56,17 @@ def load(pat, arm):
             m = HEAD.search(line)
             if not m:
                 continue
-            tail = '\n'.join(lines[i + 1:i + 8])
+            # Everything up to the next window, rather than a fixed seven
+            # lines. A diagnostic line added to the report - the Metal 4 arm
+            # prints one - pushed the cache line off the end of the fixed
+            # window, so every window of that arm failed to parse and the
+            # campaign came out "0 on, 6 off" and called itself a pass.
+            # Stopping at the next header is what keeps this from reaching
+            # forward and borrowing a line from the window after it.
+            end = i + 1
+            while end < len(lines) and end < i + 24 and not HEAD.search(lines[end]):
+                end += 1
+            tail = '\n'.join(lines[i + 1:end])
             mw, mg, md = WALL.search(tail), GPU.search(tail), DISP.search(tail)
             mc, ms = CACHE.search(tail), SECT.search(tail)
             if not (mw and mg and md and mc):
@@ -115,8 +125,11 @@ if declared and not declared_fields:
 
 A, B = load(args[0], 'on'), load(args[1], 'off')
 print(f"runs with windows: {len(A)} on, {len(B)} off (every run kept, none discarded)")
+# An arm with no parsed windows is not a result, and saying so quietly is how
+# a campaign with no data on one side reported that it had passed every check.
 if not A or not B:
-    sys.exit(1)
+    sys.exit(f"REFUSING: {'on' if not A else 'off'} has no runs with windows - "
+             f"either it produced none or the report could not be parsed")
 # CPU-seconds everything other than the server took while an arm ran. A
 # campaign lost to a background scanner looked exactly like a real regression -
 # same bytes, same routes, 70 ms a token instead of 55 - and the thermal gate
