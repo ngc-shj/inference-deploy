@@ -24,14 +24,24 @@
 #
 # Two syscalls a window, so the logger is not part of what it measures.
 # Whoever is using the machine is: run it with nothing else going on.
-set -u
+set -euo pipefail
 S=$(cd "$(dirname "$0")" && pwd)
 W=${1:-150}
 [ -x "$S/cputicks" ] || { echo "build it first: cc -O2 -o cputicks cputicks.c" >&2; exit 1; }
 
-a=$("$S/cputicks")
+# Five numbers or nothing. A reader that quietly returns something else would
+# make every window after it wrong, and the log would go on looking healthy.
+ticks() {
+    local t
+    t=$("$S/cputicks")
+    echo "$t" | awk 'NF != 5 { exit 1 } { for (i = 1; i <= 5; i++) if ($i !~ /^[0-9]+$/) exit 1 }' \
+        || { echo "cputicks returned '$t'" >&2; exit 1; }
+    echo "$t"
+}
+
+a=$(ticks)
 while sleep "$W"; do
-    b=$("$S/cputicks")
+    b=$(ticks)
     # No ternary inside printf's argument list: awk reads the `>` as a
     # redirection and the whole expression is a syntax error, which with
     # stderr discarded is a logger that writes nothing and says nothing.

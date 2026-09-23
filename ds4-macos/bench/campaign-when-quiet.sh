@@ -30,15 +30,26 @@ ANALYSE=(python3 "$S/pair.py" 'ab-on*.log' 'ab-off*.log' --expect-sections=both
 say() { echo "$(date '+%m-%d %H:%M:%S') $*" | tee -a "$LOG"; }
 
 say "frozen binary: $BIN at $(cd "$BIN" && git rev-parse --short HEAD)"
+say "start condition: $(awk '$1=="cutoff"||$1=="range"||$1=="windows"{printf "%s %s  ", $1, $2}' "$S/start-condition.txt")"
 say "on:  $ON"
 say "off: $OFF"
 
 for try in $(seq 1 "$MAX_TRIES"); do
-    # Quiet first, and checked before anything maps 340 GiB: an arm that
-    # starts on a busy machine has already cost forty minutes by the time the
-    # analyser says so.
-    until "$S/quiet.sh" "${QUIET_CORES:-0.35}" "${QUIET_WINDOW:-30}" >> "$LOG" 2>&1; do
-        sleep "${QUIET_RETRY:-600}"
+    # Checked before anything maps 340 GiB: an arm that starts on a busy
+    # machine has already cost forty minutes by the time the analyser says so.
+    # The condition is the frozen one in start-condition.txt, read against the
+    # last windows of load.log. Exit 2 means the log is not being written, and
+    # waiting on a dead logger is the silent failure this harness keeps making
+    # - so it stops instead.
+    while true; do
+        set +e; "$S/startable.sh" >> "$LOG" 2>&1; rc=$?; set -e
+        [ "$rc" -eq 0 ] && break
+        if [ "$rc" -ge 2 ]; then
+            say "the load log is not usable; stopping rather than waiting on it"
+            tail -1 "$LOG"
+            exit 2
+        fi
+        sleep "${QUIET_RETRY:-300}"
     done
     say "attempt $try: machine is quiet, starting a $BLOCKS-block campaign"
     for f in "$S"/ab-o*; do [ -e "$f" ] && rm -f "$f"; done
