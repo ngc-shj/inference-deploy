@@ -13,17 +13,19 @@
 | 「per-row attention の 25% は overhead ではなく実仕事」 | **成立しない。** raw-only operator の時間は鍵数にほぼ依存せず、支配しているのは split-K の partial buffer（§3） |
 | 「効くのは host 往復と実走査量。GPU dispatch 数と overlap は効かない」 | **広すぎた。** dispatch は約 5 µs/本で、8→1 は実在の 0.04 ms。走査共有も実在。どちらも split-K より小さい（§2, §3） |
 | gathered 経路の「8 groups は次の FFN を 50 µs 遅くした、原因不明」 | **その腕は遅かったのではなく間違っていた。** reduce が NWG 未満の lane で隣の行の統計を読んでいた（§3） |
+| 「per-row attention が本当の壁」（v41-10 §0b） | **attention core は step の 5.8% しかない。** 壁は per-row loop の残り（output projection・bf16・rope・gather）にある（§6） |
 
 ## 作業場所
 
 - 主worktree: `~/ghq/github.com/antirez/ds4-v41-mtl4dag`、branch `perf/v41-mtl4-dag`
-- HEAD: `93ffa05`（clean、未 push）
+- HEAD: `2e2f415`（clean、未 push）
 - 記録・ハーネス: この repository、branch `docs/v41-tuning`
 
 | commit | 内容 |
 |---|---|
 | `bfac7d9` | raw-only 3形 operator、`ROWTILE_CHECK=7`、reduce の lane guard、`FIT_SPLITS` |
 | `93ffa05` | layer 0–1 を共有 staging へ結線、`BLOCK_ATTN_K` の呼び名を事実に合わせた |
+| `2e2f415` | `FIT_SPLITS` の step 価格（null）、attention core の天井（`ROWTILE_CHECK=8`） |
 
 ## 1. `BLOCK_ATTN_K` は KV を共有していない（コードから確定）
 
@@ -140,25 +142,48 @@ single は 34.72 ms（既定 36.16 と同条件の run）になる。
 | `DS4_METAL_V41_FIT_SPLITS=1` | split-K workgroup 数を実在 chunk 数に合わせる。raw / gathered 両経路 |
 | `DS4_METAL_V41_BLOCK_ATTN_RAW=1` | layer 0–1 を union 1回 staging の共有形へ。`FIT_SPLITS` と合成可 |
 | `DS4_V41_ROWTILE_CHECK=7` | 上記6アームの判別実験（2 regime、memcmp + 両順序） |
+| `DS4_V41_ROWTILE_CHECK=8` | attention core の天井（block shape × 40層 対 同一プロセスの step） |
 | `DS4_METAL_FLASH_NWG=<n>` | 既存。**今回まで NWG<32 で壊れていた。** 直ったので再び使える |
 
 検証: `BLOCK=1 EXACT_VOCAB_ROWS=1` に両 flag を足して
 `control 0 of 8,273,920` / `batch logits identical to the single pass`。
 layer 0–1 の engage 行 `8 raw-only rows over one staging of their union` を確認。
 
-## 6. まだ測れていないもの: step での価格
+## 6. step では null。そして理由は attention core が step の 6% しかないこと
 
-**これが次の1本。** operator 境界では −57% だが、step でいくらかは未確定である。
-ABBA を1本取ったが、**run の中で step が 196 → 311 ms までドリフトし、両順序が
-符号で食い違った**（unset-first −14.9%、set-first +12.1%）。機体が静穏でなかった。
+静穏機（`bench/abba-when-quiet.sh` 経由、control 0、expert cache 720 hits / 0
+misses、single 34.89 ms）で `FIT_SPLITS` の in-process ABBA を5 round:
 
-`bench/abba-when-quiet.sh` を足した——`startable.sh` の凍結条件が通るまで待ってから
-`selftest.sh` の in-process ABBA を始める。次のセッションはここから読むこと。
+| round | 順序 | unset | set | 差 |
+|---:|---|---:|---:|---:|
+| 0 | unset first | 177.52 | 169.60 | −4.5% |
+| 1 | set first | 174.66 | 181.70 | +4.0% |
+| 2 | unset first | 184.27 | 176.97 | −4.0% |
+| 3 | set first | 182.75 | 185.12 | +1.3% |
+| 4 | unset first | 194.70 | 183.28 | −5.9% |
 
-見積もりだけ置く（**判断に使わないこと**）: per-row decode は `nrows = 64`、
-`64 × 512 × 32 × 4 = 4.2 MB`/行/層、8行 × 40層で 1.34 GB を書いて読み戻す。
-fit で 8分の1 なら 2.3 GB ぶんの往復が消える。**ただしこれはバイト数であって
-時間ではない**——v41-10 が一度この換算で存在しない 38 ms を出している。
+**両順序で符号が食い違う = null。** 全 round で「後に走った腕が速い」だけである。
+
+「step が動かなかった」と「operator が step のうち動かせるほど無いのだった」は
+別の主張なので、後者を直接測った（`DS4_V41_ROWTILE_CHECK=8`）。block が実際に
+走らせる gathered shape で、8行の attention core を計る:
+
+| shape（8行） | ms/層 | 40層なら | 同一プロセスの step |
+|---|---:|---:|---:|
+| 120 keys (96 raw + 24 comp) | 0.262 | 10.47 | 181.07 |
+| 144 keys (96 raw + 48 comp) | 0.261 | 10.43 | 〃 |
+| 192 keys (96 raw + 96 comp) | 0.216 | 8.62 | 〃 |
+
+**attention core は step の 4.8〜5.8% である。** core を完全に無料にしても
+181 → 171 ms、上限 44.2 → 46.7 tok/s。しかも鍵数に対して単調ですらない
+（192鍵が120鍵より安い）——§3 の通り、走査ではなく split buffer と dispatch が
+支配しているからである。
+
+**これが `FIT_SPLITS` の null の説明であり、同時に §7・§8 の優先度を決める。**
+共有 scan も descriptor カーネルも query tile も、**すべてこの 10 ms の内側**に
+ある。core を触る最適化の天井は 5.8% で、v41-10 の「per-row attention 25.3%」の
+残り約 36 ms は core ではない——output projection（`attn_output_a`/`attn_output_b`）、
+bf16、rope、gather、および per-row loop の構造である。**そこが未計測のまま残る。**
 
 ## 7. compressed 層へ進めない理由（レイアウトではなくカーネルが要る）
 
@@ -199,20 +224,32 @@ BR 回使う**形になる。窓がずれる regime でも bit 一致は取れ�
 
 ## 9. 次にやること（この順）
 
-1. **`FIT_SPLITS` の step 価格を静穏機で取る**（`bench/abba-when-quiet.sh`）。
-   両順序で同符号なら既定 ON の候補。ここが決まるまで下は着手しない
-2. **`BLOCK_ATTN_RAW` の step 価格**を同じ形で。2/40 層なので小さいはずで、
-   小さいことの確認が目的
-3. compressed 選択集合の **overlap を実測**する。expert id の
-   `GATE_ROUTE_LOG` と同じ形で `selected_comp` を層ごと行ごとに落とし、
-   key ごとの multiplicity を出す。descriptor カーネルの賞金はここで決まる
-4. descriptor カーネル（§7）。union から load し、query ごとの canonical 順で
-   reduce する。**共有順で足さないこと**
-5. query tile（§8）
-6. v41-10 §「次にやること」の残り（expert-major、長文脈 memcmp、実 drafter）
+§6 が順序を変えた。**attention core の仕事は、上限が測れたので終わっている。**
+
+1. **per-row attention の残り 36 ms を割る。** `ROWTILE_CHECK=8` と同じ形で、
+   block shape の `attn_output_a`（grouped low、batch 版と行ごと版）、
+   `attn_output_b`、`ds41_bf16`、`ds41_rope`、`ds4_gpu_dsv41_gather_kv` を
+   同じ定規に載せ、40層に掛けて step と突き合わせる。**計器（`BATCH_STAGE_MS=2`）
+   は使わない**——v41-10 §0c の通り、測ろうとした量より大きく答えを変える。
+   ここで初めて 25.3% の中身が名前で分かる
+2. **bf16 と rope は行ごとに 1 dispatch ずつ出ている**（層あたり 16、step あたり
+   640）。§2 が dispatch を約 5 µs と価格付けたので、batch 化の見込みは約 3 ms。
+   1 の結果次第で、安い順に潰す
+3. moe（step の 43.7%、routed だけで約 30%）。v41-10 §1 と §「expert-major が
+   取り得る形」がそのまま生きている。**step を動かせる質量はここにしか無い**
+4. 実 drafter の平均前進数（v41-10 §5）。verifier が 80 ms に入らなくても、
+   width と accept 率の積が最終指標である
+
+**着手しないもの**——どれも §6 の 10 ms の内側にあるので、他が片付くまで賞金が無い:
+
+- compressed 側の descriptor カーネル（§7）
+- threadgroup query tile（§8）
+- `FIT_SPLITS` / `BLOCK_ATTN_RAW` の既定 ON 化。どちらも正しく、operator では
+  実在し、step では null。**既定を変える理由が無い**ので flag のまま残す
 
 ## やらないこと（追加）
 
 - **`BLOCK_ATTN_K` を性能 primitive として磨くこと。** oracle としてのみ残す
-- **operator 境界の −57% を step の −57% として引用すること。** §6 が未確定
+- **operator 境界の −57% を step の −57% として引用すること。** step では null
 - **`DS4_METAL_FLASH_NWG` の過去の測定を引用すること。** NWG<32 は壊れていた
+- **attention core を速くする設計をこれ以上増やすこと。** 天井が 5.8% と測れた
