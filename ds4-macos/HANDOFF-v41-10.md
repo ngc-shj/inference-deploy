@@ -15,6 +15,7 @@
 | （v41-10 初版）hoist は weight 再読を止めた | **誤り。** exact-rows は行ごとに weight を読み直す。確立したのは「1 dispatch が 8 dispatch より速い」までで、理由は未確定 |
 | （v41-10 初版）hoist は −11.2% | **過大。** A/B の順序バイアスだった。真の ABBA で約 −6% |
 | （v41-10 初版）次は `attn_output_a` の hoist と長文脈計測 | **違う。** 個々の matmul ではなく executor の抽象化を直す。§0b |
+| （v41-10 改訂）block attention は −21%、width 1.45 | **誤り。** 別プロセスの run 同士を引いていた。paired で約 −7%、width 約 1.37 |
 
 結果として、v41-9 の「やらないこと」に入っていた2項目が、測り直した数字で昇格した——
 **expert-major 化**と、**per-row attention の multi-row 化**である。どちらも
@@ -192,8 +193,11 @@ point は新カーネルではなく、既存 batch impl が `out == NULL` を�
 
 | | 結果 |
 |---|---:|
-| K=8 step | 255 → **202 ms** |
-| perfect-draft ceiling | 31.3 → **39.7 tok/s** |
+| span（同一プロセス paired ABBA、6 round） | **約 −7%**（unset-first −11.0%、set-first −3.8%、両順序 faster） |
+| width | 1.27 → 約 1.37 |
+
+**「255 → 202 ms、ceiling 39.7 tok/s」は誤りだった**——別プロセスの run 同士を引いた
+数字である。paired で取り直すと −7%。
 
 **正しさは通っていない。** そして原因は特定済みである:
 
@@ -265,16 +269,32 @@ head のときと同じで（`6c25a41`）、判定は dump でしか行えない
 selftest が `block width` を出すようにした——**k 回の単一 step を1 block の span で割った値**。
 1.0 なら k 行あることから何も得ていない、k なら block が1 token 分で終わっている。
 
-| K | per-row span | block span | width（per-row → block） |
-|---:|---:|---:|---:|
-| 1 | 36.55 | — | 1.00 |
-| 2 | 75.67 | 68.13 | 0.97 → 1.07 |
-| 4 | 123.79 | 114.38 | 1.18 → 1.28 |
-| 8 | 228.84 | 202.23 | **1.28 → 1.45** |
+width は同一 run 内の比でしか意味を持たない。**別 run の span を別 run の single で
+割ってはいけない**——それをやって 1.45 という存在しない数字を一度出した。selftest が
+同じ process の中で出したものだけを載せる。
 
-**8行分の並列性に対し、executor が取り出せているのは 1.45 倍である。**
-限界行のコストは 22〜26 ms、単発 token 36.55 ms の 60〜70%。k 行をほぼ k 回
-走らせているということで、width はそれを一つの数字にしたものである。
+| K | single | span | width（per-row 経路、3 round） |
+|---:|---:|---:|---:|
+| 2 | 35.26 | — | **0.95** |
+| 4 | 35.99 | — | 1.13 |
+| 8 | 36.41 | — | **1.27** |
+
+**K=2 は 1.0 を下回る。** 2位置を block で検証するのは、1つずつ decode するより遅い。
+executor の層あたり固定コストが、1 token 分の仕事に匹敵しているということである。
+
+contiguous-block attention の効果は、同一プロセス paired ABBA、6 round:
+
+| 順序 | 中央値 |
+|---|---:|
+| unset-first | −11.0% |
+| set-first | −3.8% |
+
+両順序で faster なので実在する。**順序を均して約 −7%。** width にすると
+1.27 → 約 1.37 で、**8 行分の並列性に対し executor が取り出せているのは 1.4 倍未満**である。
+
+width は何を測っているか: `width = k × single / span`。selftest の構造上これは
+**「64 token を1つずつ decode した時間」÷「同じ64位置を k 行ずつ block で検証した時間」**
+と同じで、同一プロセス内で連続して取られる。1.0 未満なら block の方が遅い。
 
 100 tok/s に必要な width は `single_ms / 10` で、**k に依存しない**（36 ms なら 3.6 倍）。
 K を広げても要求水準は下がらない。外し方の余地が増えるだけである。
