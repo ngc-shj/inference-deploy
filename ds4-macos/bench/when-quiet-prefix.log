@@ -1,0 +1,5 @@
+09-24 10:35:06 frozen binary: /Users/noguchi/ghq/github.com/antirez/ds4-v41-mtl4dag at 33163b4
+09-24 10:35:06 start condition: cutoff 1.39  range 0.17  windows 4  
+09-24 10:35:06 on:  DS4_METAL_V41_FFN_OVERLAP=1 DS4_METAL_V41_GATE_ENCODE_AHEAD=1 DS4_METAL_V41_GATE_DIRECT_PREFIX=0
+09-24 10:35:06 off: DS4_METAL_V41_FFN_OVERLAP=1 DS4_METAL_V41_GATE_ENCODE_AHEAD=1
+last 4 windows: max 1.284, range 0.323 (need <= 1.39 and <= 0.17) - wait
