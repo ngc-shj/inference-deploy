@@ -53,4 +53,7 @@ curl -s --max-time 900 "http://127.0.0.1:$PORT/v1/chat/completions" \
   > "$S/st-$NAME.json" 2>&1
 sleep 2
 kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
-grep -E 'verify selftest|round |median|ceiling|batch vs single|hoisted' "$LOG"
+# Everything the selftest printed, not a list of lines someone thought of once.
+# A whitelist here silently dropped two new result lines; if the selftest grows
+# a number, it shows up without this script having to be edited.
+sed -n '/verify selftest/,$p' "$LOG"
