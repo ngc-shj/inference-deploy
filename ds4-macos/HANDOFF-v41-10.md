@@ -384,6 +384,35 @@ dequant が占める割合 × 45%」だが、**その割合は外からの測定
 （全行を同一 expert にしても変わらないことが、先の null そのものである）。作ってから
 測るしかない。
 
+## 効くものの型（これが今回いちばんの収穫）
+
+| 介入 | 中身 | 結果 |
+|---|---|---|
+| **row tile**（BR=4、head BR=2） | 重み走査を 1/4 に | **効く**（−10.4% / −5.3%、既定 ON） |
+| **routed MoE batch** | **host 往復**を行ごと→1回 | **効く**（−16.3% / −3.8%、既定 ON） |
+| concurrent section | GPU dispatch の overlap | null |
+| K-wide attention | GPU dispatch 48→18/層 | null（bit 一致） |
+| block-local KV / 行ごと scratch / level 実行 | 依存の除去 | null（bit 一致、前提条件として保持） |
+| IQ2 の activation-row tile（BR=2/4） | dequant を行間で共有 | **bit 一致だが遅い**（0.85×、0.38×）。凍結 |
+
+**効くのは host 往復と実走査量。GPU dispatch 数と overlap は効かない。**
+per-row attention の 25% は overhead ではなく実仕事である。
+
+## K-wide attention（`DS4_METAL_V41_BLOCK_ATTN_K=1`、既定 OFF）
+
+K query を1 dispatch で処理する。行は kernel の batch 軸（`ne03`、`ne_12_3` を合わせて
+`ikv3 == iq3`）に乗り、各 query が `nb13`/`nb23` で自分の K/V スライス、`nb33` で自分の
+mask を読む。出力は `iq3*n_head + iq2` で、既存の batch heads レイアウトと一致する。
+
+設計の門は測って開けた。**共通 key 数へ padding して tail を mask しても bit は変わらない**
+（`DS4_V41_ROWTILE_CHECK=6`、3形状、`has_kvpad` 境界を跨ぐ場合も一致）。
+
+全 logits 一致。性能は null。ただし**attention から host 側の row loop を消す**ので、
+1層 microprogram の前提としては必要。
+
+**この関数は `mask → stage → attend → reduce` の順序付き鎖なので、concurrent section の
+中で呼んではいけない**（ヘッダに明記済み。4回これで踏んだ）。
+
 ## 指標が変わった: 総 stage 時間ではなく span
 
 最適化対象は総仕事量ではない。**block 入力から検証出力までの DAG の最長依存鎖（span）**
