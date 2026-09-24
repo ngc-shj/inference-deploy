@@ -464,6 +464,22 @@ Metal 4 を活かす設計はここである:
 - row/layer 単位の completion counter で次ノードを解放する
 - global barrier と「全 row 完了待ち」は join 点だけに置く
 
+## いまの状態（すべて canonical single decode と byte 一致）
+
+| flag | 中身 | 価格（paired ABBA） |
+|---|---|---|
+| `DS4_METAL_V41_BLOCK_KV=1` | immutable prefix + block delta + 一括 commit | null（前提条件） |
+| `DS4_METAL_V41_ROW_GATHER=1` | 行ごとの gather scratch | null（前提条件） |
+| `DS4_METAL_V41_BLOCK_LEVELS=1` | attention を5 phase の level 実行、concurrent section | null（前提条件） |
+| `DS4_METAL_V41_EXACT_VOCAB_ROWS=1` | head を exact-rows へ | 正しさ側 |
+| **既定 row tile**（BR=4、head は BR=2） | 重みを BR 行ぶん1度読む | **両順序 faster、+3.8% / +25.5% を切ると遅い** |
+| `DS4_METAL_V41_BATCH_STREAM_EXPERTS=1` | routed MoE を行ごとから batch へ | **両順序 faster、−16.3% / −3.8%** |
+
+**width は 1.22 → 1.52**（8 行中）。初めて動いた。必要なのは 3.6。
+
+既定 OFF のままにしてあるのは `BATCH_STREAM_EXPERTS` で、生成約80 token での崩壊が
+未修正だから。64位置の block では byte 一致する。
+
 ## 台帳は4列で、まだ2列しかない
 
 | 列 | 意味 | 状態 |
@@ -507,8 +523,12 @@ policy は BR=4、head だけ BR=2。既定に入れた（head は既存の門�
      構成上 bit 一致するが、**単一行の decode の答えが変わる**（prefill は既にこちらの
      カーネルを使っているので、prefill と decode の不一致は現状すでに存在する）
 2. contiguous-block executor を byte 一致で通す
-3. ready-work executor（上記）—— expert-major worklist と B=2/4/8 の可変 tile
-4. expert-major MoE
+3. ready-work executor —— ただし **expert-major worklist は目的から外す**。重複45%を
+   消しても時間は動かないことが測定で確定した（unique 26.3→6 で −3.3% / +3.5%）。
+   残る目的は resident/miss の分離と I/O overlap であって、traffic 削減ではない
+4. 残りの per-row projection を batch へ。台帳が名指ししている: `attn_output_a`
+   （grouped kernel なので専用の rows 版が要る。generic matmul とは別 contract）、
+   `ffn_gate_inp`、indexer 系
 5. **短文脈と長文脈の両方で全 logits memcmp**
 6. 最後に実 drafter の平均前進数と総 wall を掛け合わせる
 
