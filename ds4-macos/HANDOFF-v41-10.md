@@ -498,18 +498,59 @@ resident-first の順序付け（wave / lease / MTLIO が狙っていたもの�
 miss regime は cache を絞った場合か、もっと多様な文脈の場合であって、本文書の他の
 測定の動作点ではない。
 
-## 台帳は4列で、まだ2列しかない
+## 台帳の4列
 
 | 列 | 意味 | 状態 |
 |---|---|---|
-| dispatches | API 発行数 | ある |
-| **shader passes** | `ceil(K/BR)` を含む論理走査数 | **ある**（`DS4_V41_WEIGHT_READS=1`） |
-| physical bytes | DRAM 量 | **無い**（apparent bandwidth で「cache が吸っている」ことだけ判明） |
-| critical-path ms | paired A/B で実際に消えた時間 | 介入ごとに個別にはある |
+| dispatches | API 発行数 | `DS4_V41_WEIGHT_READS=1` |
+| shader passes | `ceil(K/BR)` を含む論理走査数 | 同上 |
+| **sustained GB/s** | working set を cache 越しに舐めたときの持続速度 | `DS4_V41_ROWTILE_CHECK=3` |
+| critical-path ms | paired A/B で消えた時間 | 介入ごと |
 
 混ぜてはいけない。この文書は一度混ぜて、38 ms という存在しない数字を出した。
 
-## 計測済みの operator 表（`DS4_V41_ROWTILE_CHECK=2`、rows=8）
+### working set が結論を変える
+
+同じ質問に、working set の大きさで違う答えが出る。
+
+| 測り方 | distinct | BR=1 の持続 |
+|---|---:|---:|
+| 1行列を叩く | 45 MB | 1233〜1308 GB/s |
+| 1 tensor × 40層 | 1.78 GB | 1231 GB/s |
+| **3 tensor × 40層** | **4.07 GB** | **617 GB/s（機体 peak）** |
+
+**前者2つは cache に乗っていた。** ブロックの dense footprint は 8.7 GB なので、
+**実際のブロックでは 8 scan は本物の traffic** である。「バイトは時間ではない」と
+一度書いたが、それは小さすぎる working set から引いた結論だった。
+
+4.07 GB の sweep で BR=1 52.72 ms → BR=4 32.59 ms。ただし scan は4分の1になるのに
+時間は 1.62 分の1にしかならない。BR=4 の持続は 250 GB/s で、そこでは帯域ではなく
+occupancy が律速している。
+
+### 一律 BR=4 は誤り
+
+| | BR=1 | BR=2 | BR=4 |
+|---|---:|---:|---:|
+| attn_output_b（40層） | 11.58 | 8.49 | **7.84** |
+| shexp_gate（40層） | 3.75 | 2.60 | **2.06** |
+| **attn_q_b（1280×32768、40層）** | 23.32 | **21.35** | **24.45** |
+
+`attn_q_b` では BR=4 が tile 無しより遅い。head（5120×129280）も同じ形。共通するのは
+`out_dim >= 4 * in_dim` の縦長で、既定をその条件で BR=2 に分けた。end-to-end では
+差を検出できない（3 ms / 330 ms）ので、根拠は operator 側の測定である。
+
+## contract の全数（`DS4_V41_WEIGHT_READS=2`）
+
+ブロックが実際に発行する contract は **16 種**。名前で選んだ6 tensor では届かない。
+
+- **Q8・decode-rows 系 7種** —— rows=1/2/4/8 × tile=2/4/8 を、**F32 直後と BF16 後の
+  両方**で検査して全一致
+- **grouped-low（4096×8192 = `attn_output_a`）** —— 専用 kernel。単一行×8 と batch を
+  BF16 後で比較して一致（`DS4_V41_ROWTILE_CHECK=4`）
+- **F16 6種、F32 1種** —— row-tile は適用対象外。**router `ffn_gate_inp` は F32** なので、
+  「router を一走査に」という以前の計画項目は成立しない
+
+## 計測済みの operator 表（`DS4_V41_ROWTILE_CHECK=2`、rows=8、単一行列）
 
 | shape | BR=1 | BR=2 | BR=4 | BR=8 |
 |---|---:|---:|---:|---:|
