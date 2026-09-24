@@ -247,11 +247,130 @@ head のときと同じで（`6c25a41`）、判定は dump でしか行えない
   3（cache 操作の単一所有）は expert-major でも必要**。wave を凍結しても消えない。
   1（per-slot generation）と 4（HEAD_INFLIGHT）は wave 固有なので凍結してよい
 
+## 指標が変わった: 総 stage 時間ではなく span
+
+最適化対象は総仕事量ではない。**block 入力から検証出力までの DAG の最長依存鎖（span）**
+である。selftest の `median k-row step` は `begin_commands` から k 行分の logits までを
+包んでいるので、**これは最初から span だった**。§0 の stage 内訳は「仕事が何に使われたか」
+であって、「何を待っていたか」ではない。
+
+| 指標 | 扱い |
+|---|---|
+| 総 stage 時間 | × 主指標ではない |
+| dispatch 数 | × 機構が働いたかの確認のみ |
+| 総 GPU work | △ 電力・余力 |
+| **block 入力→検証出力の span** | ◎ **主指標** |
+| **実採択 token / wall** | ◎ 最終指標 |
+
+selftest が `block width` を出すようにした——**k 回の単一 step を1 block の span で割った値**。
+1.0 なら k 行あることから何も得ていない、k なら block が1 token 分で終わっている。
+
+| K | per-row span | block span | width（per-row → block） |
+|---:|---:|---:|---:|
+| 1 | 36.55 | — | 1.00 |
+| 2 | 75.67 | 68.13 | 0.97 → 1.07 |
+| 4 | 123.79 | 114.38 | 1.18 → 1.28 |
+| 8 | 228.84 | 202.23 | **1.28 → 1.45** |
+
+**8行分の並列性に対し、executor が取り出せているのは 1.45 倍である。**
+限界行のコストは 22〜26 ms、単発 token 36.55 ms の 60〜70%。k 行をほぼ k 回
+走らせているということで、width はそれを一つの数字にしたものである。
+
+100 tok/s に必要な width は `single_ms / 10` で、**k に依存しない**（36 ms なら 3.6 倍）。
+K を広げても要求水準は下がらない。外し方の余地が増えるだけである。
+
+## 1層の並列構造（K=8）
+
+モデル定数（`ds4.c:640`）: 40層、routed expert 384本、Top-6、shared expert 1本。
+
+| 単位 | routed の論理並列数 | shared 込みの仕事 |
+|---|---:|---:|
+| 1 token・1層 | 6 | 6 routed + 1 shared |
+| K token・1層 | `6K` | `6K` routed + K shared-row |
+| **K=8・1層** | **48** | **48 routed expert-row + 8 shared-row** |
+| 任意の大 batch・1層 | 最大 384 unique | 384 routed weight + 1 shared weight |
+
+**「仕事数」と「異なる weight 数」を分けること。** K=8 の expert-row work item は48個で、
+全部異なれば routed weight も48本、重複があれば unique はそれ未満。shared は weight
+として1本で8行まとめられる。**異なる expert weight の最大は 48 + 1 = 49 本。**
+
+各 routed expert 内では gate と up が独立、down は SwiGLU 出力を待つ。
+
+```
+48 expert-row:
+    gate ─┐
+          ├─ SwiGLU ─ down ─┐
+    up ───┘                 │
+                            ├─ 6 expert分を token ごとに加算
+shared 8 rows ──────────────┘
+```
+
+40層で1 token あたり `40 × 6 = 240` routed expert を通るが、**240 並列にはできない。**
+層 L+1 は層 L の残差に依存するので層間は直列。K=8 の総仕事量は `40 × 48 = 1,920`
+expert-row、**並列窓は各層の48個**である。
+
+`DS4_TP_BATCH_MAX_ROWS = 8`（`ds4_tp.h:34`）は実装上の制限でモデル上の制限ではない。
+コメントは "speculative blocks are <=5" と書いてある。K を64以上に広げれば
+`6 × 64 = 384` で、1層の routed expert 全てを同じ block 内で選べる。
+
+したがって Metal 4 executor が露出すべきは「6 expert 並列」ではなく、まず
+**48 expert-row の一括発行**である。ただし48個の独立 dispatch ではなく、GPU 上で
+`(expert_id, token_row)` を group 化し、unique expert ごとに weight を一度走査して
+該当する複数行へ適用する expert-major 構造にする。
+
+## 次に作るもの: ready-work 型 single-session block executor
+
+追加の hoist フラグではない。`attn_output_b` の hoist は「独立した8個の P を一つの
+広い P にすると span が縮む」ことを実証した**最初の例**であって、目的ではない。
+
+直列実装では FFN 時間が `router + repair + resident routed + shared + merge` の
+足し算になる。正しい実行時間は `max(router + I/O + routed, shared) + merge` へ
+近づけるべきである。resident expert の実行中に missing expert を搬入し、router・
+compaction・MTLIO を shared expert の下へ隠す。
+
+各層で:
+
+- q/kv などの dense projection を8行まとめる
+- attention を8位置の causal batch として実行
+- 48 routed expert-row を一括発行、同一 expert を選んだ行は weight 走査を共有
+- shared expert は8行 batch
+- resident work と SSD 搬入を並行
+- 完了した row tile は全8行を待たず次の層へ進める
+
+**全行・全層の lockstep も最終形ではない。** row tile を2〜4行にすれば波面が作れる:
+
+```
+layer L   : tile 0 FFN       | tile 1 attention | tile 2 projection
+layer L+1 :                  tile 0 attention   | tile 1 projection
+SSD       : missing expert load for future ready work
+CPU       : next descriptor preparation
+```
+
+ただし tile を細かくしすぎると weight 共有を失う。**固定 B=8 ではなく、ready work と
+expert 重複に応じて B=2/4/8 を選ぶ。**
+
+Metal 4 を活かす設計はここである:
+
+- CPU が dispatch 順を逐次決定しない
+- immutable な block 入力と work descriptor を渡す
+- GPU が route 結果から expert-major worklist を作る
+- resident work は直ちに進める
+- missing work だけ event 依存で park する
+- MTLIO 完了で該当 work を ready に戻す
+- row/layer 単位の completion counter で次ノードを解放する
+- global barrier と「全 row 完了待ち」は join 点だけに置く
+
 ### 順序（確定）
 
-1. **decode attention の exact-rows 化**（§0b 段階3）。これが通るまで先へ進まない
+1. **decode attention を batch と bit 一致させる**（§0b 段階3）。これが通るまで先へ進まない。
+   選択肢は2つで、トレードオフが違う:
+   - (a) gather 済み KV に対する `ds4_gpu_attention_decode_heads_tensor` の rows 版を書く。
+     単一行の答えが変わらない。新 Metal カーネルが要る
+   - (b) 単一行側を `indexed_mixed_batch` へ寄せて**カーネルを統一する**。新カーネル不要で
+     構成上 bit 一致するが、**単一行の decode の答えが変わる**（prefill は既にこちらの
+     カーネルを使っているので、prefill と decode の不一致は現状すでに存在する）
 2. contiguous-block executor を byte 一致で通す
-3. output A/B の一括化を block 経路へ畳み込む
+3. ready-work executor（上記）—— expert-major worklist と B=2/4/8 の可変 tile
 4. expert-major MoE
 5. **短文脈と長文脈の両方で全 logits memcmp**
 6. 最後に実 drafter の平均前進数と総 wall を掛け合わせる
