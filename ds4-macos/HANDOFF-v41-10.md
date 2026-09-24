@@ -8,26 +8,32 @@
 
 | v41-9 の記述 | 現在 |
 |---|---|
-| 「最優先は draft 品質の独立測定」 | **誤り。** perfect draft でも K=8 verifier は 361 ms/step、上限 22.2 tok/s。先に verifier を速くする |
+| 「最優先は draft 品質の独立測定」 | **誤り。** perfect draft でも K=8 verifier は 255 ms/step、上限 31.3 tok/s。先に verifier を速くする |
 | row wavefront は壊れている（`0980a5b`） | **修正済み。** 出力一致・違反 0。ただし遅く、凍結対象 |
 | expert 共有は B=8 で 5.3% | **撤回。** 独立 route の算数だった。実測は層あたり 48 選択 → 26.4 unique（約45%重複） |
+| （v41-10 初版）本命は expert-major | **半分だけ正しい。** moe は step の 42% で、ゼロにしても 54 tok/s 止まり。per-row attention が同じだけ効く |
 
-結果として、本命は **expert-major 化**になった。v41-9 の「やらないこと」に入っていた
-項目が、測り直した数字で昇格している。
+結果として、v41-9 の「やらないこと」に入っていた2項目が、測り直した数字で昇格した——
+**expert-major 化**と、**per-row attention の multi-row 化**である。どちらも
+「共有できる weight は無い」という判断で閉じられていたが、その判断が独立 session の
+前提で書かれていた点が共通している。どちらか一方では 100 tok/s に届かない（§0）。
 
 ## 作業場所
 
 - 主worktree: `~/ghq/github.com/antirez/ds4-v41-mtl4dag`、branch `perf/v41-mtl4-dag`
-- HEAD: `0980a5b`。**未コミットは `ds4.c` の selftest 表示3行のみ**
-- 記録・ハーネス: この repository、branch `docs/v41-tuning`、`299ecd4`
+- HEAD: `7c4ec2e`（clean）
+- 記録・ハーネス: この repository、branch `docs/v41-tuning`、`8714389`
 - 対照・旧shim の位置は v41-9 のまま。全て未 push / 未 PR
 
-### `0980a5b` のコミットメッセージは現状と食い違う
+| commit | 内容 |
+|---|---|
+| `0980a5b` | wave 修正 + dense row-tile。**メッセージが事実と食い違う**（下記） |
+| `0066bc7` | perfect-draft 上限の表示、`0980a5b` のメッセージ訂正 |
+| `7c4ec2e` | K=8 の stage 内訳、attn_output_b の hoist、batch 用 in-process A/B |
 
-"A row wavefront that does not produce the right answer yet" とあるが、**wave 修正と
-dense row-tile 実験はこのコミットに含まれており、wave は正しい答えを出す。**
-HEAD がこの状態で進んだため、メッセージは事実と合わない。amend せず、後続コミットの
-メッセージで訂正すること。
+`0980a5b` の "A row wavefront that does not produce the right answer yet" は誤り。
+wave 修正と dense row-tile 実験がメッセージを書いた後にこのコミットへ入った。
+amend せず `0066bc7` のメッセージで訂正済み。
 
 ## 決定的な数字: verifier は帯域律速ですらない
 
@@ -38,18 +44,22 @@ perfect-draft ceiling: %.2f tok/s (100 tok/s requires <= %.2f ms/step)
    = 1000 * k / bm                        = 10 * k
 ```
 
-K=8 の実測:
+K=8 の実測（静穏時、3本: 254.2 / 255.3 / 262.2 ms、spread 約3%）:
 
 | | 値 |
 |---|---:|
-| median 8-row step | 361 ms |
-| perfect draft での上限 | 22.2 tok/s |
+| median 8-row step | 255 ms |
+| perfect draft での上限 | 31.3 tok/s |
 | 100 tok/s に必要な step 時間 | ≤ 80 ms |
-| 必要な短縮 | **4.5x** |
+| 必要な短縮 | **3.2x** |
 
-v41-9 の表は K=8 の帯域床を約63 ms/step と置いていた。**実測 361 ms はその5.7倍**で、
+**前セッションの 361 ms / 22.2 tok/s は再現しない。** この機体は同じ K=8 step が
+3時間差で 255 ms と 427 ms になる。絶対値を一本の run から引用してはいけない——
+本文書の絶対値も同様で、判断に使うのは比率と同一プロセス内の対である。
+
+v41-9 の表は K=8 の帯域床を約63 ms/step と置いていた。**255 ms はその4倍**で、
 verifier は帯域の近くにいない。だから draft 品質を先に測っても意思決定に使えない——
-accepted 長が 8/8 であっても 22.2 tok/s で頭打ちになる。
+accepted 長が 8/8 であっても 31 tok/s で頭打ちになる。
 
 **judgment: K=8 を 80 ms/step 以下へ入れることが、他の何よりも先に来る。**
 
@@ -74,8 +84,12 @@ routed weight は 2.389 GB/token。K=8 で共有しなければ 19.1 GB、26.4/4
 | 614 GB/s（peak） | 29 ms |
 | 416 GB/s（v41-9 の床の表が暗に使っていた実効値） | 45 ms |
 
-どちらでも 80 ms の内側にある。**K=8 で 100 tok/s は、expert-major 化を前提にすれば
-工学的な射程に入る。** これが v41-9 時点で存在しなかった唯一の新しい事実である。
+どちらでも 80 ms の内側にある。**routed weight の側から見れば K=8 で 100 tok/s は
+射程に入る。**
+
+**ただしこれは moe が step を支配していれば、の話である。実測では 42% しか無い**（§0）。
+上の 18 GB は「weight をどれだけ読まずに済むか」の上限であって、step 時間の上限では
+ない。両方を読むこと。
 
 ## Metal API は実機で揃っている
 
@@ -95,17 +109,64 @@ MTLIO の完了 signal で再開できる。
 
 ## 次にやること（この順）
 
-### 0. 361 ms/step の内訳を取る（実装の前に）
+### 0. 内訳（取った。結論が変わった）
 
-**まだ取っていない。** expert-major が取り得る上限を数値で確定してから実装に入る。
-`DS4_V41_BATCH_STAGE_MS=1` を K=8 の selftest 経路で読み、pre / per-row attention /
-moe / head に割る。v41-9 の count=4 streaming では moe 49.8% だったが、K=8 の
-verifier で同じ比率とは限らない。
+`DS4_V41_BATCH_STAGE_MS=1` を K=8 の selftest 経路で2本。計器は CB 境界で総額を
+膨らませる（255 → 341 / 404 ms）ので、読むのは比率だけである。**総額が 18% 違う
+2本の間で、比率は 0.5 ポイント以内で一致した。**
 
-**moe が 361 ms の半分に満たなければ、expert-major を完成させても 80 ms には届かない。**
-その場合は attention と head の側に先に手を入れる判断になる。ここを飛ばさないこと。
+| stage | 内容 | share |
+|---|---|---:|
+| pre | `ds41_before_attention_batch` + `ds41_attention_project_batch`（batch済・weight共有） | 14.8% |
+| per-row attention | **行ごとの直列ループ**（`ds41_attention` + `ds41_attention_output`） | 30.2% |
+| moe | router / shared / routed | **42.4%** |
+| rest | head + logits publish（層ループの外、bucket 無し） | 12.6% |
 
-### 1. expert-major routed pass（本命）
+**moe は 42% であって、半分ではない。** よってこの §0 が置いた判定に従う:
+
+> moe を**ゼロにしても** 255 ms の 58% = 148 ms が残る。これは 54 tok/s であり、
+> 80 ms には届かない。**expert-major は必要だが十分ではない。**
+
+expert-major の現実的な取り分（routed を 26.4/48 へ畳む = routed weight −45%）で見ると、
+moe 108 ms のうち routed weight 律速の部分が最大 45% 減る。step 255 → 約 207 ms、
+上限 31.3 → 38.5 tok/s。**100 には遠い。**
+
+### 0b. per-row attention が本当の壁で、そこに共有できる weight があった
+
+per-row attention は 30.2% = 静穏時で約 77 ms。**100 tok/s の予算は 80 ms 全部である。**
+
+しかも per-row attention は K に比例し、予算 `10*K` ms も K に比例する。**K をいくつに
+しても予算に占める割合は変わらない**（K=8 で 77/80、K=16 で 154/160）。K を上げても
+attention は一切改善しない。
+
+そのループの末尾は `ds41_attention_output` = `ds41_attention_low` + `attn_output_b`
+への matmul。**`attn_output_b` は 8192×5120 の Q8（45 MB）で、8行が同じ重みを8回読む。**
+行が違うのは activation であって weight ではない。
+
+v41-9 は「attention core の multi-row 化」を「共有weightなし」として除外していた。
+**これは expert 共有を独立sessionの算数で見誤ったのと同じ型の誤りである。**
+
+hoist して測った（`DS4_METAL_V41_BATCH_ATTN_OUT=1`、既定 OFF）:
+
+| | 結果 |
+|---|---|
+| K=8 step（同一プロセス paired、5 round） | 全 round で ON が 38–42 ms 速い、中央値 **−11.2%** |
+| head logits の byte 一致（k=2 / 4 / 8） | **完全一致**（`DS4_METAL_V41_LOGITS_DUMP` を memcmp） |
+| 節約の中身 | 40層 × 7回 × 45 MB = 約 12.6 GB/step の weight 再読 |
+
+**既定 ON へ昇格させる前に残るのは静穏機での paired campaign（絶対値）だけ。**
+正しさ側は byte 一致で閉じている。
+
+### 0c. 計器で割ろうとして失敗した記録
+
+`DS4_V41_BATCH_STAGE_MS=2` は attention を core と output に割る。**使ってはいけない。**
+行ごとに CB 境界が2本増え（層あたり +16、step あたり +600）、測ろうとした attention が
+110 ms から 235 ms へ膨らんだ。**計器が答えを、測ろうとした量より大きく変えた。**
+
+残してあるのは、次に同じことを思いつく人のためである。割りたいなら計器ではなく
+**flag を置いて A/B する**——それが 0b でやったことである。
+
+### 1. expert-major routed pass（必要、ただし単独では届かない）
 
 1. 層ごとに expert ID を固定仮想アドレスへ割り当てる placement-sparse buffer
 2. router が K 行の selected と **expert-major worklist** を GPU 上に生成
@@ -125,7 +186,21 @@ verifier で同じ比率とは限らない。
   3（cache 操作の単一所有）は expert-major でも必要**。wave を凍結しても消えない。
   1（per-slot generation）と 4（HEAD_INFLIGHT）は wave 固有なので凍結してよい
 
-### 2. draft 品質の測定（1 の後）
+### 2. per-row attention ループを畳む（1 と同格、あるいは先）
+
+0b で weight 1本を外に出して −11.2% が取れた。ループに残るのは `ds41_attention` 本体
+（KV scan）と `ds41_attention_low`（`attn_output_a`、4096×1024×groups の Q8。これも
+**行で共有できる weight**）である。
+
+- `attn_output_a` を同じやり方で hoist できるか。`low` は行ごとの連続 view なので
+  形は同じ。次に手を付けるならここが最短
+- `ds41_attention` 本体は KV scan。**speculative block では K 行が同一 session の
+  KV を共有する**ので、8行が同じ KV を8回走査している。weight ではなく KV を共有
+  する multi-row attention は、v41-9 が「共有weightなし」として閉じた対象ではない
+- 現在の計測は ctx 8192・position 31〜95 と KV が極小である。**KV scan の共有利得は
+  長文脈でしか見えない。**長い prompt で内訳を取り直すこと
+
+### 3. draft 品質の測定（1・2 の後）
 
 v41-9 §1 の手順はそのまま有効で、**順序だけが後ろへ動いた**。verifier が 80 ms/step
 に入って初めて、accepted 長が成否を決める変数になる。
@@ -170,6 +245,12 @@ byte-exact row-tile を全 Q8 projection へ広げた。
 | 既定（Y-grid 実行） | 361.0 |
 | DENSE_ROW_TILE | **390.5** |
 
+（前セッションの計測。絶対値は当時の機体状態のもので、再現していない §「決定的な数字」
+の 361 ms と同じ run 由来である。比 +8.2% だけを読むこと。同一プロセス paired で
+取り直すには先に `ds41_matmul_batch` の `static int dense_tile` を外すこと——
+現状はキャッシュされるので、`DS4_V41_VERIFY_SELFTEST_BATCH_AB` にかけても
+**両腕が同じ腕になり、「差が無い」と報告される**。）
+
 192行の argmax は一致しており、**正しいが遅い**。既存の Y-grid 実行がキャッシュ上で
 すでに weight load を共有しており、tile 化は並列度だけを落とした。
 
@@ -185,6 +266,15 @@ v41-9 の項目は全て有効。今回の作業で足されるのは1点:
   揃えなくてよいが、速度の判定には `bench/campaign-*.sh` の事前登録が要る。
   39.6 対 25.7 は差が大きいので凍結判断には足りるが、**この数字を 10% の議論に
   使ってはいけない**
+- **10% を見たいなら同一プロセス内の対にする。** 同じ K=8 step がこの機体で 3時間差で
+  255 と 427 ms になった。サーバを腕ごとに起動する A/B はこの幅を越えられない。
+  `DS4_V41_VERIFY_SELFTEST_BATCH_AB` はそのために足した
+- **flag の綴りを、使う前に code で確認する。** v41-9 が production env として挙げた
+  `EXPERT_RESIDENCY_SET` の実名は `DS4_METAL_V41_EXPERT_RESIDENCY_SET` である。
+  読まれない env を置いた A/B は両腕が同一になり、**「差が無い」という結果を出す**。
+  `ds4.c` だけを grep しても足りない（この変数は `ds4_metal.m` 側にある）
+- **効いたことを印字させる。** `BATCH_ATTN_OUT` は engage 時に1行出す。腕の log に
+  その行が無ければ、その腕は測定ではない
 
 ## 有用な計器（v41-9 に追加）
 
@@ -194,12 +284,19 @@ v41-9 の項目は全て有効。今回の作業で足されるのは1点:
 | `DS4_V41_VERIFY_SELFTEST_ROUNDS=<n>` | 1–9、既定3 |
 | `DS4_METAL_V41_DENSE_ROW_TILE=2` または `=4` | 全 Q8 projection の row-tile（退行。再測定用に残す） |
 | `DS4_METAL_V41_GATE_ROUTE_LOG=<path>` | 層ごとに 8 int32（layer, count, 6 ids）。**unique expert の実測はこれを連続 token で突き合わせて得た** |
+| `DS4_V41_VERIFY_SELFTEST_BATCH_AB=<NAME>` | **k 行 step を同一プロセスで NAME の set/unset 交互に測る。**既存の `_AB` は `ds41_graph_step`（単一行）なので batch 限定の変更を一切見ない。NAME は毎回 getenv される変数であること |
+| `DS4_METAL_V41_BATCH_ATTN_OUT=1` | `attn_output_b` を行ループの外へ。byte 一致・−11.2%。既定 OFF |
+| `DS4_V41_BATCH_STAGE_MS=2` | attention を core/output に割る。**答えを変えるので使用禁止**（0c） |
 
 ## やらないこと（更新）
 
-- Q8 row-tile の汎用横展開 —— **実測で退行（361.0 → 390.5）。保留ではなく否定**
+- Q8 row-tile の汎用横展開 —— **実測で退行（361.0 → 390.5）。保留ではなく否定**。
+  0b の hoist はこれとは別物である：row-tile は kernel 内で行を束ねる話で、退行した。
+  hoist は**行ループそのものから matmul を出す**話で、既存の exact-rows kernel を
+  そのまま使う。混同しないこと
 - multi-session wavefront の性能開発 —— 正しいが 1.54x 遅い。凍結
-- draft 品質を verifier より先に測る —— 22.2 tok/s の天井が先に効く
+- draft 品質を verifier より先に測る —— 31 tok/s の天井が先に効く
+- expert-major だけで 100 tok/s に届くと考えること —— moe 42% では届かない（§0）
 - Metal 4 を submission API として磨く（v41-9 のまま）
 - per-expert 投機、Engram async、HC fork、cache policy 再探索（`HANDOFF-v41-6.md` で閉じている）
 
@@ -207,5 +304,8 @@ v41-9 の項目は全て有効。今回の作業で足されるのは1点:
 
 - `DS4_METAL_V41_BATCH_STREAM_EXPERTS=1` は約80 token で生成が崩壊する。v41-9 から変化なし
 - v41-9 §「いま壊れているもの」の未修正 2・3（load 前の予約・pin、cache 操作の単一所有）
-- `361 ms/step` の stage 内訳（上の §0）
+- `DS4_METAL_V41_BATCH_ATTN_OUT` の静穏機 paired campaign と既定 ON への昇格
+- `attn_output_a` の同様の hoist（§2）
+- 長文脈での内訳の取り直し —— 現在の内訳は ctx 8192・position 31〜95 で、KV scan が
+  ほぼ無い条件のものである
 - Metal API probe の repository 化
