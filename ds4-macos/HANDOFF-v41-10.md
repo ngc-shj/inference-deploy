@@ -17,7 +17,11 @@
 | （v41-10 初版）次は `attn_output_a` の hoist と長文脈計測 | **違う。** 個々の matmul ではなく executor の抽象化を直す。§0b |
 | （v41-10 改訂）block attention は −21%、width 1.45 | **誤り。** 別プロセスの run 同士を引いていた。paired で約 −7%、width 約 1.37 |
 | （v41-10 改訂）row-tile は退行 | **文脈依存。** 旧 batch 経路では退行したが、block 経路の paired ABBA では両順序 faster（約 −8%）。ただし byte 一致しない |
-| （v41-10 改訂）真の依存鎖が行を直列化している | **誤り。** singleton scratch と serial encoder が作った実装上の hazard だった。3つとも直したが span は動かず、行はそもそも互いを待っていなかった |
+| （v41-10 改訂）真の依存鎖が行を直列化している | **誤り。** singleton scratch と serial encoder が作った実装上の hazard だった。3つとも直したが span は動かず、attention 行間の overlap には利益を検出できなかった（「依存が無い」「待っていない」とまでは言えない） |
+| （v41-10 改訂）1 dispatch = 1 weight read の台帳 | **誤り。** 両 rows kernel は grid Y に行を置くので、exact は K pass、tile は ceil(K/BR) pass。「243 行列が共有」は撤回、共有されていた行列はゼロ |
+| （v41-10 改訂）回避可能 23.6 GB ≈ 38 ms | **誤り。** 論理 scan を ms に換算した。実測では論理 scan −40% で壁時計 −8% |
+| （v41-10 改訂）fused row-tile は byte 一致しない | **誤り。** operator 境界（matmul 直後 F32）で全 shape・rows=1/2/4/8・tile=2/4/8 が完全一致。私の A/B が head の経路ごと入れ替えていた |
+| （v41-9 以来）expert-major の賞金は実在する | **撤回。** 重複45%は実在するが、消しても時間は動かない |
 
 結果として、v41-9 の「やらないこと」に入っていた2項目が、測り直した数字で昇格した——
 **expert-major 化**と、**per-row attention の multi-row 化**である。どちらも
@@ -83,7 +87,26 @@ verifier step + draft 生成 + accept/rollback  <=  10 ms × 平均前進トー�
 達成可能な tok/s ではない。実 drafter の平均前進数と掛け合わせるのは最後の工程である
 （§5）。
 
-## expert-major の賞金は実在する（v41-9 の 5.3% を撤回）
+## 訂正の最上位: 賞金だと思っていたものは、ほぼ全部 null だった
+
+この文書が「賞金」と呼んできたものを、すべて**測って**確かめた結果:
+
+| 仮説 | 実測 |
+|---|---|
+| expert-major で routed 重複45%を消す | **ほぼゼロ。** 全行を同一 expert に強制して unique を 26.3→6（選択の87.5%削減）にしても −3.3% / +3.5%、両順序で不一致 |
+| 共有 dense weight を一走査にする | **約13 ms**（241 ms の 5%）。BR=1→BR=4 の実測時間から |
+| 行間の dispatch overlap | **null**（byte 一致・section 開通を確認済み） |
+| **routed MoE を行ごとから batch へ** | **−16.3% / −3.8%、両順序 faster、byte 一致。これまでの最大** |
+
+理由は一つに収束する。**バイト数は時間ではない。**
+
+- 共有 matrix を8回 scan したときの apparent bandwidth は **1233〜1308 GB/s**。機体は 614 GB/s。つまり cache が吸っていて、8 scan は 8回の DRAM 読み出しではない
+- routed expert は 73.5 GB の unified memory cache 上にある。同じ expert を8回読んでも、1回読むのとほとんど変わらない
+
+したがって **traffic を削る設計（expert-major、weight 共有）は主戦場ではない。**
+効いたのは **dispatch の形**を変えたものだけである。
+
+## 旧: expert-major の賞金は実在する（v41-9 の 5.3% を撤回）
 
 v41-9 の共有期待値の表は「独立 session が独立に route する」前提の算数だった。
 speculative block は同一 session の連続 token なので、route は独立ではない。
@@ -441,7 +464,40 @@ Metal 4 を活かす設計はここである:
 - row/layer 単位の completion counter で次ノードを解放する
 - global barrier と「全 row 完了待ち」は join 点だけに置く
 
+## 台帳は4列で、まだ2列しかない
+
+| 列 | 意味 | 状態 |
+|---|---|---|
+| dispatches | API 発行数 | ある |
+| **shader passes** | `ceil(K/BR)` を含む論理走査数 | **ある**（`DS4_V41_WEIGHT_READS=1`） |
+| physical bytes | DRAM 量 | **無い**（apparent bandwidth で「cache が吸っている」ことだけ判明） |
+| critical-path ms | paired A/B で実際に消えた時間 | 介入ごとに個別にはある |
+
+混ぜてはいけない。この文書は一度混ぜて、38 ms という存在しない数字を出した。
+
+## 計測済みの operator 表（`DS4_V41_ROWTILE_CHECK=2`、rows=8）
+
+| shape | BR=1 | BR=2 | BR=4 | BR=8 |
+|---|---:|---:|---:|---:|
+| attn_output_a | 0.218 | 0.151 | **0.125** | 0.183 |
+| attn_output_b | 0.289 | 0.210 | **0.183** | 0.240 |
+| shexp_gate | 0.078 | 0.056 | **0.052** | 0.075 |
+| shexp_up | 0.078 | 0.059 | **0.048** | 0.078 |
+| shexp_down | 0.104 | 0.078 | **0.062** | 0.092 |
+| head | 6.032 | **4.595** | 4.637 | 6.037 |
+
+**BR=8 はどの shape でも最遅か同着**（`sumf[8][NR0]` と `yl[8][NQ]` が register に載らない）。
+policy は BR=4、head だけ BR=2。既定に入れた（head は既存の門のまま）。
+
+全 tile が exact kernel と bit 一致することは operator 境界で確認済み
+（`DS4_V41_ROWTILE_CHECK=1`）。
+
 ### 順序（確定）
+
+0. **すでに片付いたもの**: block-local KV / per-row scratch / level 実行（全て byte 一致、全て
+   span に効かず、正しい block operator の前提条件として保持）、exact weight-reuse operator の
+   検証、BR=8 の否定、dynamic tile policy、kernel-aware な scan 台帳、routed 台帳、
+   expert-major の否定、routed MoE batch の価格付け。
 
 1. **decode attention を batch と bit 一致させる**（§0b 段階3）。これが通るまで先へ進まない。
    選択肢は2つで、トレードオフが違う:

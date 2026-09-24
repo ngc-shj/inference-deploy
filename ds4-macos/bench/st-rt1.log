@@ -1,0 +1,108 @@
+ds4: abort gate on for the first 40 layers
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: SSD streaming auto cache budget
+ds4:   metal recommends 107.52 GiB working set
+ds4:   using 84% total for model + cached experts: 90.00 GiB
+ds4:   non-routed weights: 9.37 GiB
+ds4:   routed expert size: 9.49 MiB
+ds4:   expert budget before prefill reserve: 8698 (80.63 GiB)
+ds4: metal SSD streaming cache target 80.63 GiB; effective 80.63 GiB = 7.12 GiB prefill headroom + 73.51 GiB dynamic cache (7930 experts, 9.49 MiB each)
+ds4: Metal SSD static weights locked 9.37 GiB; pageable 0.00 GiB
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.06 GiB (raw 0.01 + compressed 0.05) + buffers 3.27 GiB + resident model 9.37 GiB + expert cache 73.51 GiB + prefill expert reserve 7.12 GiB = 93.33 GiB planned
+ds4: memory detail: ctx=8192 prefill_cap=4096 raw_kv_rows=128 compressed_kv_rows=8193 backend=metal
+0924 21:39:56 ds4-server: context buffers 3411.39 MiB (ctx=8192, backend=metal, prefill_chunk=4096, raw_kv_rows=128, compressed_kv_rows=8193)
+ds4: V4.1 static context buffers 3411.39 MiB (ctx=8192), Engram disk-only
+0924 21:39:56 ds4-server: listening on http://127.0.0.1:8016
+0924 21:39:59 ds4-server: chat ctx=0..31:31 prompt start
+ds4: shared/routed FFN overlap ran, mode 1
+ds4: expert residency set on the queue
+0924 21:39:59 ds4-server: chat ctx=0..31:31 prefill chunk 1/31 (3.2%) chunk=0.00 t/s avg=4.69 t/s 0.213s
+0924 21:39:59 ds4-server: chat ctx=0..31:31 prefill chunk 2/31 (6.5%) chunk=6.61 t/s avg=5.49 t/s 0.364s
+0924 21:39:59 ds4-server: chat ctx=0..31:31 prefill chunk 3/31 (9.7%) chunk=11.25 t/s avg=6.62 t/s 0.453s
+0924 21:39:59 ds4-server: chat ctx=0..31:31 prefill chunk 4/31 (12.9%) chunk=13.07 t/s avg=7.55 t/s 0.530s
+0924 21:39:59 ds4-server: chat ctx=0..31:31 prefill chunk 5/31 (16.1%) chunk=11.59 t/s avg=8.11 t/s 0.616s
+0924 21:39:59 ds4-server: chat ctx=0..31:31 prefill chunk 6/31 (19.4%) chunk=14.77 t/s avg=8.77 t/s 0.684s
+0924 21:39:59 ds4-server: chat ctx=0..31:31 prefill chunk 7/31 (22.6%) chunk=14.34 t/s avg=9.29 t/s 0.754s
+0924 21:39:59 ds4-server: chat ctx=0..31:31 prefill chunk 8/31 (25.8%) chunk=14.64 t/s avg=9.73 t/s 0.822s
+0924 21:39:59 ds4-server: chat ctx=0..31:31 prefill chunk 9/31 (29.0%) chunk=13.53 t/s avg=10.05 t/s 0.896s
+0924 21:40:00 ds4-server: chat ctx=0..31:31 prefill chunk 10/31 (32.3%) chunk=15.88 t/s avg=10.43 t/s 0.959s
+0924 21:40:00 ds4-server: chat ctx=0..31:31 prefill chunk 11/31 (35.5%) chunk=10.75 t/s avg=10.46 t/s 1.052s
+0924 21:40:00 ds4-server: chat ctx=0..31:31 prefill chunk 12/31 (38.7%) chunk=11.86 t/s avg=10.56 t/s 1.136s
+0924 21:40:00 ds4-server: chat ctx=0..31:31 prefill chunk 13/31 (41.9%) chunk=12.32 t/s avg=10.68 t/s 1.217s
+0924 21:40:00 ds4-server: chat ctx=0..31:31 prefill chunk 14/31 (45.2%) chunk=13.99 t/s avg=10.86 t/s 1.289s
+0924 21:40:00 ds4-server: chat ctx=0..31:31 prefill chunk 15/31 (48.4%) chunk=18.10 t/s avg=11.16 t/s 1.344s
+0924 21:40:00 ds4-server: chat ctx=0..31:31 prefill chunk 16/31 (51.6%) chunk=13.71 t/s avg=11.29 t/s 1.417s
+0924 21:40:00 ds4-server: chat ctx=0..31:31 prefill chunk 17/31 (54.8%) chunk=15.28 t/s avg=11.47 t/s 1.482s
+0924 21:40:00 ds4-server: chat ctx=0..31:31 prefill chunk 18/31 (58.1%) chunk=14.45 t/s avg=11.60 t/s 1.552s
+0924 21:40:00 ds4-server: chat ctx=0..31:31 prefill chunk 19/31 (61.3%) chunk=16.72 t/s avg=11.79 t/s 1.611s
+0924 21:40:00 ds4-server: chat ctx=0..31:31 prefill chunk 20/31 (64.5%) chunk=17.33 t/s avg=11.98 t/s 1.669s
+0924 21:40:00 ds4-server: chat ctx=0..31:31 prefill chunk 21/31 (67.7%) chunk=18.51 t/s avg=12.19 t/s 1.723s
+0924 21:40:00 ds4-server: chat ctx=0..31:31 prefill chunk 22/31 (71.0%) chunk=17.78 t/s avg=12.36 t/s 1.779s
+0924 21:40:00 ds4-server: chat ctx=0..31:31 prefill chunk 23/31 (74.2%) chunk=17.83 t/s avg=12.53 t/s 1.835s
+0924 21:40:00 ds4-server: chat ctx=0..31:31 prefill chunk 24/31 (77.4%) chunk=15.95 t/s avg=12.64 t/s 1.898s
+0924 21:40:01 ds4-server: chat ctx=0..31:31 prefill chunk 25/31 (80.6%) chunk=18.40 t/s avg=12.80 t/s 1.953s
+0924 21:40:01 ds4-server: chat ctx=0..31:31 prefill chunk 26/31 (83.9%) chunk=19.92 t/s avg=12.98 t/s 2.003s
+0924 21:40:01 ds4-server: chat ctx=0..31:31 prefill chunk 27/31 (87.1%) chunk=16.98 t/s avg=13.10 t/s 2.062s
+0924 21:40:01 ds4-server: chat ctx=0..31:31 prefill chunk 28/31 (90.3%) chunk=15.48 t/s avg=13.17 t/s 2.126s
+0924 21:40:01 ds4-server: chat ctx=0..31:31 prefill chunk 29/31 (93.5%) chunk=15.47 t/s avg=13.24 t/s 2.191s
+0924 21:40:01 ds4-server: chat ctx=0..31:31 prefill chunk 30/31 (96.8%) chunk=15.55 t/s avg=13.30 t/s 2.255s
+0924 21:40:01 ds4-server: chat ctx=0..31:31 prefill chunk 31/31 (100.0%) chunk=18.95 t/s avg=13.43 t/s 2.308s
+0924 21:40:01 ds4-server: chat ctx=0..31:31 prompt done 2.310s
+ds4: V4.1 row-tile operator check (F32 out of the matmul)
+  attn_output_a   4096x8192   rows=1 tile=2: identical
+  attn_output_a   4096x8192   rows=1 tile=4: identical
+  attn_output_a   4096x8192   rows=2 tile=2: identical
+  attn_output_a   4096x8192   rows=2 tile=4: identical
+  attn_output_a   4096x8192   rows=4 tile=2: identical
+  attn_output_a   4096x8192   rows=4 tile=4: identical
+  attn_output_a   4096x8192   rows=8 tile=2: identical
+  attn_output_a   4096x8192   rows=8 tile=4: identical
+  attn_output_b   8192x5120   rows=1 tile=2: identical
+  attn_output_b   8192x5120   rows=1 tile=4: identical
+  attn_output_b   8192x5120   rows=2 tile=2: identical
+  attn_output_b   8192x5120   rows=2 tile=4: identical
+  attn_output_b   8192x5120   rows=4 tile=2: identical
+  attn_output_b   8192x5120   rows=4 tile=4: identical
+  attn_output_b   8192x5120   rows=8 tile=2: identical
+  attn_output_b   8192x5120   rows=8 tile=4: identical
+  shexp_gate      5120x2304   rows=1 tile=2: identical
+  shexp_gate      5120x2304   rows=1 tile=4: identical
+  shexp_gate      5120x2304   rows=2 tile=2: identical
+  shexp_gate      5120x2304   rows=2 tile=4: identical
+  shexp_gate      5120x2304   rows=4 tile=2: identical
+  shexp_gate      5120x2304   rows=4 tile=4: identical
+  shexp_gate      5120x2304   rows=8 tile=2: identical
+  shexp_gate      5120x2304   rows=8 tile=4: identical
+  shexp_up        5120x2304   rows=1 tile=2: identical
+  shexp_up        5120x2304   rows=1 tile=4: identical
+  shexp_up        5120x2304   rows=2 tile=2: identical
+  shexp_up        5120x2304   rows=2 tile=4: identical
+  shexp_up        5120x2304   rows=4 tile=2: identical
+  shexp_up        5120x2304   rows=4 tile=4: identical
+  shexp_up        5120x2304   rows=8 tile=2: identical
+  shexp_up        5120x2304   rows=8 tile=4: identical
+  shexp_down      2304x5120   rows=1 tile=2: identical
+  shexp_down      2304x5120   rows=1 tile=4: identical
+  shexp_down      2304x5120   rows=2 tile=2: identical
+  shexp_down      2304x5120   rows=2 tile=4: identical
+  shexp_down      2304x5120   rows=4 tile=2: identical
+  shexp_down      2304x5120   rows=4 tile=4: identical
+  shexp_down      2304x5120   rows=8 tile=2: identical
+  shexp_down      2304x5120   rows=8 tile=4: identical
+  head            5120x129280 rows=1 tile=2: identical
+  head            5120x129280 rows=1 tile=4: identical
+  head            5120x129280 rows=2 tile=2: identical
+  head            5120x129280 rows=2 tile=4: identical
+  head            5120x129280 rows=4 tile=2: identical
+  head            5120x129280 rows=4 tile=4: identical
+  head            5120x129280 rows=8 tile=2: identical
+  head            5120x129280 rows=8 tile=4: identical
+0924 21:40:01 ds4-server: chat ctx=31..35:4 gen=4 THINKING decoding chunk=13.08 t/s avg=13.08 t/s 0.306s
+ds4-server: thinking not closed, ignoring incomplete DSML in reasoning
+0924 21:40:01 ds4-server: chat ctx=0..31:31 gen=4 THINKING finish=length 2.616s
+0924 21:40:03 ds4-server: shutdown requested, draining requests

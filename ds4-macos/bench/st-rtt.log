@@ -1,0 +1,156 @@
+ds4: abort gate on for the first 40 layers
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: SSD streaming auto cache budget
+ds4:   metal recommends 107.52 GiB working set
+ds4:   using 84% total for model + cached experts: 90.00 GiB
+ds4:   non-routed weights: 9.37 GiB
+ds4:   routed expert size: 9.49 MiB
+ds4:   expert budget before prefill reserve: 8698 (80.63 GiB)
+ds4: metal SSD streaming cache target 80.63 GiB; effective 80.63 GiB = 7.12 GiB prefill headroom + 73.51 GiB dynamic cache (7930 experts, 9.49 MiB each)
+ds4: Metal SSD static weights locked 9.37 GiB; pageable 0.00 GiB
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.06 GiB (raw 0.01 + compressed 0.05) + buffers 3.27 GiB + resident model 9.37 GiB + expert cache 73.51 GiB + prefill expert reserve 7.12 GiB = 93.33 GiB planned
+ds4: memory detail: ctx=8192 prefill_cap=4096 raw_kv_rows=128 compressed_kv_rows=8193 backend=metal
+0924 21:55:19 ds4-server: context buffers 3411.39 MiB (ctx=8192, backend=metal, prefill_chunk=4096, raw_kv_rows=128, compressed_kv_rows=8193)
+ds4: V4.1 static context buffers 3411.39 MiB (ctx=8192), Engram disk-only
+0924 21:55:19 ds4-server: listening on http://127.0.0.1:8016
+0924 21:55:21 ds4-server: chat ctx=0..31:31 prompt start
+ds4: shared/routed FFN overlap ran, mode 1
+ds4: expert residency set on the queue
+0924 21:55:21 ds4-server: chat ctx=0..31:31 prefill chunk 1/31 (3.2%) chunk=0.00 t/s avg=5.73 t/s 0.175s
+0924 21:55:22 ds4-server: chat ctx=0..31:31 prefill chunk 2/31 (6.5%) chunk=6.39 t/s avg=6.04 t/s 0.331s
+0924 21:55:22 ds4-server: chat ctx=0..31:31 prefill chunk 3/31 (9.7%) chunk=6.56 t/s avg=6.21 t/s 0.483s
+0924 21:55:22 ds4-server: chat ctx=0..31:31 prefill chunk 4/31 (12.9%) chunk=7.29 t/s avg=6.45 t/s 0.620s
+0924 21:55:22 ds4-server: chat ctx=0..31:31 prefill chunk 5/31 (16.1%) chunk=7.08 t/s avg=6.56 t/s 0.762s
+0924 21:55:22 ds4-server: chat ctx=0..31:31 prefill chunk 6/31 (19.4%) chunk=7.56 t/s avg=6.71 t/s 0.894s
+0924 21:55:22 ds4-server: chat ctx=0..31:31 prefill chunk 7/31 (22.6%) chunk=12.83 t/s avg=7.20 t/s 0.972s
+0924 21:55:22 ds4-server: chat ctx=0..31:31 prefill chunk 8/31 (25.8%) chunk=15.45 t/s avg=7.72 t/s 1.036s
+0924 21:55:22 ds4-server: chat ctx=0..31:31 prefill chunk 9/31 (29.0%) chunk=14.48 t/s avg=8.14 t/s 1.106s
+0924 21:55:22 ds4-server: chat ctx=0..31:31 prefill chunk 10/31 (32.3%) chunk=15.33 t/s avg=8.54 t/s 1.171s
+0924 21:55:22 ds4-server: chat ctx=0..31:31 prefill chunk 11/31 (35.5%) chunk=14.38 t/s avg=8.87 t/s 1.240s
+0924 21:55:23 ds4-server: chat ctx=0..31:31 prefill chunk 12/31 (38.7%) chunk=14.66 t/s avg=9.17 t/s 1.309s
+0924 21:55:23 ds4-server: chat ctx=0..31:31 prefill chunk 13/31 (41.9%) chunk=13.78 t/s avg=9.41 t/s 1.381s
+0924 21:55:23 ds4-server: chat ctx=0..31:31 prefill chunk 14/31 (45.2%) chunk=14.72 t/s avg=9.66 t/s 1.449s
+0924 21:55:23 ds4-server: chat ctx=0..31:31 prefill chunk 15/31 (48.4%) chunk=16.31 t/s avg=9.93 t/s 1.510s
+0924 21:55:23 ds4-server: chat ctx=0..31:31 prefill chunk 16/31 (51.6%) chunk=12.62 t/s avg=10.07 t/s 1.590s
+0924 21:55:23 ds4-server: chat ctx=0..31:31 prefill chunk 17/31 (54.8%) chunk=9.59 t/s avg=10.04 t/s 1.694s
+0924 21:55:23 ds4-server: chat ctx=0..31:31 prefill chunk 18/31 (58.1%) chunk=11.70 t/s avg=10.12 t/s 1.779s
+0924 21:55:23 ds4-server: chat ctx=0..31:31 prefill chunk 19/31 (61.3%) chunk=12.87 t/s avg=10.23 t/s 1.857s
+0924 21:55:23 ds4-server: chat ctx=0..31:31 prefill chunk 20/31 (64.5%) chunk=13.43 t/s avg=10.35 t/s 1.931s
+0924 21:55:23 ds4-server: chat ctx=0..31:31 prefill chunk 21/31 (67.7%) chunk=12.09 t/s avg=10.43 t/s 2.014s
+0924 21:55:23 ds4-server: chat ctx=0..31:31 prefill chunk 22/31 (71.0%) chunk=11.05 t/s avg=10.45 t/s 2.105s
+0924 21:55:23 ds4-server: chat ctx=0..31:31 prefill chunk 23/31 (74.2%) chunk=9.96 t/s avg=10.43 t/s 2.205s
+0924 21:55:23 ds4-server: chat ctx=0..31:31 prefill chunk 24/31 (77.4%) chunk=14.13 t/s avg=10.55 t/s 2.276s
+0924 21:55:24 ds4-server: chat ctx=0..31:31 prefill chunk 25/31 (80.6%) chunk=15.10 t/s avg=10.67 t/s 2.342s
+0924 21:55:24 ds4-server: chat ctx=0..31:31 prefill chunk 26/31 (83.9%) chunk=16.80 t/s avg=10.83 t/s 2.402s
+0924 21:55:24 ds4-server: chat ctx=0..31:31 prefill chunk 27/31 (87.1%) chunk=14.47 t/s avg=10.93 t/s 2.471s
+0924 21:55:24 ds4-server: chat ctx=0..31:31 prefill chunk 28/31 (90.3%) chunk=13.69 t/s avg=11.01 t/s 2.544s
+0924 21:55:24 ds4-server: chat ctx=0..31:31 prefill chunk 29/31 (93.5%) chunk=12.57 t/s avg=11.05 t/s 2.623s
+0924 21:55:24 ds4-server: chat ctx=0..31:31 prefill chunk 30/31 (96.8%) chunk=9.46 t/s avg=10.99 t/s 2.729s
+0924 21:55:24 ds4-server: chat ctx=0..31:31 prefill chunk 31/31 (100.0%) chunk=12.27 t/s avg=11.03 t/s 2.811s
+0924 21:55:24 ds4-server: chat ctx=0..31:31 prompt done 2.812s
+ds4: V4.1 row-tile operator check (F32 out of the matmul)
+  attn_output_a   4096x8192   rows=1 tile=2: identical
+  attn_output_a   4096x8192   rows=1 tile=4: identical
+  attn_output_a   4096x8192   rows=1 tile=8: identical
+  attn_output_a   4096x8192   rows=2 tile=2: identical
+  attn_output_a   4096x8192   rows=2 tile=4: identical
+  attn_output_a   4096x8192   rows=2 tile=8: identical
+  attn_output_a   4096x8192   rows=4 tile=2: identical
+  attn_output_a   4096x8192   rows=4 tile=4: identical
+  attn_output_a   4096x8192   rows=4 tile=8: identical
+  attn_output_a   4096x8192   rows=8 tile=2: identical
+  attn_output_a   4096x8192   rows=8 tile=4: identical
+  attn_output_a   4096x8192   rows=8 tile=8: identical
+  attn_output_a  rows=8 BR=1:  0.218 ms, 8 scans, 1308.0 GB/s apparent
+  attn_output_a  rows=8 BR=2:  0.151 ms, 4 scans,  942.5 GB/s apparent
+  attn_output_a  rows=8 BR=4:  0.125 ms, 2 scans,  568.6 GB/s apparent
+  attn_output_a  rows=8 BR=8:  0.183 ms, 1 scans,  195.0 GB/s apparent
+  attn_output_b   8192x5120   rows=1 tile=2: identical
+  attn_output_b   8192x5120   rows=1 tile=4: identical
+  attn_output_b   8192x5120   rows=1 tile=8: identical
+  attn_output_b   8192x5120   rows=2 tile=2: identical
+  attn_output_b   8192x5120   rows=2 tile=4: identical
+  attn_output_b   8192x5120   rows=2 tile=8: identical
+  attn_output_b   8192x5120   rows=4 tile=2: identical
+  attn_output_b   8192x5120   rows=4 tile=4: identical
+  attn_output_b   8192x5120   rows=4 tile=8: identical
+  attn_output_b   8192x5120   rows=8 tile=2: identical
+  attn_output_b   8192x5120   rows=8 tile=4: identical
+  attn_output_b   8192x5120   rows=8 tile=8: identical
+  attn_output_b  rows=8 BR=1:  0.289 ms, 8 scans, 1233.8 GB/s apparent
+  attn_output_b  rows=8 BR=2:  0.210 ms, 4 scans,  850.9 GB/s apparent
+  attn_output_b  rows=8 BR=4:  0.183 ms, 2 scans,  487.8 GB/s apparent
+  attn_output_b  rows=8 BR=8:  0.240 ms, 1 scans,  185.5 GB/s apparent
+  shexp_gate      5120x2304   rows=1 tile=2: identical
+  shexp_gate      5120x2304   rows=1 tile=4: identical
+  shexp_gate      5120x2304   rows=1 tile=8: identical
+  shexp_gate      5120x2304   rows=2 tile=2: identical
+  shexp_gate      5120x2304   rows=2 tile=4: identical
+  shexp_gate      5120x2304   rows=2 tile=8: identical
+  shexp_gate      5120x2304   rows=4 tile=2: identical
+  shexp_gate      5120x2304   rows=4 tile=4: identical
+  shexp_gate      5120x2304   rows=4 tile=8: identical
+  shexp_gate      5120x2304   rows=8 tile=2: identical
+  shexp_gate      5120x2304   rows=8 tile=4: identical
+  shexp_gate      5120x2304   rows=8 tile=8: identical
+  shexp_gate     rows=8 BR=1:  0.078 ms, 8 scans, 1293.8 GB/s apparent
+  shexp_gate     rows=8 BR=2:  0.056 ms, 4 scans,  896.9 GB/s apparent
+  shexp_gate     rows=8 BR=4:  0.052 ms, 2 scans,  481.6 GB/s apparent
+  shexp_gate     rows=8 BR=8:  0.075 ms, 1 scans,  167.3 GB/s apparent
+  shexp_up        5120x2304   rows=1 tile=2: identical
+  shexp_up        5120x2304   rows=1 tile=4: identical
+  shexp_up        5120x2304   rows=1 tile=8: identical
+  shexp_up        5120x2304   rows=2 tile=2: identical
+  shexp_up        5120x2304   rows=2 tile=4: identical
+  shexp_up        5120x2304   rows=2 tile=8: identical
+  shexp_up        5120x2304   rows=4 tile=2: identical
+  shexp_up        5120x2304   rows=4 tile=4: identical
+  shexp_up        5120x2304   rows=4 tile=8: identical
+  shexp_up        5120x2304   rows=8 tile=2: identical
+  shexp_up        5120x2304   rows=8 tile=4: identical
+  shexp_up        5120x2304   rows=8 tile=8: identical
+  shexp_up       rows=8 BR=1:  0.078 ms, 8 scans, 1287.2 GB/s apparent
+  shexp_up       rows=8 BR=2:  0.059 ms, 4 scans,  852.6 GB/s apparent
+  shexp_up       rows=8 BR=4:  0.048 ms, 2 scans,  517.4 GB/s apparent
+  shexp_up       rows=8 BR=8:  0.078 ms, 1 scans,  160.6 GB/s apparent
+  shexp_down      2304x5120   rows=1 tile=2: identical
+  shexp_down      2304x5120   rows=1 tile=4: identical
+  shexp_down      2304x5120   rows=1 tile=8: identical
+  shexp_down      2304x5120   rows=2 tile=2: identical
+  shexp_down      2304x5120   rows=2 tile=4: identical
+  shexp_down      2304x5120   rows=2 tile=8: identical
+  shexp_down      2304x5120   rows=4 tile=2: identical
+  shexp_down      2304x5120   rows=4 tile=4: identical
+  shexp_down      2304x5120   rows=4 tile=8: identical
+  shexp_down      2304x5120   rows=8 tile=2: identical
+  shexp_down      2304x5120   rows=8 tile=4: identical
+  shexp_down      2304x5120   rows=8 tile=8: identical
+  shexp_down     rows=8 BR=1:  0.104 ms, 8 scans,  966.5 GB/s apparent
+  shexp_down     rows=8 BR=2:  0.078 ms, 4 scans,  643.6 GB/s apparent
+  shexp_down     rows=8 BR=4:  0.062 ms, 2 scans,  404.6 GB/s apparent
+  shexp_down     rows=8 BR=8:  0.092 ms, 1 scans,  135.6 GB/s apparent
+  head            5120x129280 rows=1 tile=2: identical
+  head            5120x129280 rows=1 tile=4: identical
+  head            5120x129280 rows=1 tile=8: identical
+  head            5120x129280 rows=2 tile=2: identical
+  head            5120x129280 rows=2 tile=4: identical
+  head            5120x129280 rows=2 tile=8: identical
+  head            5120x129280 rows=4 tile=2: identical
+  head            5120x129280 rows=4 tile=4: identical
+  head            5120x129280 rows=4 tile=8: identical
+  head            5120x129280 rows=8 tile=2: identical
+  head            5120x129280 rows=8 tile=4: identical
+  head            5120x129280 rows=8 tile=8: identical
+  head           rows=8 BR=1:  6.032 ms, 8 scans,  932.7 GB/s apparent
+  head           rows=8 BR=2:  4.595 ms, 4 scans,  612.2 GB/s apparent
+  head           rows=8 BR=4:  4.637 ms, 2 scans,  303.4 GB/s apparent
+  head           rows=8 BR=8:  6.037 ms, 1 scans,  116.5 GB/s apparent
+0924 21:55:25 ds4-server: chat ctx=31..35:4 gen=4 THINKING decoding chunk=3.04 t/s avg=3.04 t/s 1.314s
+ds4-server: thinking not closed, ignoring incomplete DSML in reasoning
+0924 21:55:25 ds4-server: chat ctx=0..31:31 gen=4 THINKING finish=length 4.127s
+0924 21:55:27 ds4-server: shutdown requested, draining requests
