@@ -336,6 +336,38 @@ scale を register に読んで BR 行へ適用する。既存 fused kernel は�
   3（cache 操作の単一所有）は expert-major でも必要**。wave を凍結しても消えない。
   1（per-slot generation）と 4（HEAD_INFLIGHT）は wave 固有なので凍結してよい
 
+## step の全内訳（現行既定、`DS4_V41_BATCH_STAGE_MS=1` + `DS4_V41_MOE_SPLIT_MS=1`）
+
+計器は総額を膨らませるので比率を読む。**未計上の「rest」は無くなった。**
+
+| stage | share | 内訳 |
+|---|---:|---|
+| setup（層ループ前） | 0.3% | Engram hash + ディスク2読み + embed。**小さい** |
+| pre | 14.9% | |
+| per-row attention | 25.3% | |
+| **moe** | **43.7%** | router 15% / shared 16% / **routed 69%** |
+| head | 2.7% | BR=2 で約5 ms |
+| publish（logits 読み戻し） | 0.1% | 4.1 MB の readback は**無料**（NULL 版で 183.22 対 185.85 ms） |
+
+**routed だけで step の約30%** で単独最大。1層455 MiB を 2.12 ms → **215 GB/s**。
+dense sweep の 400〜1000 GB/s よりはるかに低い。expert は **IQ2_XXS / Q2_K の2ビット級**
+なので、律速は fetch ではなく **dequant** 側に見える。
+
+### routed は既に行間で償却されている
+
+| K | routed/層 | 1行あたり |
+|---:|---:|---:|
+| 2 | 0.546 ms | 0.273 |
+| 4 | 0.822 | 0.205 |
+| 8 | 1.351 | 0.169 |
+
+K 4倍で 2.47倍。限界行 0.135 ms に対し最初の行 0.27 ms。
+
+**これが SAME_EXPERTS の null の説明であり、「expert-major は無価値」の撤回理由である。**
+dedup しても `(row, expert)` ごとの matmul は減らない——減らせるのは重複 expert の
+**dequant だけ**。私のテストは expert-major が変える量に感度が無かった。測るには
+「unique expert ごとに1度だけ dequant する kernel」が先に要る。
+
 ## 指標が変わった: 総 stage 時間ではなく span
 
 最適化対象は総仕事量ではない。**block 入力から検証出力までの DAG の最長依存鎖（span）**
