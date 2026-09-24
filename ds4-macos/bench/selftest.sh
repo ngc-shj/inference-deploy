@@ -38,6 +38,7 @@ env DS4_METAL_V41_DECODE_QUEUE=1 DS4_METAL_IQ2_SELECTED_SHARED_EVENT=1 \
     DS4_METAL_V41_EXPERT_RESIDENCY_SET=1 DS4_METAL_V41_FFN_OVERLAP=1 \
     DS4_METAL_V41_GATE_ENCODE_AHEAD=1 \
     "$@" ./ds4-server -m "$MODEL" --ssd-streaming --ctx 8192 \
+    ${DS4_EXTRA_ARGS:-} \
     --host 127.0.0.1 --port "$PORT" > "$LOG" 2>&1 &
 pid=$!
 trap 'kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null' EXIT
