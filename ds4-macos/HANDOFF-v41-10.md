@@ -93,7 +93,8 @@ verifier step + draft 生成 + accept/rollback  <=  10 ms × 平均前進トー�
 
 | 仮説 | 実測 |
 |---|---|
-| expert-major で routed 重複45%を消す | **差を検出できず**（−3.3% / +3.5%、両順序で不一致）。**ただし測定時は 720 hits / 0.00 misses / 0.00 evictions per token で expert 全常駐。** miss のある regime は未測定で、lease / MTLIO が狙っていたのはそちらである |
+| expert-major で routed 重複45%を消す（**常駐時**） | **差を検出できず**（−3.3% / +3.5%、両順序で不一致）。測定時は 720 hits / 0.00 misses / 0.00 evictions per token |
+| 同（**miss のある regime**） | cache を 2000 entry に絞ると 199 misses / 135 evictions per token。その条件で全行を同一 expert にすると **−50〜−54%、6 round 全て同符号**、step は 568 → 265 ms |
 | 共有 dense weight を一走査にする | **約13 ms**（241 ms の 5%）。BR=1→BR=4 の実測時間から |
 | 行間の dispatch overlap | **null**（byte 一致・section 開通を確認済み） |
 | **routed MoE を行ごとから batch へ** | **−16.3% / −3.8%、両順序 faster、byte 一致。これまでの最大** |
@@ -479,6 +480,23 @@ Metal 4 を活かす設計はここである:
 
 既定 OFF のままにしてあるのは `BATCH_STREAM_EXPERTS` で、生成約80 token での崩壊が
 未修正だから。64位置の block では byte 一致する。
+
+## miss のある regime について（範囲に注意）
+
+`--ssd-streaming-cache-experts 2000` で cache を絞ると block は miss する。その条件では
+expert の扱いが step を支配し、全行を同一 expert にすると半分になる。
+
+**ただしこれは expert-major の測定ではない。** 8行を6 expert に潰すと層あたりの
+**distinct** expert 集合が 26.3→6 に落ちる。expert-major は distinct を 26.3 のまま保ち、
+重複「要求」だけを畳む——そして重複要求は共有キャッシュが既に hit として答えている。
+
+したがってこの測定が示すのは、**miss するとき支配するのは distinct な working set と
+host 同期 load** であって、要求の重複ではない。効き得るのは load の overlap と
+resident-first の順序付け（wave / lease / MTLIO が狙っていたもの）である。
+
+そして **この機体の既定構成は miss しない**（7930 entry、定常で 720 hits / 0 misses）。
+miss regime は cache を絞った場合か、もっと多様な文脈の場合であって、本文書の他の
+測定の動作点ではない。
 
 ## 台帳は4列で、まだ2列しかない
 
