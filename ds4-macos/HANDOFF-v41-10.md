@@ -16,6 +16,8 @@
 | （v41-10 初版）hoist は −11.2% | **過大。** A/B の順序バイアスだった。真の ABBA で約 −6% |
 | （v41-10 初版）次は `attn_output_a` の hoist と長文脈計測 | **違う。** 個々の matmul ではなく executor の抽象化を直す。§0b |
 | （v41-10 改訂）block attention は −21%、width 1.45 | **誤り。** 別プロセスの run 同士を引いていた。paired で約 −7%、width 約 1.37 |
+| （v41-10 改訂）row-tile は退行 | **文脈依存。** 旧 batch 経路では退行したが、block 経路の paired ABBA では両順序 faster（約 −8%）。ただし byte 一致しない |
+| （v41-10 改訂）真の依存鎖が行を直列化している | **誤り。** singleton scratch と serial encoder が作った実装上の hazard だった。3つとも直したが span は動かず、行はそもそも互いを待っていなかった |
 
 結果として、v41-9 の「やらないこと」に入っていた2項目が、測り直した数字で昇格した——
 **expert-major 化**と、**per-row attention の multi-row 化**である。どちらも
@@ -214,7 +216,66 @@ point は新カーネルではなく、既存 batch impl が `out == NULL` を�
 memcmp すると **64 の batch 位置すべてが相違**し、しかも block 先頭の行から違う。
 head のときと同じで（`6c25a41`）、判定は dump でしか行えない。
 
-#### 段階3（次にやること）: decode attention の exact-rows 化
+#### 段階3: executor の作りを直した（完了、byte 一致）
+
+行が重ならなかった原因は3つで、**すべて実装の作りであってモデルの性質ではない**。
+
+1. **compute encoder が `MTLDispatchTypeSerial`**（`ds4_metal.m:379`）。データ依存の
+   有無に関係なく全 dispatch が順序付けられる。`ds4_gpu_begin_concurrent_section()` は
+   最初から存在したのに、この経路では使われていなかった
+2. **flash scratch が process-global singleton**。`g_flash_attn_kv_buffer` /
+   `_pad_` / `_tmp_` / mask。ブロックが欲しいのは行ごとの slot である
+3. **`ds4_gpu_attention_decode_heads_tensor` が monolith**。中身は6つの依存 dispatch
+   なので、他の行の6つと interleave できない
+
+直した形（`DS4_METAL_V41_BLOCK_LEVELS=1`）:
+
+- scratch に `slot` / `slots` / `slot_keys` を通し、ブロック分を確保する
+- attention を **mask / stage / pad / attend / reduce の5 phase** に割る
+- 行は level 単位で走り、level 間だけ barrier を置き、全体を1つの concurrent section に入れる
+- **各行は自分の `n_keys`・`nsg`・kvpad variant を保つ**。これが canonical single
+  decode との bit 一致を保証する
+
+**canonical single decode と全64位置で byte 一致。** section は開いている
+（selftest が `concurrent: N sections opened of N asked` と、block 自身の
+`concurrent section open` を出す）。
+
+byte oracle が途中で見つけたバグ2件:
+
+- **slot 幅を行ごとの `n_keys` で計算していた。** 後ろの行が scratch を広げ、
+  `ds4_gpu_ensure_scratch_buffer` が再確保して、**先に staging した行のデータを捨てていた**。
+  ブロックの最大幅を一様ストライドにする
+- **KV staging と pad を同じ level に入れていた。** この2つは依存している
+
+#### 段階4: 測った。重なりは効かない。重みの共有だけが効く
+
+in-process ABBA で5つ測って、生き残ったのは1つだけ。
+
+| 介入 | byte 一致 | span |
+|---|---|---|
+| per-row gather scratch | ○ | **null**（−4.8% / +5.9%） |
+| block-local KV delta | ○ | **null**（−2.6% / +3.8%） |
+| level + concurrent section | ○ | **null**（−8.9% / +5.6%、section は 75394/75394 で開いている） |
+| output A を1 dispatch に | **×** | **遅い**（−1.3% / +11.1%） |
+| fused row-tile（重みを1度だけ読む） | **×** | **−10.7% / −4.4%、両順序 faster** |
+
+**行は互いを待っていなかった。** 1行の attention dispatch は 2048 threadgroup で、
+それだけで GPU が埋まる。8行重ねても増えない。8行がやっているのは
+**同じ重みを8回読むこと**で、1回にすると K=8 で約 8%。既に入っている
+attn_output_b の hoist の約 6% に上乗せされる。
+
+ただし fused kernel は使えない。`metal/dense.metal` は「K walk・i順・FMA順・
+reduction tree はすべて単一行のまま」と書いているが、**logits oracle に対しては
+一致せず、答えが動く**。以前 argmax で通したのは粗すぎた（argmax はこれで3度目）。
+
+#### 段階5（次にやること）: byte 一致する weight-reuse rows kernel
+
+これが width を上げる唯一の残り道で、価格も付いた（約8%）。`6c25a41` が語彙 head に
+行った手と同じく、**単一行の reduction 順序を保ったまま**、weight block の quant と
+scale を register に読んで BR 行へ適用する。既存 fused kernel はその主張を満たして
+いないので、まず**どこで外れているかを logits dump で突き止める**ところから。
+
+#### 参考: decode attention の exact-rows 化
 
 必要なのは「速い indexed-mixed kernel」ではない。**`6c25a41` が語彙 head に対して
 行ったのと同じ手**である——gather 済み KV に対する
