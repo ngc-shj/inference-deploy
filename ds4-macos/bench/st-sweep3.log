@@ -1,0 +1,72 @@
+ds4: abort gate on for the first 40 layers
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: SSD streaming auto cache budget
+ds4:   metal recommends 107.52 GiB working set
+ds4:   using 84% total for model + cached experts: 90.00 GiB
+ds4:   non-routed weights: 9.37 GiB
+ds4:   routed expert size: 9.49 MiB
+ds4:   expert budget before prefill reserve: 8698 (80.63 GiB)
+ds4: metal SSD streaming cache target 80.63 GiB; effective 80.63 GiB = 7.12 GiB prefill headroom + 73.51 GiB dynamic cache (7930 experts, 9.49 MiB each)
+ds4: Metal SSD static weights locked 9.37 GiB; pageable 0.00 GiB
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.06 GiB (raw 0.01 + compressed 0.05) + buffers 3.27 GiB + resident model 9.37 GiB + expert cache 73.51 GiB + prefill expert reserve 7.12 GiB = 93.33 GiB planned
+ds4: memory detail: ctx=8192 prefill_cap=4096 raw_kv_rows=128 compressed_kv_rows=8193 backend=metal
+0924 23:27:32 ds4-server: context buffers 3411.39 MiB (ctx=8192, backend=metal, prefill_chunk=4096, raw_kv_rows=128, compressed_kv_rows=8193)
+ds4: V4.1 static context buffers 3411.39 MiB (ctx=8192), Engram disk-only
+0924 23:27:32 ds4-server: listening on http://127.0.0.1:8016
+0924 23:27:35 ds4-server: chat ctx=0..31:31 prompt start
+ds4: shared/routed FFN overlap ran, mode 1
+ds4: expert residency set on the queue
+0924 23:27:35 ds4-server: chat ctx=0..31:31 prefill chunk 1/31 (3.2%) chunk=0.00 t/s avg=5.44 t/s 0.184s
+0924 23:27:35 ds4-server: chat ctx=0..31:31 prefill chunk 2/31 (6.5%) chunk=6.42 t/s avg=5.89 t/s 0.340s
+0924 23:27:35 ds4-server: chat ctx=0..31:31 prefill chunk 3/31 (9.7%) chunk=6.77 t/s avg=6.16 t/s 0.487s
+0924 23:27:35 ds4-server: chat ctx=0..31:31 prefill chunk 4/31 (12.9%) chunk=7.12 t/s avg=6.37 t/s 0.628s
+0924 23:27:35 ds4-server: chat ctx=0..31:31 prefill chunk 5/31 (16.1%) chunk=7.06 t/s avg=6.50 t/s 0.769s
+0924 23:27:35 ds4-server: chat ctx=0..31:31 prefill chunk 6/31 (19.4%) chunk=10.53 t/s avg=6.94 t/s 0.864s
+0924 23:27:36 ds4-server: chat ctx=0..31:31 prefill chunk 7/31 (22.6%) chunk=15.31 t/s avg=7.53 t/s 0.930s
+0924 23:27:36 ds4-server: chat ctx=0..31:31 prefill chunk 8/31 (25.8%) chunk=15.68 t/s avg=8.05 t/s 0.994s
+0924 23:27:36 ds4-server: chat ctx=0..31:31 prefill chunk 9/31 (29.0%) chunk=13.94 t/s avg=8.45 t/s 1.065s
+0924 23:27:36 ds4-server: chat ctx=0..31:31 prefill chunk 10/31 (32.3%) chunk=13.33 t/s avg=8.77 t/s 1.140s
+0924 23:27:36 ds4-server: chat ctx=0..31:31 prefill chunk 11/31 (35.5%) chunk=14.10 t/s avg=9.08 t/s 1.211s
+0924 23:27:36 ds4-server: chat ctx=0..31:31 prefill chunk 12/31 (38.7%) chunk=16.65 t/s avg=9.44 t/s 1.271s
+0924 23:27:36 ds4-server: chat ctx=0..31:31 prefill chunk 13/31 (41.9%) chunk=14.95 t/s avg=9.71 t/s 1.338s
+0924 23:27:36 ds4-server: chat ctx=0..31:31 prefill chunk 14/31 (45.2%) chunk=15.06 t/s avg=9.97 t/s 1.405s
+0924 23:27:36 ds4-server: chat ctx=0..31:31 prefill chunk 15/31 (48.4%) chunk=12.94 t/s avg=10.12 t/s 1.482s
+0924 23:27:36 ds4-server: chat ctx=0..31:31 prefill chunk 16/31 (51.6%) chunk=9.80 t/s avg=10.10 t/s 1.584s
+0924 23:27:36 ds4-server: chat ctx=0..31:31 prefill chunk 17/31 (54.8%) chunk=10.87 t/s avg=10.14 t/s 1.676s
+0924 23:27:36 ds4-server: chat ctx=0..31:31 prefill chunk 18/31 (58.1%) chunk=14.09 t/s avg=10.30 t/s 1.747s
+0924 23:27:36 ds4-server: chat ctx=0..31:31 prefill chunk 19/31 (61.3%) chunk=13.49 t/s avg=10.43 t/s 1.821s
+0924 23:27:36 ds4-server: chat ctx=0..31:31 prefill chunk 20/31 (64.5%) chunk=16.52 t/s avg=10.63 t/s 1.882s
+0924 23:27:37 ds4-server: chat ctx=0..31:31 prefill chunk 21/31 (67.7%) chunk=16.89 t/s avg=10.82 t/s 1.941s
+0924 23:27:37 ds4-server: chat ctx=0..31:31 prefill chunk 22/31 (71.0%) chunk=15.37 t/s avg=10.97 t/s 2.006s
+0924 23:27:37 ds4-server: chat ctx=0..31:31 prefill chunk 23/31 (74.2%) chunk=15.17 t/s avg=11.10 t/s 2.072s
+0924 23:27:37 ds4-server: chat ctx=0..31:31 prefill chunk 24/31 (77.4%) chunk=10.85 t/s avg=11.09 t/s 2.164s
+0924 23:27:37 ds4-server: chat ctx=0..31:31 prefill chunk 25/31 (80.6%) chunk=11.40 t/s avg=11.10 t/s 2.252s
+0924 23:27:37 ds4-server: chat ctx=0..31:31 prefill chunk 26/31 (83.9%) chunk=16.93 t/s avg=11.25 t/s 2.311s
+0924 23:27:37 ds4-server: chat ctx=0..31:31 prefill chunk 27/31 (87.1%) chunk=15.26 t/s avg=11.36 t/s 2.376s
+0924 23:27:37 ds4-server: chat ctx=0..31:31 prefill chunk 28/31 (90.3%) chunk=14.48 t/s avg=11.45 t/s 2.445s
+0924 23:27:37 ds4-server: chat ctx=0..31:31 prefill chunk 29/31 (93.5%) chunk=12.61 t/s avg=11.49 t/s 2.525s
+0924 23:27:37 ds4-server: chat ctx=0..31:31 prefill chunk 30/31 (96.8%) chunk=13.34 t/s avg=11.54 t/s 2.600s
+0924 23:27:37 ds4-server: chat ctx=0..31:31 prefill chunk 31/31 (100.0%) chunk=13.38 t/s avg=11.59 t/s 2.674s
+0924 23:27:37 ds4-server: chat ctx=0..31:31 prompt done 2.676s
+ds4:   all three      BR=1:   52.69 ms, 4.067 GB distinct, 32.532 GB of scans =  617.5 GB/s sustained
+ds4:   all three      BR=2:   29.18 ms, 4.067 GB distinct, 16.266 GB of scans =  557.5 GB/s sustained
+ds4:   all three      BR=4:   25.45 ms, 4.067 GB distinct, 8.133 GB of scans =  319.5 GB/s sustained
+ds4: cold sweep over all 40 layers, rows=8 (working set past cache):
+ds4:   attn_output_b  BR=1:   11.61 ms for 14.261 GB of scans = 1228.7 GB/s sustained
+ds4:   attn_output_b  BR=2:    8.30 ms for 7.130 GB of scans =  858.6 GB/s sustained
+ds4:   attn_output_b  BR=4:    7.20 ms for 3.565 GB of scans =  495.0 GB/s sustained
+ds4:   shexp_gate     BR=1:    3.29 ms for 4.011 GB of scans = 1218.3 GB/s sustained
+ds4:   shexp_gate     BR=2:    2.21 ms for 2.005 GB of scans =  905.4 GB/s sustained
+ds4:   shexp_gate     BR=4:    1.86 ms for 1.003 GB of scans =  539.1 GB/s sustained
+ds4:   attn_q_b       BR=1:   20.09 ms for 14.261 GB of scans =  709.9 GB/s sustained
+ds4:   attn_q_b       BR=2:   14.64 ms for 7.130 GB of scans =  487.2 GB/s sustained
+ds4:   attn_q_b       BR=4:   12.03 ms for 3.565 GB of scans =  296.4 GB/s sustained
+0924 23:27:38 ds4-server: chat ctx=31..35:4 gen=4 THINKING decoding chunk=5.41 t/s avg=5.41 t/s 0.740s
+ds4-server: thinking not closed, ignoring incomplete DSML in reasoning
+0924 23:27:38 ds4-server: chat ctx=0..31:31 gen=4 THINKING finish=length 3.417s
+0924 23:27:40 ds4-server: shutdown requested, draining requests
