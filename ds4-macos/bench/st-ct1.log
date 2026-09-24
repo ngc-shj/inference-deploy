@@ -1,0 +1,567 @@
+ds4: abort gate on for the first 40 layers
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: SSD streaming auto cache budget
+ds4:   metal recommends 107.52 GiB working set
+ds4:   using 84% total for model + cached experts: 90.00 GiB
+ds4:   non-routed weights: 9.37 GiB
+ds4:   routed expert size: 9.49 MiB
+ds4:   expert budget before prefill reserve: 8698 (80.63 GiB)
+ds4: metal SSD streaming cache target 80.63 GiB; effective 80.63 GiB = 7.12 GiB prefill headroom + 73.51 GiB dynamic cache (7930 experts, 9.49 MiB each)
+ds4: Metal SSD static weights locked 9.37 GiB; pageable 0.00 GiB
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.06 GiB (raw 0.01 + compressed 0.05) + buffers 3.27 GiB + resident model 9.37 GiB + expert cache 73.51 GiB + prefill expert reserve 7.12 GiB = 93.33 GiB planned
+ds4: memory detail: ctx=8192 prefill_cap=4096 raw_kv_rows=128 compressed_kv_rows=8193 backend=metal
+0924 22:20:56 ds4-server: context buffers 3411.39 MiB (ctx=8192, backend=metal, prefill_chunk=4096, raw_kv_rows=128, compressed_kv_rows=8193)
+ds4: V4.1 static context buffers 3411.39 MiB (ctx=8192), Engram disk-only
+0924 22:20:56 ds4-server: listening on http://127.0.0.1:8016
+0924 22:20:58 ds4-server: chat ctx=0..31:31 prompt start
+ds4: shared/routed FFN overlap ran, mode 1
+ds4: expert residency set on the queue
+0924 22:20:59 ds4-server: chat ctx=0..31:31 prefill chunk 1/31 (3.2%) chunk=0.00 t/s avg=5.47 t/s 0.183s
+0924 22:20:59 ds4-server: chat ctx=0..31:31 prefill chunk 2/31 (6.5%) chunk=5.96 t/s avg=5.71 t/s 0.350s
+0924 22:20:59 ds4-server: chat ctx=0..31:31 prefill chunk 3/31 (9.7%) chunk=6.67 t/s avg=6.00 t/s 0.500s
+0924 22:20:59 ds4-server: chat ctx=0..31:31 prefill chunk 4/31 (12.9%) chunk=9.45 t/s avg=6.60 t/s 0.606s
+0924 22:20:59 ds4-server: chat ctx=0..31:31 prefill chunk 5/31 (16.1%) chunk=11.07 t/s avg=7.18 t/s 0.697s
+0924 22:20:59 ds4-server: chat ctx=0..31:31 prefill chunk 6/31 (19.4%) chunk=12.09 t/s avg=7.70 t/s 0.779s
+0924 22:20:59 ds4-server: chat ctx=0..31:31 prefill chunk 7/31 (22.6%) chunk=10.52 t/s avg=8.01 t/s 0.874s
+0924 22:20:59 ds4-server: chat ctx=0..31:31 prefill chunk 8/31 (25.8%) chunk=7.94 t/s avg=8.00 t/s 1.000s
+0924 22:21:00 ds4-server: chat ctx=0..31:31 prefill chunk 9/31 (29.0%) chunk=10.00 t/s avg=8.18 t/s 1.100s
+0924 22:21:00 ds4-server: chat ctx=0..31:31 prefill chunk 10/31 (32.3%) chunk=11.44 t/s avg=8.42 t/s 1.188s
+0924 22:21:00 ds4-server: chat ctx=0..31:31 prefill chunk 11/31 (35.5%) chunk=10.91 t/s avg=8.60 t/s 1.279s
+0924 22:21:00 ds4-server: chat ctx=0..31:31 prefill chunk 12/31 (38.7%) chunk=12.09 t/s avg=8.81 t/s 1.362s
+0924 22:21:00 ds4-server: chat ctx=0..31:31 prefill chunk 13/31 (41.9%) chunk=11.20 t/s avg=8.96 t/s 1.451s
+0924 22:21:00 ds4-server: chat ctx=0..31:31 prefill chunk 14/31 (45.2%) chunk=8.11 t/s avg=8.89 t/s 1.575s
+0924 22:21:00 ds4-server: chat ctx=0..31:31 prefill chunk 15/31 (48.4%) chunk=12.49 t/s avg=9.07 t/s 1.655s
+0924 22:21:00 ds4-server: chat ctx=0..31:31 prefill chunk 16/31 (51.6%) chunk=11.99 t/s avg=9.21 t/s 1.738s
+0924 22:21:00 ds4-server: chat ctx=0..31:31 prefill chunk 17/31 (54.8%) chunk=12.47 t/s avg=9.35 t/s 1.818s
+0924 22:21:00 ds4-server: chat ctx=0..31:31 prefill chunk 18/31 (58.1%) chunk=10.77 t/s avg=9.42 t/s 1.911s
+0924 22:21:00 ds4-server: chat ctx=0..31:31 prefill chunk 19/31 (61.3%) chunk=10.40 t/s avg=9.47 t/s 2.007s
+0924 22:21:01 ds4-server: chat ctx=0..31:31 prefill chunk 20/31 (64.5%) chunk=10.14 t/s avg=9.50 t/s 2.106s
+0924 22:21:01 ds4-server: chat ctx=0..31:31 prefill chunk 21/31 (67.7%) chunk=14.25 t/s avg=9.65 t/s 2.176s
+0924 22:21:01 ds4-server: chat ctx=0..31:31 prefill chunk 22/31 (71.0%) chunk=13.55 t/s avg=9.78 t/s 2.250s
+0924 22:21:01 ds4-server: chat ctx=0..31:31 prefill chunk 23/31 (74.2%) chunk=12.47 t/s avg=9.87 t/s 2.330s
+0924 22:21:01 ds4-server: chat ctx=0..31:31 prefill chunk 24/31 (77.4%) chunk=11.93 t/s avg=9.94 t/s 2.414s
+0924 22:21:01 ds4-server: chat ctx=0..31:31 prefill chunk 25/31 (80.6%) chunk=12.54 t/s avg=10.03 t/s 2.494s
+0924 22:21:01 ds4-server: chat ctx=0..31:31 prefill chunk 26/31 (83.9%) chunk=10.52 t/s avg=10.04 t/s 2.589s
+0924 22:21:01 ds4-server: chat ctx=0..31:31 prefill chunk 27/31 (87.1%) chunk=10.88 t/s avg=10.07 t/s 2.681s
+0924 22:21:01 ds4-server: chat ctx=0..31:31 prefill chunk 28/31 (90.3%) chunk=13.58 t/s avg=10.17 t/s 2.754s
+0924 22:21:01 ds4-server: chat ctx=0..31:31 prefill chunk 29/31 (93.5%) chunk=13.11 t/s avg=10.25 t/s 2.830s
+0924 22:21:01 ds4-server: chat ctx=0..31:31 prefill chunk 30/31 (96.8%) chunk=13.87 t/s avg=10.34 t/s 2.903s
+0924 22:21:01 ds4-server: chat ctx=0..31:31 prefill chunk 31/31 (100.0%) chunk=15.05 t/s avg=10.44 t/s 2.969s
+0924 22:21:01 ds4-server: chat ctx=0..31:31 prompt done 2.971s
+ds4: gate over tokens 1-64: 34.33 command buffers, 30.23 aborts, 240.0 expert ids accounted, 656.74 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 4.28 + commit-to-done 57.99 + repair-load 16.27 + accounting 0.03 + tail 0.97 = 79.52 of a 84.15 ms wall, residual 4.63
+ds4:   of the commit-to-done: GPU running 55.83 ms, GPU not running 2.16 ms
+ds4:   2038.6 gated dispatches a token, 69.6 of them behind an abort; 2808.7 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 2.09 segments used, 27.23 dropped, 4.38 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 350.53 attempted, 350.53 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   expert cache over the last 64 tokens: 240.00 hits, 69.19 misses, 0.00 evictions a token; 4428 of 7930 entries live (55.8%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 69.19 genuinely absent
+ds4:   residency a token: 69.19 adds, 0.00 removes, 69.19 commits
+ds4: V4.1 block-local KV delta, 8 rows over 31 prefix keys
+ds4: V4.1 batch attn_output_b hoisted out of the per-row loop (8 rows)
+ds4: V4.1 block attention by level, 8 rows, concurrent section open
+ds4: gate over tokens 65-128: 22.31 command buffers, 12.45 aborts, 240.0 expert ids accounted, 193.40 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.98 + commit-to-done 46.30 + repair-load 5.18 + accounting 0.03 + tail 1.67 = 55.16 of a 58.43 ms wall, residual 3.26
+ds4:   of the commit-to-done: GPU running 75.87 ms, GPU not running -29.57 ms
+ds4:   1681.7 gated dispatches a token, 27.5 of them behind an abort; 1516.1 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 7.86 segments used, 11.23 dropped, 3.11 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 195.50 attempted, 195.50 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   expert cache over the last 64 tokens: 480.00 hits, 20.38 misses, 0.00 evictions a token; 5732 of 7930 entries live (72.3%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 20.38 genuinely absent
+ds4:   residency a token: 20.38 adds, 0.00 removes, 20.38 commits
+ds4: V4.1 verify selftest k=8, 64 positions from 31 (odd start, pair carry restored), 1 alternating rounds
+  round 0: single 49.39 ms/token, batch 305.36 ms/step
+ds4: weight scans a 8-row block asks for (logical, not DRAM):
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   indexer_attn_k            0.13 MB   4 dispatch,  4 rows,  4 scans =    0.52 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   indexer_attn_k            0.13 MB   4 dispatch,  4 rows,  4 scans =    0.52 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                       314.57 MB   1 dispatch,  8 rows,  8 scans = 2516.58 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   indexer_attn_k            0.13 MB   4 dispatch,  4 rows,  4 scans =    0.52 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   indexer_attn_k            0.13 MB   8 dispatch,  8 rows,  8 scans =    1.05 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   head                    703.28 MB   1 dispatch,  8 rows,  4 scans = 2813.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                       314.57 MB   1 dispatch,  8 rows,  8 scans = 2516.58 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_compressor_kv        5.24 MB   8 dispatch,  8 rows,  8 scans =   41.94 MB
+ds4:   attn_compressor_gate      5.24 MB   8 dispatch,  8 rows,  8 scans =   41.94 MB
+ds4:   indexer_attn_q_b         10.49 MB   8 dispatch,  8 rows,  8 scans =   83.89 MB
+ds4:   indexer_proj              0.33 MB   8 dispatch,  8 rows,  8 scans =    2.62 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_compressor_kv        5.24 MB   8 dispatch,  8 rows,  8 scans =   41.94 MB
+ds4:   attn_compressor_gate      5.24 MB   8 dispatch,  8 rows,  8 scans =   41.94 MB
+ds4:   indexer_attn_q_b         10.49 MB   8 dispatch,  8 rows,  8 scans =   83.89 MB
+ds4:   indexer_proj              0.33 MB   8 dispatch,  8 rows,  8 scans =    2.62 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_compressor_kv        5.24 MB   8 dispatch,  8 rows,  8 scans =   41.94 MB
+ds4:   attn_compressor_gate      5.24 MB   8 dispatch,  8 rows,  8 scans =   41.94 MB
+ds4:   indexer_attn_q_b         10.49 MB   8 dispatch,  8 rows,  8 scans =   83.89 MB
+ds4:   indexer_proj              0.33 MB   8 dispatch,  8 rows,  8 scans =    2.62 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_compressor_kv        5.24 MB   8 dispatch,  8 rows,  8 scans =   41.94 MB
+ds4:   indexer_attn_q_b         10.49 MB   8 dispatch,  8 rows,  8 scans =   83.89 MB
+ds4:   indexer_proj              0.33 MB   8 dispatch,  8 rows,  8 scans =    2.62 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   indexer_attn_q_b         10.49 MB   8 dispatch,  8 rows,  8 scans =   83.89 MB
+ds4:   indexer_proj              0.33 MB   8 dispatch,  8 rows,  8 scans =    2.62 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   indexer_attn_q_b         10.49 MB   8 dispatch,  8 rows,  8 scans =   83.89 MB
+ds4:   indexer_proj              0.33 MB   8 dispatch,  8 rows,  8 scans =    2.62 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   indexer_attn_q_b         10.49 MB   8 dispatch,  8 rows,  8 scans =   83.89 MB
+ds4:   indexer_proj              0.33 MB   8 dispatch,  8 rows,  8 scans =    2.62 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   indexer_attn_q_b         10.49 MB   8 dispatch,  8 rows,  8 scans =   83.89 MB
+ds4:   indexer_proj              0.33 MB   8 dispatch,  8 rows,  8 scans =    2.62 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   attn_q_b                 44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   attn_output_a            35.65 MB   8 dispatch,  8 rows,  8 scans =  285.21 MB
+ds4:   attn_output_b            44.56 MB   1 dispatch,  8 rows,  2 scans =   89.13 MB
+ds4:   ?                         0.98 MB   1 dispatch,  8 rows,  8 scans =    7.86 MB
+ds4:   ffn_gate_inp              7.86 MB   8 dispatch,  8 rows,  8 scans =   62.91 MB
+ds4:   shexp_gate               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   shexp_down               12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   attn_q_a                  6.96 MB   1 dispatch,  8 rows,  2 scans =   13.93 MB
+ds4:   attn_kv                   2.79 MB   1 dispatch,  8 rows,  2 scans =    5.57 MB
+ds4:   shexp_up                 12.53 MB   8 dispatch,  8 rows,  8 scans =  100.27 MB
+ds4:   routed: 1920 selections over 40 layers, 1051 unique (26.3 of 48.0 a layer, 45% duplicate); 19.110 GB selected, 10.461 GB if the duplicates were shared
+ds4:   distinct 8.735 GB, scanned 43.331 GB (4.96x), floor at one scan 8.735 GB, at ceil(8/4) scans 17.469 GB
+  median single    : 49.39 ms/token
+  median 8-row step: 305.36 ms = 6.18x one single step
+  perfect-draft ceiling: 26.20 tok/s (100 tok/s requires <= 80.00 ms/step)
+  block width      : 1.29x of 8 (needs 4.94x for 100 tok/s)
+  concurrent       : 37768 sections opened of 37768 asked
+  marginal row cost: 36.57 ms = 74% of a standalone token
+  rollback         : reproduces its own output
+  batch vs single  : identical argmax (64 rows checked)
+  break-even       : accept 77% of drafted tokens to beat single
+  rolled-back passes agree with each other: yes
+0924 22:21:15 ds4-server: chat ctx=31..35:4 gen=4 THINKING decoding chunk=0.30 t/s avg=0.30 t/s 13.396s
+ds4-server: thinking not closed, ignoring incomplete DSML in reasoning
+0924 22:21:15 ds4-server: chat ctx=0..31:31 gen=4 THINKING finish=length 16.367s
+0924 22:21:17 ds4-server: shutdown requested, draining requests
