@@ -93,7 +93,7 @@ verifier step + draft 生成 + accept/rollback  <=  10 ms × 平均前進トー�
 
 | 仮説 | 実測 |
 |---|---|
-| expert-major で routed 重複45%を消す | **ほぼゼロ。** 全行を同一 expert に強制して unique を 26.3→6（選択の87.5%削減）にしても −3.3% / +3.5%、両順序で不一致 |
+| expert-major で routed 重複45%を消す | **差を検出できず**（−3.3% / +3.5%、両順序で不一致）。**ただし測定時は 720 hits / 0.00 misses / 0.00 evictions per token で expert 全常駐。** miss のある regime は未測定で、lease / MTLIO が狙っていたのはそちらである |
 | 共有 dense weight を一走査にする | **約13 ms**（241 ms の 5%）。BR=1→BR=4 の実測時間から |
 | 行間の dispatch overlap | **null**（byte 一致・section 開通を確認済み） |
 | **routed MoE を行ごとから batch へ** | **−16.3% / −3.8%、両順序 faster、byte 一致。これまでの最大** |
@@ -523,9 +523,10 @@ policy は BR=4、head だけ BR=2。既定に入れた（head は既存の門�
      構成上 bit 一致するが、**単一行の decode の答えが変わる**（prefill は既にこちらの
      カーネルを使っているので、prefill と decode の不一致は現状すでに存在する）
 2. contiguous-block executor を byte 一致で通す
-3. ready-work executor —— ただし **expert-major worklist は目的から外す**。重複45%を
-   消しても時間は動かないことが測定で確定した（unique 26.3→6 で −3.3% / +3.5%）。
-   残る目的は resident/miss の分離と I/O overlap であって、traffic 削減ではない
+3. ready-work executor —— expert-major worklist の**優先度を下げる**。全常駐時は
+   重複を消しても差が出なかった（unique 26.3→6 で −3.3% / +3.5%、両順序不一致）。
+   ただし miss のある regime は未測定なので、否定ではなく「常駐時には効かない」まで。
+   先に測るべきは miss 率を上げた条件での同じ A/B
 4. 残りの per-row projection を batch へ。台帳が名指ししている: `attn_output_a`
    （grouped kernel なので専用の rows 版が要る。generic matmul とは別 contract）、
    `ffn_gate_inp`、indexer 系
