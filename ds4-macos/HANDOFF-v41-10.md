@@ -465,6 +465,40 @@ Metal 4 を活かす設計はここである:
 - row/layer 単位の completion counter で次ノードを解放する
 - global barrier と「全 row 完了待ち」は join 点だけに置く
 
+## 正しさの測り方（ここを間違えていた）
+
+この文書の「byte 一致」は長らく **dump 同士の `cmp`** だった。それが示すのは
+「設定 A と設定 B が一致する」だけで、**両方が single と食い違っていても一致する**。
+
+dump を監査すると、`EXACT_VOCAB_ROWS` 無しで取ったものは例外なく batch ≠ single
+（64/64 位置）。初期の基準 `bkv-0.bin` がそれで、per-row gather / block-local KV /
+level 実行の「byte 一致」は**その基準と比べていただけ**だった。
+
+selftest が自分で測るようにした。reference pass の**全 logits**を保持し（k=8 で 33 MB）、
+batch pass を要素ごとに比較し、最初の差と大きさを出す。さらに**対照**として単一 pass を
+もう一度流して同じ比較にかける——**二つの単一 pass が一致しない計器は何も言えない**。
+対照は全設定で 0 / 8,273,920。
+
+| 設定 | batch vs single（全 logits） |
+|---|---|
+| `BLOCK=1` + `EXACT_VOCAB_ROWS=1` | 一致 |
+| `BLOCK=1` のみ | 相違 |
+| `EXACT_VOCAB_ROWS=1` のみ | 一致 |
+| 既定 | 相違 |
+
+**batch を single へ一致させているのは `EXACT_VOCAB_ROWS` であり、block executor は
+それを壊していない。** これが言える全部である。
+
+## 計器由来の誤結論（このセッションで5件）
+
+1. ビルド失敗後の古いバイナリを「一致」と読んだ
+2. patch script が assertion で落ち、`refbuf` が空のまま「全要素相違」と読んだ
+3. shell の引数分割が壊れ、4設定とも flag 無しで走っていた
+4. sweep が timed region 内で alloc/free しており、**15.6 ms の host 時間を memory 時間として報告**していた。これが「617 GB/s = peak」と「縦長は BR=2」の両方を生んだ
+5. `batched.sh` の prompt が `correct-fast.sh` と別物で、違う要求の hash を比べて「2 session の欠陥」を報告した
+
+いずれも測定対象ではなく計器の側である。**dump 同士の比較をやめ、計器に対照を付けること。**
+
 ## いまの状態（すべて canonical single decode と byte 一致）
 
 | flag | 中身 | 価格（paired ABBA） |
@@ -509,35 +543,41 @@ miss regime は cache を絞った場合か、もっと多様な文脈の場合�
 
 混ぜてはいけない。この文書は一度混ぜて、38 ms という存在しない数字を出した。
 
-### working set が結論を変える
-
-同じ質問に、working set の大きさで違う答えが出る。
+### physical 列は未確立のまま
 
 | 測り方 | distinct | BR=1 の持続 |
 |---|---:|---:|
 | 1行列を叩く | 45 MB | 1233〜1308 GB/s |
-| 1 tensor × 40層 | 1.78 GB | 1231 GB/s |
-| **3 tensor × 40層** | **4.07 GB** | **617 GB/s（機体 peak）** |
+| 1 tensor × 40層 | 1.78 GB | 1227 GB/s |
+| 3 tensor × 40層 | 4.07 GB | 876 GB/s |
+| **8 tensor × 40層** | **6.885 GB** | **1045 GB/s** |
 
-**前者2つは cache に乗っていた。** ブロックの dense footprint は 8.7 GB なので、
-**実際のブロックでは 8 scan は本物の traffic** である。「バイトは時間ではない」と
-一度書いたが、それは小さすぎる working set から引いた結論だった。
+**どれも機体 peak（614 GB/s）を超える。** つまり試した範囲では scan は 1:1 の DRAM
+読み出しではない。そして数列は**単調ではない**——持続速度は footprint ではなく
+**shape の混ざり方**を追っている（4.07 GB は per-byte 最遅の 3 種）。したがって
+**この数列から cache 境界は読めない。**
 
-4.07 GB の sweep で BR=1 52.72 ms → BR=4 32.59 ms。ただし scan は4分の1になるのに
-時間は 1.62 分の1にしかならない。BR=4 の持続は 250 GB/s で、そこでは帯域ではなく
-occupancy が律速している。
+中盤に「block scale では scan は traffic」と書いたが、あれは sweep が timed region 内で
+alloc/free していた 15.6 ms を memory 時間と読んだもの。撤回済み。
 
-### 一律 BR=4 は誤り
+### BR=4 が全 shape で最速（harness 修正後）
 
-| | BR=1 | BR=2 | BR=4 |
+| 40層合計 | BR=1 | BR=2 | BR=4 |
 |---|---:|---:|---:|
-| attn_output_b（40層） | 11.58 | 8.49 | **7.84** |
-| shexp_gate（40層） | 3.75 | 2.60 | **2.06** |
-| **attn_q_b（1280×32768、40層）** | 23.32 | **21.35** | **24.45** |
+| attn_output_b | 11.64 | 8.32 | **7.16** |
+| attn_q_b | 20.12 | 14.66 | **12.07** |
+| attn_output_a | 8.70 | 6.02 | **4.94** |
+| attn_q_a | 2.00 | 1.45 | **1.23** |
+| attn_kv | 1.02 | 0.80 | **0.76** |
+| shexp_gate / up / down | 3.29 / 3.33 / 4.17 | 2.19 / 2.27 / 3.04 | **1.82 / 1.90 / 2.50** |
+| **合計** | **54.27** | 38.75 | **32.38** |
 
-`attn_q_b` では BR=4 が tile 無しより遅い。head（5120×129280）も同じ形。共通するのは
-`out_dim >= 4 * in_dim` の縦長で、既定をその条件で BR=2 に分けた。end-to-end では
-差を検出できない（3 ms / 330 ms）ので、根拠は operator 側の測定である。
+8 shape すべてで単調、BR=4 が最速。**「縦長は BR=2」という以前の規則は、alloc/free を
+含んだ測定の人工物だった**ので削除し、一律 BR=4（head だけ BR=2、こちらは清浄な測定で
+BR=4 と1%以内の同着）に戻した。
+
+なお `attn_output_a` のこの数字は generic kernel のもので、block 内の実経路は grouped
+kernel である。別 contract として扱うこと。
 
 ## contract の全数（`DS4_V41_WEIGHT_READS=2`）
 
