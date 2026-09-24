@@ -501,19 +501,19 @@ batch pass を要素ごとに比較し、最初の差と大きさを出す。さ
 
 ## いまの状態（すべて canonical single decode と byte 一致）
 
-| flag | 中身 | 価格（paired ABBA） |
-|---|---|---|
-| `DS4_METAL_V41_BLOCK_KV=1` | immutable prefix + block delta + 一括 commit | null（前提条件） |
-| `DS4_METAL_V41_ROW_GATHER=1` | 行ごとの gather scratch | null（前提条件） |
-| `DS4_METAL_V41_BLOCK_LEVELS=1` | attention を5 phase の level 実行、concurrent section | null（前提条件） |
-| `DS4_METAL_V41_EXACT_VOCAB_ROWS=1` | head を exact-rows へ | 正しさ側 |
-| **既定 row tile**（BR=4、head は BR=2） | 重みを BR 行ぶん1度読む | **両順序 faster、+3.8% / +25.5% を切ると遅い** |
-| `DS4_METAL_V41_BATCH_STREAM_EXPERTS=1` | routed MoE を行ごとから batch へ | **両順序 faster、−16.3% / −3.8%** |
+| flag | 中身 | 既定 | 価格（paired ABBA） |
+|---|---|---|---|
+| `DS4_METAL_V41_BLOCK=1` | 下3つをまとめる switch | OFF | **差を検出できず**（−8.6% / +1.7%、静穏機） |
+| `…_BLOCK_KV` / `…_ROW_GATHER` / `…_BLOCK_LEVELS` / `…_BLOCK_LOW_BATCH` | block-local KV、行ごと scratch、5 phase level 実行、grouped low の batch | OFF | 個別にも null |
+| `DS4_METAL_V41_EXACT_VOCAB_ROWS=1` | head を exact-rows へ | OFF | **正しさの前提**。これが無いと batch ≠ single |
+| **row tile**（BR=4、head は BR=2） | 重みを BR 行ぶん1度読む | **ON** | 両順序 faster（−10.4% / −5.3%） |
+| **`…_BATCH_STREAM_EXPERTS`** | routed MoE を行ごとから batch へ | **ON** | 両順序 faster（−16.3% / −3.8%）。`correct.sh` 6本が既知 hash と一致 |
 
-**width は 1.22 → 1.52**（8 行中）。初めて動いた。必要なのは 3.6。
+**block executor そのものは span に効いていない。** 効いたのは row tile と routed batch の
+2つだけで、どちらも「行ごとの dispatch を1つにまとめる」種類の変更である。
 
-既定 OFF のままにしてあるのは `BATCH_STREAM_EXPERTS` で、生成約80 token での崩壊が
-未修正だから。64位置の block では byte 一致する。
+width は per-row 経路で 1.22〜1.29、現状で **1.50〜1.54**（同一 run 内の比なので機体状態に
+やや強い）。限界行のコストは標準 token の 74% → **60%**。必要な width は 3.6〜3.9。
 
 ## miss のある regime について（範囲に注意）
 
