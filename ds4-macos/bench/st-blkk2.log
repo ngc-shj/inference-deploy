@@ -1,0 +1,81 @@
+ds4: abort gate on for the first 40 layers
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: SSD streaming auto cache budget
+ds4:   metal recommends 107.52 GiB working set
+ds4:   using 84% total for model + cached experts: 90.00 GiB
+ds4:   non-routed weights: 9.37 GiB
+ds4:   routed expert size: 9.49 MiB
+ds4:   expert budget before prefill reserve: 8698 (80.63 GiB)
+ds4: metal SSD streaming cache target 80.63 GiB; effective 80.63 GiB = 7.12 GiB prefill headroom + 73.51 GiB dynamic cache (7930 experts, 9.49 MiB each)
+ds4: Metal SSD static weights locked 9.37 GiB; pageable 0.00 GiB
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.06 GiB (raw 0.01 + compressed 0.05) + buffers 3.27 GiB + resident model 9.37 GiB + expert cache 73.51 GiB + prefill expert reserve 7.12 GiB = 93.32 GiB planned
+ds4: memory detail: ctx=8192 prefill_cap=4096 raw_kv_rows=128 compressed_kv_rows=8193 backend=metal
+0924 20:29:20 ds4-server: context buffers 3403.39 MiB (ctx=8192, backend=metal, prefill_chunk=4096, raw_kv_rows=128, compressed_kv_rows=8193)
+ds4: V4.1 static context buffers 3403.39 MiB (ctx=8192), Engram disk-only
+0924 20:29:20 ds4-server: listening on http://127.0.0.1:8016
+0924 20:29:23 ds4-server: chat ctx=0..31:31 prompt start
+ds4: shared/routed FFN overlap ran, mode 1
+ds4: expert residency set on the queue
+0924 20:29:23 ds4-server: chat ctx=0..31:31 prefill chunk 1/31 (3.2%) chunk=0.00 t/s avg=4.97 t/s 0.201s
+0924 20:29:24 ds4-server: chat ctx=0..31:31 prefill chunk 2/31 (6.5%) chunk=7.99 t/s avg=6.13 t/s 0.326s
+0924 20:29:24 ds4-server: chat ctx=0..31:31 prefill chunk 3/31 (9.7%) chunk=9.66 t/s avg=6.98 t/s 0.430s
+0924 20:29:24 ds4-server: chat ctx=0..31:31 prefill chunk 4/31 (12.9%) chunk=8.81 t/s avg=7.36 t/s 0.543s
+0924 20:29:24 ds4-server: chat ctx=0..31:31 prefill chunk 5/31 (16.1%) chunk=7.99 t/s avg=7.48 t/s 0.668s
+0924 20:29:24 ds4-server: chat ctx=0..31:31 prefill chunk 6/31 (19.4%) chunk=13.31 t/s avg=8.07 t/s 0.744s
+0924 20:29:24 ds4-server: chat ctx=0..31:31 prefill chunk 7/31 (22.6%) chunk=12.64 t/s avg=8.51 t/s 0.823s
+0924 20:29:24 ds4-server: chat ctx=0..31:31 prefill chunk 8/31 (25.8%) chunk=13.57 t/s avg=8.92 t/s 0.896s
+0924 20:29:24 ds4-server: chat ctx=0..31:31 prefill chunk 9/31 (29.0%) chunk=11.80 t/s avg=9.17 t/s 0.981s
+0924 20:29:24 ds4-server: chat ctx=0..31:31 prefill chunk 10/31 (32.3%) chunk=12.86 t/s avg=9.44 t/s 1.059s
+0924 20:29:24 ds4-server: chat ctx=0..31:31 prefill chunk 11/31 (35.5%) chunk=12.67 t/s avg=9.67 t/s 1.138s
+0924 20:29:24 ds4-server: chat ctx=0..31:31 prefill chunk 12/31 (38.7%) chunk=11.98 t/s avg=9.83 t/s 1.221s
+0924 20:29:24 ds4-server: chat ctx=0..31:31 prefill chunk 13/31 (41.9%) chunk=10.98 t/s avg=9.91 t/s 1.312s
+0924 20:29:25 ds4-server: chat ctx=0..31:31 prefill chunk 14/31 (45.2%) chunk=15.55 t/s avg=10.17 t/s 1.377s
+0924 20:29:25 ds4-server: chat ctx=0..31:31 prefill chunk 15/31 (48.4%) chunk=18.36 t/s avg=10.48 t/s 1.431s
+0924 20:29:25 ds4-server: chat ctx=0..31:31 prefill chunk 16/31 (51.6%) chunk=14.49 t/s avg=10.67 t/s 1.500s
+0924 20:29:25 ds4-server: chat ctx=0..31:31 prefill chunk 17/31 (54.8%) chunk=17.06 t/s avg=10.91 t/s 1.559s
+0924 20:29:25 ds4-server: chat ctx=0..31:31 prefill chunk 18/31 (58.1%) chunk=15.61 t/s avg=11.09 t/s 1.623s
+0924 20:29:25 ds4-server: chat ctx=0..31:31 prefill chunk 19/31 (61.3%) chunk=16.54 t/s avg=11.29 t/s 1.683s
+0924 20:29:25 ds4-server: chat ctx=0..31:31 prefill chunk 20/31 (64.5%) chunk=17.92 t/s avg=11.50 t/s 1.739s
+0924 20:29:25 ds4-server: chat ctx=0..31:31 prefill chunk 21/31 (67.7%) chunk=18.31 t/s avg=11.71 t/s 1.794s
+0924 20:29:25 ds4-server: chat ctx=0..31:31 prefill chunk 22/31 (71.0%) chunk=18.84 t/s avg=11.91 t/s 1.847s
+0924 20:29:25 ds4-server: chat ctx=0..31:31 prefill chunk 23/31 (74.2%) chunk=17.40 t/s avg=12.08 t/s 1.904s
+0924 20:29:25 ds4-server: chat ctx=0..31:31 prefill chunk 24/31 (77.4%) chunk=16.18 t/s avg=12.21 t/s 1.966s
+0924 20:29:25 ds4-server: chat ctx=0..31:31 prefill chunk 25/31 (80.6%) chunk=19.39 t/s avg=12.39 t/s 2.018s
+0924 20:29:25 ds4-server: chat ctx=0..31:31 prefill chunk 26/31 (83.9%) chunk=20.09 t/s avg=12.58 t/s 2.068s
+0924 20:29:25 ds4-server: chat ctx=0..31:31 prefill chunk 27/31 (87.1%) chunk=18.10 t/s avg=12.72 t/s 2.123s
+0924 20:29:25 ds4-server: chat ctx=0..31:31 prefill chunk 28/31 (90.3%) chunk=17.65 t/s avg=12.85 t/s 2.179s
+0924 20:29:25 ds4-server: chat ctx=0..31:31 prefill chunk 29/31 (93.5%) chunk=17.11 t/s avg=12.96 t/s 2.238s
+0924 20:29:25 ds4-server: chat ctx=0..31:31 prefill chunk 30/31 (96.8%) chunk=16.66 t/s avg=13.06 t/s 2.298s
+0924 20:29:26 ds4-server: chat ctx=0..31:31 prefill chunk 31/31 (100.0%) chunk=18.17 t/s avg=13.18 t/s 2.353s
+0924 20:29:26 ds4-server: chat ctx=0..31:31 prompt done 2.355s
+ds4: V4.1 contiguous-block attention, one session, 2 consecutive positions
+ds4: V4.1 verify selftest k=2, 16 positions from 31 (odd start, pair carry restored), 1 alternating rounds
+  round 0: single 35.15 ms/token, batch 68.13 ms/step
+  median single    : 35.15 ms/token
+  median 2-row step: 68.13 ms = 1.94x one single step
+  perfect-draft ceiling: 29.36 tok/s (100 tok/s requires <= 20.00 ms/step)
+  marginal row cost: 32.97 ms = 94% of a standalone token
+  rollback         : reproduces its own output
+  batch vs single  : DIVERGED (16 rows checked)
+  break-even       : accept 97% of drafted tokens to beat single
+  rolled-back passes agree with each other: yes
+  batch first diverged at offset 3, where the reference led second place by 0.119066
+ds4: gate over tokens 1-64: 31.06 command buffers, 25.23 aborts, 240.0 expert ids accounted, 586.59 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 3.02 + commit-to-done 39.07 + repair-load 12.86 + accounting 0.03 + tail 0.74 = 55.72 of a 59.69 ms wall, residual 3.98
+ds4:   of the commit-to-done: GPU running 50.37 ms, GPU not running -11.31 ms
+ds4:   1946.3 gated dispatches a token, 58.1 of them behind an abort; 2450.7 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 3.83 segments used, 22.73 dropped, 3.75 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 306.19 attempted, 306.19 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   expert cache over the last 64 tokens: 359.34 hits, 63.11 misses, 0.00 evictions a token; 3997 of 7930 entries live (50.4%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 61.80 genuinely absent
+ds4:   residency a token: 63.11 adds, 0.66 removes, 63.77 commits
+0924 20:29:29 ds4-server: chat ctx=31..35:4 gen=4 THINKING decoding chunk=1.28 t/s avg=1.28 t/s 3.131s
+ds4-server: thinking not closed, ignoring incomplete DSML in reasoning
+0924 20:29:29 ds4-server: chat ctx=0..31:31 gen=4 THINKING finish=length 5.485s
+0924 20:29:31 ds4-server: shutdown requested, draining requests

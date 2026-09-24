@@ -12,6 +12,9 @@
 | row wavefront は壊れている（`0980a5b`） | **修正済み。** 出力一致・違反 0。ただし遅く、凍結対象 |
 | expert 共有は B=8 で 5.3% | **撤回。** 独立 route の算数だった。実測は層あたり 48 選択 → 26.4 unique（約45%重複） |
 | （v41-10 初版）本命は expert-major | **半分だけ正しい。** moe は step の 42% で、ゼロにしても 54 tok/s 止まり。per-row attention が同じだけ効く |
+| （v41-10 初版）hoist は weight 再読を止めた | **誤り。** exact-rows は行ごとに weight を読み直す。確立したのは「1 dispatch が 8 dispatch より速い」までで、理由は未確定 |
+| （v41-10 初版）hoist は −11.2% | **過大。** A/B の順序バイアスだった。真の ABBA で約 −6% |
+| （v41-10 初版）次は `attn_output_a` の hoist と長文脈計測 | **違う。** 個々の matmul ではなく executor の抽象化を直す。§0b |
 
 結果として、v41-9 の「やらないこと」に入っていた2項目が、測り直した数字で昇格した——
 **expert-major 化**と、**per-row attention の multi-row 化**である。どちらも
@@ -62,6 +65,20 @@ verifier は帯域の近くにいない。だから draft 品質を先に測っ�
 accepted 長が 8/8 であっても 31 tok/s で頭打ちになる。
 
 **judgment: K=8 を 80 ms/step 以下へ入れることが、他の何よりも先に来る。**
+
+### 80 ms は上限であって条件ではない
+
+本当の条件は次である。
+
+```
+verifier step + draft 生成 + accept/rollback  <=  10 ms × 平均前進トークン数
+```
+
+80 ms/step は **K=8 を全採択し、draft 費用がゼロの場合だけ**の上限である。平均前進が
+6 なら総予算は 60 ms で、そこから draft と accept/rollback を引いた残りが verifier の
+取り分になる。本文書の「perfect-draft ceiling」はすべて**その上限側**の数字であり、
+達成可能な tok/s ではない。実 drafter の平均前進数と掛け合わせるのは最後の工程である
+（§5）。
 
 ## expert-major の賞金は実在する（v41-9 の 5.3% を撤回）
 
@@ -131,7 +148,7 @@ expert-major の現実的な取り分（routed を 26.4/48 へ畳む = routed we
 moe 108 ms のうち routed weight 律速の部分が最大 45% 減る。step 255 → 約 207 ms、
 上限 31.3 → 38.5 tok/s。**100 には遠い。**
 
-### 0b. per-row attention が本当の壁で、そこに共有できる weight があった
+### 0b. per-row attention が本当の壁で、executor の抽象化が間違っていた
 
 per-row attention は 30.2% = 静穏時で約 77 ms。**100 tok/s の予算は 80 ms 全部である。**
 
@@ -139,23 +156,67 @@ per-row attention は 30.2% = 静穏時で約 77 ms。**100 tok/s の予算は 8
 しても予算に占める割合は変わらない**（K=8 で 77/80、K=16 で 154/160）。K を上げても
 attention は一切改善しない。
 
-そのループの末尾は `ds41_attention_output` = `ds41_attention_low` + `attn_output_b`
-への matmul。**`attn_output_b` は 8192×5120 の Q8（45 MB）で、8行が同じ重みを8回読む。**
-行が違うのは activation であって weight ではない。
+**根本は個々の matmul ではなく executor の抽象化である。** K 行は「単一 session の
+連続 K token」なのに、`ds41_graph_step_batch_logits` は K 個の独立 session のように
+attention を1行ずつ実行していた（`ds4.c:45050` 付近のループ）。独立 session は
+KV が独立だから行ごとに回すしかないが、**speculative block の K 行は prefix KV を
+完全に共有する。** これは prefill が既に扱っている形であり、`ds41_attention_batch()`
+（`ds4.c:42049`）が最初から存在する。
 
 v41-9 は「attention core の multi-row 化」を「共有weightなし」として除外していた。
-**これは expert 共有を独立sessionの算数で見誤ったのと同じ型の誤りである。**
+**weight の有無は判定軸として誤っている。** 共有されるのは weight ではなく KV である。
+expert 共有を独立sessionの算数で見誤ったのと同じ型の誤りである。
 
-hoist して測った（`DS4_METAL_V41_BATCH_ATTN_OUT=1`、既定 OFF）:
+#### 段階1: `attn_output_b` を行ループの外へ（既定 ON、byte 一致）
+
+`DS4_METAL_V41_BATCH_ATTN_OUT`、既定 ON、`=0` で元に戻る。
 
 | | 結果 |
 |---|---|
-| K=8 step（同一プロセス paired、5 round） | 全 round で ON が 38–42 ms 速い、中央値 **−11.2%** |
-| head logits の byte 一致（k=2 / 4 / 8） | **完全一致**（`DS4_METAL_V41_LOGITS_DUMP` を memcmp） |
-| 節約の中身 | 40層 × 7回 × 45 MB = 約 12.6 GB/step の weight 再読 |
+| K=8 step、真の ABBA、6 round | 6/6 で per-row loop が遅い。unset-first 中央値 −11.0%、set-first −2.6%、**順序を均して約 −6%** |
+| head logits の byte 一致（k=2 / 4 / 8） | **完全一致**（`LOGITS_DUMP` を memcmp） |
 
-**既定 ON へ昇格させる前に残るのは静穏機での paired campaign（絶対値）だけ。**
-正しさ側は byte 一致で閉じている。
+**帰属に注意。** これは「weight を一度だけ読むようになった」のではない。exact
+decode-rows kernel は batch 行を grid の Y 軸に置くだけで、**各行が weight 全体を
+読み直す**（`metal/dense.metal:202` がそう書いている）。weight を実際に再利用するのは
+fused kernel（`HEAD_ROW_TILE` / `DENSE_ROW_TILE`）の側で、そちらはここで退行した。
+**確立したのは「8個の dispatch を1個にすると速い」までで、理由は未確定**——dispatch
+削減か、行が同時 resident になることか、coalescing か。
+
+#### 段階2: contiguous-block attention（賞金は大きい、まだ byte 一致しない）
+
+`DS4_METAL_V41_BLOCK_ATTN=1`、**既定 OFF**。`graphs[i] == graphs[0]` かつ
+`positions[i] == positions[0] + i` を条件に、block 全体を `ds41_attention_batch()` へ
+送り、output A は block 一括、output B は exact-rows のまま。output A 単独の entry
+point は新カーネルではなく、既存 batch impl が `out == NULL` を受けるようにして得た。
+
+| | 結果 |
+|---|---:|
+| K=8 step | 255 → **202 ms** |
+| perfect-draft ceiling | 31.3 → **39.7 tok/s** |
+
+**正しさは通っていない。** そして原因は特定済みである:
+
+- per-row decode 経路は選択済み compressed KV を `ds4_gpu_dsv41_gather_kv` で
+  gather し、その複製に対して `ds4_gpu_attention_decode_heads_tensor` を回す
+- batch 経路は compressed store に index を渡して
+  `ds4_gpu_attention_indexed_mixed_batch_heads_tensor` を回す
+- **別のカーネルが別の materialisation を読んでいる。** bit 一致するはずがない
+
+`DS4_METAL_V41_BLOCK_ATTN=2`（output A は行ごと）でも同じ位置で割れるので、
+原因は core であって low projection ではない。
+
+**argmax は再びここで粗すぎた。** k=4 は「identical argmax」と報告するが、logits dump を
+memcmp すると **64 の batch 位置すべてが相違**し、しかも block 先頭の行から違う。
+head のときと同じで（`6c25a41`）、判定は dump でしか行えない。
+
+#### 段階3（次にやること）: decode attention の exact-rows 化
+
+必要なのは「速い indexed-mixed kernel」ではない。**`6c25a41` が語彙 head に対して
+行ったのと同じ手**である——gather 済み KV に対する
+`ds4_gpu_attention_decode_heads_tensor` の rows 版を作り、batch 行を grid の Y 軸に
+置き、単一行の reduction 順序をそのまま保つ。現在の宣言（`ds4_gpu.h:2272`）に
+行数引数は無いので、そこから。
 
 ### 0c. 計器で割ろうとして失敗した記録
 
@@ -186,7 +247,20 @@ hoist して測った（`DS4_METAL_V41_BATCH_ATTN_OUT=1`、既定 OFF）:
   3（cache 操作の単一所有）は expert-major でも必要**。wave を凍結しても消えない。
   1（per-slot generation）と 4（HEAD_INFLIGHT）は wave 固有なので凍結してよい
 
-### 2. per-row attention ループを畳む（1 と同格、あるいは先）
+### 順序（確定）
+
+1. **decode attention の exact-rows 化**（§0b 段階3）。これが通るまで先へ進まない
+2. contiguous-block executor を byte 一致で通す
+3. output A/B の一括化を block 経路へ畳み込む
+4. expert-major MoE
+5. **短文脈と長文脈の両方で全 logits memcmp**
+6. 最後に実 drafter の平均前進数と総 wall を掛け合わせる
+
+長文脈の追加計測を先に増やす必要はない。**per-row executor が構造的に誤っていることは
+コードから既に確定している**（同一 session の連続位置を独立 session として扱っている）
+ので、測って確かめる対象ではない。
+
+### 旧2. per-row attention ループを畳む（§0b に統合済み、参考）
 
 0b で weight 1本を外に出して −11.2% が取れた。ループに残るのは `ds41_attention` 本体
 （KV scan）と `ds41_attention_low`（`attn_output_a`、4096×1024×groups の Q8。これも
@@ -273,6 +347,14 @@ v41-9 の項目は全て有効。今回の作業で足されるのは1点:
   `EXPERT_RESIDENCY_SET` の実名は `DS4_METAL_V41_EXPERT_RESIDENCY_SET` である。
   読まれない env を置いた A/B は両腕が同一になり、**「差が無い」という結果を出す**。
   `ds4.c` だけを grep しても足りない（この変数は `ds4_metal.m` 側にある）
+- **argmax を正しさの判定に使わない。** `batch vs single: identical argmax` は
+  contiguous-block attention を「一致」と報告したが、logits dump を memcmp すると
+  64 位置すべてが相違していた。head のときも同じだった（`6c25a41`）。**判定は
+  `DS4_METAL_V41_LOGITS_DUMP` の memcmp でのみ行う**
+- **A/B は真の ABBA にする。** rewind は session を戻すが expert cache は戻さないので、
+  毎 round 同じ順序だと後に走る腕が常に温かい。実測で −11.0% 対 −2.6%、つまり
+  **順序が測ろうとした変化より大きかった**。round の偶奇で順序を入れ替え、順序別に
+  報告すること。両順序で同符号なら本物、片方だけなら cache
 - **効いたことを印字させる。** `BATCH_ATTN_OUT` は engage 時に1行出す。腕の log に
   その行が無ければ、その腕は測定ではない
 
@@ -285,7 +367,9 @@ v41-9 の項目は全て有効。今回の作業で足されるのは1点:
 | `DS4_METAL_V41_DENSE_ROW_TILE=2` または `=4` | 全 Q8 projection の row-tile（退行。再測定用に残す） |
 | `DS4_METAL_V41_GATE_ROUTE_LOG=<path>` | 層ごとに 8 int32（layer, count, 6 ids）。**unique expert の実測はこれを連続 token で突き合わせて得た** |
 | `DS4_V41_VERIFY_SELFTEST_BATCH_AB=<NAME>` | **k 行 step を同一プロセスで NAME の set/unset 交互に測る。**既存の `_AB` は `ds41_graph_step`（単一行）なので batch 限定の変更を一切見ない。NAME は毎回 getenv される変数であること |
-| `DS4_METAL_V41_BATCH_ATTN_OUT=1` | `attn_output_b` を行ループの外へ。byte 一致・−11.2%。既定 OFF |
+| `DS4_METAL_V41_BATCH_ATTN_OUT=0` | `attn_output_b` を行ループへ戻す。**既定は ON**（byte 一致・約 −6%）。A/B は必ず `=0` の形で書く——unset は hoist を選ぶ |
+| `DS4_METAL_V41_BLOCK_ATTN=1` | contiguous-block attention。255 → 202 ms。**byte 一致しないので既定 OFF** |
+| `DS4_METAL_V41_BLOCK_ATTN=2` | 同上だが output A は行ごと。core と low projection の切り分け用 |
 | `DS4_V41_BATCH_STAGE_MS=2` | attention を core/output に割る。**答えを変えるので使用禁止**（0c） |
 
 ## やらないこと（更新）
@@ -304,8 +388,10 @@ v41-9 の項目は全て有効。今回の作業で足されるのは1点:
 
 - `DS4_METAL_V41_BATCH_STREAM_EXPERTS=1` は約80 token で生成が崩壊する。v41-9 から変化なし
 - v41-9 §「いま壊れているもの」の未修正 2・3（load 前の予約・pin、cache 操作の単一所有）
-- `DS4_METAL_V41_BATCH_ATTN_OUT` の静穏機 paired campaign と既定 ON への昇格
-- `attn_output_a` の同様の hoist（§2）
-- 長文脈での内訳の取り直し —— 現在の内訳は ctx 8192・position 31〜95 で、KV scan が
-  ほぼ無い条件のものである
+- **decode attention の exact-rows 化**（`ds4_gpu_attention_decode_heads_tensor` の
+  rows 版）。これが contiguous-block executor を止めている唯一のもの
+- expert-major MoE（block executor が byte 一致してから）
+- 短文脈と長文脈の両方での全 logits memcmp
+- 実 drafter の平均前進数と総 wall の掛け合わせ
+- `DS4_V41_VERIFY_SELFTEST_AB`（単一 token 側）は固定順序のまま。batch 側だけ ABBA 化した
 - Metal API probe の repository 化
