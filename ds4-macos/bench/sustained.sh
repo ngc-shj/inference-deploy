@@ -66,13 +66,19 @@ done
 # per stream: identical prompts would share a prefix cache and the streams would
 # not stay at the same frontier, which is not what a batch of clients looks like.
 wall0=$(python3 -c 'import time; print(time.time())')
+# Wait on the streams by pid. A bare `wait` also waits on the server job started
+# above, which does not exit until it is killed - so the harness hung after every
+# generation and never printed its own lines, while the numbers still reached the
+# log and could be read from there.
+streams=""
 for c in $(seq 1 "$CONCURRENCY"); do
     curl -s --max-time 3600 "http://127.0.0.1:$PORT/v1/chat/completions" \
       -H 'content-type: application/json' \
       -d "{\"model\":\"ds4\",\"messages\":[{\"role\":\"user\",\"content\":\"Stream $c: write a detailed explanation of how a B-tree insert works, including node splitting.\"}],\"max_tokens\":$TOKENS,\"temperature\":0}" \
       > "$S/sus-$NAME-$c.json" 2>&1 &
+    streams="$streams $!"
 done
-wait
+for j in $streams; do wait "$j"; done
 wall1=$(python3 -c 'import time; print(time.time())')
 sleep 2
 kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
@@ -84,8 +90,22 @@ grep -E 'finish=' "$LOG" | tail -1
 path=$(grep -E 'decode path so far:' "$LOG" | tail -1)
 echo "${path:-ds4:   decode path so far: (never printed)}"
 
+# The split, from this one run on one ruler. Subtracting the selftest's median
+# single from a generation's tok/s would be two rulers and has been the mistake
+# here twice; the graph's per-step wall is now counted inside the same process
+# that produced the rate.
+graph_ms=$(printf '%s\n' "$path" | sed -n 's/.*single-row steps (\([0-9.]*\) ms each.*/\1/p')
+avg_tps=$(grep -Eo 'avg=[0-9.]+ t/s' "$LOG" | tail -1 | sed 's/avg=//;s/ t\/s//')
+if [ -n "${graph_ms:-}" ] && [ -n "${avg_tps:-}" ]; then
+    python3 -c "
+g=$graph_ms; t=$avg_tps
+w=1000.0/t
+print('per token: %.1f ms wall at %.2f tok/s, %.1f ms inside the graph, %.1f ms (%.0f%%) outside'
+      % (w, t, g, w-g, 100.0*(w-g)/w))"
+fi
+
 rc=0
-kblocks=$(printf '%s\n' "$path" | sed -n 's/.*steps, \([0-9]*\) K-row verification.*/\1/p')
+kblocks=$(printf '%s\n' "$path" | sed -n 's/.*graph), \([0-9]*\) K-row verification.*/\1/p')
 kblocks=${kblocks:-0}
 fuse=$(printf '%s\n' "$path" | sed -n 's/.*positions, \([0-9]*\) batch-fusion.*/\1/p')
 fuse=${fuse:-0}
