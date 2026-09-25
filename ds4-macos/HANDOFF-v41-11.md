@@ -608,3 +608,91 @@ exact decode 自身の出力を候補（oracle）として渡す。
 - **独立 ablation の差を足して残りを引くこと。** 排他区間ではない（§6c）
 - **selftest の step 時間を production の成果として引用すること。** production は
   K 行経路を一度も呼ばない（§10）。`bench/sustained.sh` が門になっている
+
+## 12. block transaction —— start=31 で core 成立、境界 qualification は進行中
+
+**記録として正確な表現**: 「block transaction 成立」ではなく
+**「start=31 における transaction core 成立。境界 qualification は進行中」**。
+
+`DS4_METAL_V41_BLOCK_TXN=1 DS4_METAL_V41_BLOCK_KV=1`、`DS4_V41_BLOCK_TXN_TEST=1`。
+独立 2 session（`ds4_session_create` + `ds4_session_sync`、一度も rewind しない）、
+argmax ではなく全 129,280 logits の memcmp、A=0..8、commit 後さらに 16 位置。
+2 回再現。
+
+### epoch は検査器であって storage ではない
+
+epoch tag は「この byte は拒否された行のものだ」と読み手に言えるが、その時点で
+**committed byte は既に失われている**。したがって最終形は **block-local delta に
+epoch を重ねる**二層で、データを守るのは delta、誤った可視化を止めるのが epoch。
+
+### 書き換えられていた committed 状態は 2 つだった
+
+| 状態 | 何が起きていたか | 対処 |
+|---|---|---|
+| compressor carry (`previous_kv`/`previous_score`) | `pool2` が保持するのは「最後の偶数位置の projection」で、K 行後は行 K−1 のもの。行 i 直後という実時間上の点が存在しない（owner は複数層にまたがり、carry は 1 block で 1 回動く） | 論理座標で K 版を park。行 i は行 i−1 の版を読む（committed 値は読めるが書かれない） |
+| Engram hash tail (`history`) | step 内で既に `history[i]` = i+1 トークン後の版だったが、block は K 個すべて publish して最後を残していた | 版を park し、commit で A−1 の版を publish |
+
+**A=1..7 で全 logits が違っていた本体は Engram hash tail である。** carry を delta に
+通した段階では、偶数 A で `previous_kv` が一致し奇数 A で不一致という規則的な差だけが
+残った。これは carry の欠陥ではなく、test の block start が 31（奇数）で、
+奇数 A のとき follow-up step が偶数位置に落ちて carry を上書きするため、
+**その hash が何も語らなかった**だけである。
+
+### carry の commit 規則
+
+```text
+A = 0:
+    committed carry を維持
+
+A > 0:
+    p = last_even(start + A - 1)
+    p < start なら committed carry を維持
+    そうでなければ txn row[p - start] を publish
+```
+
+`p < start` は「採択 frontier が奇数位置で終わり、その相手が block より前にある」場合で、
+committed carry がすでにその値である。transaction がそれを書いていないので、
+**維持は restore ではなく no-op** になる。これが committed arena を read-only に
+した効果である。
+
+### compressed / index_cache は delta 不要（主張ではなく算術）
+
+commit A 後に見える行は `j < (start+A)/ratio`。行 j が覆う位置の最大は
+`((start+A)/ratio)*ratio - 1 ≤ start+A-1` なので、**見える行が覆う位置は必ず採択
+prefix 内**。さらに watermark を越える行は、採択位置が書き直してから可視になる。
+test は live 行（`pos/ratio` 行）を hash して A ごとに確認しており、
+「まだ観測できない」ではなく「見えている範囲は正しい」を測っている。
+
+### `BLOCK_TXN` を単独で立てると黙って write-through していた
+
+commit 時の拒否が、実際には設定済みの env を名指ししていた。capability mask にして
+**最初の dispatch 前に REFUSED** にした。
+
+```text
+BLOCK_TXN requires: BLOCK_KV | CARRY_DELTA | ENGRAM_DELTA | POSITION_CHECK
+```
+
+### fail-closed 検査で恒真でないもの
+
+- **K 行 = K 個の別々の連続位置**（owner ごとに bitmask `(1<<K)-1` ／ write 数 K ／
+  最下位 bit 0 ／ 最上位 bit K−1）。bit index は `pos - start` なので、
+  これが揃って初めて版と位置の全単射になる。`prefill_rows = 0`（全行同一位置）は
+  mask=1 で落ちる
+- **producer tag**（`DS4_V41_TXN_TAGS=1`、debug 限定）。compressed 行ごとに
+  「どの絶対位置が作ったか」「どの epoch か」「commit 済みか」。step 入口で
+  可視範囲（`pos/ratio` 行）を検査する。ring alias、採択位置の上書き漏れ、
+  古い拒否行の将来可視化を捕まえる。
+  **epoch は記録するが判定しない**: epoch 単位で commit 扱いすると、何かを commit した
+  block の拒否行が全部通ってしまう。判定は行単位
+- `n_comp` だけの read counter は**恒真**（読み手が自分の位置から導くので）。
+  そこにカウンタは置かない
+
+### 成立していないこと
+
+- 境界は進行中。手書きリスト（32/120/126/127/128/129/136）ではなく、
+  **コード中の modulus/capacity から生成**して各境界 `B` で `B−K..B+K` を回す形に
+  変えた（`DS4_V41_BLOCK_TXN_TEST_BOUNDS=1`）
+- 連続 transaction（A=0→8、8→0、1→7、7→1、3 の反復、可変 K、refuse 後の single 復帰）
+  は実装済み・測定待ち（`DS4_V41_BLOCK_TXN_CHAIN=1`）
+- **transaction 追加後の oracle 速度は未測定。** 40.15 tok/s を維持できて初めて
+  正しさと性能が同じ実装上で結合する
