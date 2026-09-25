@@ -15,11 +15,14 @@
 | gathered 経路の「8 groups は次の FFN を 50 µs 遅くした、原因不明」 | **その腕は遅かったのではなく間違っていた。** reduce が NWG 未満の lane で隣の行の統計を読んでいた（§3） |
 | 「per-row attention が本当の壁」（v41-10 §0b） | **正しい。** ただし内訳が判明した。core+gather+staging が 17〜19 ms、projection が 22〜31 ms、bf16+rope は約 1 ms（§6） |
 | （本書 初版）「attention core は step の 5.8%、だからここで止める」 | **撤回。** あれは hot replay の下限だった。exact replay ablation では core+gather+staging が 17〜19 ms（§6） |
+| （本書 第2版）replay 差を stage 時間として読んだ | **撤回。** replay は演算の代わりに保存値を copy するので、差は「演算 − copy 税」で、stage ごとに copy 量が違う。control 付きに作り替えた（§6c） |
+| （本書 第2版）「残り 42% が融合・copy 削減の領域」 | **撤回。** 挙げた融合の多くは seam の内部である。独立 ablation の差は排他区間でも加算可能でもない（§6c） |
+| （v41-9 以来）drafter 重みの有無は未確認 | **確認した。存在しない。** checkpoint に `mtp.*`/`nextn` が 0 本、shape は `n_nextn_predict` を宣言せず、speculative impl に ds41 分岐が無い（§10） |
 
 ## 作業場所
 
 - 主worktree: `~/ghq/github.com/antirez/ds4-v41-mtl4dag`、branch `perf/v41-mtl4-dag`
-- HEAD: `3b52b02`（clean、未 push）
+- HEAD: `368cc33`（clean、未 push）
 - 記録・ハーネス: この repository、branch `docs/v41-tuning`
 
 | commit | 内容 |
@@ -31,6 +34,9 @@
 | `9faa97c` | `attn_output_a` を default 経路で batch 化（`LOW_BATCH`、byte 一致） |
 | `cd3f9c6` | grouped low の row tile（`DST_GROUPED`、BR=4 で batch の 1.43倍、単一行と一致） |
 | `3b52b02` | row tile を既定 ON（両順序 faster）、`attn_output_b` は既に tile 済みと確認 |
+| `4207081` | control 付き ablation（§6c）。pre/attention/shared/routed を同じ定規へ |
+| `2e685e5` `278e98c` | batch fusion sweep（§6d）。byte 一致 |
+| `368cc33` | sweep は step で null、両 flag を既定 OFF へ、production 計数と `sustained.sh` の拒否（§6e、§10） |
 
 ## 1. `BLOCK_ATTN_K` は KV を共有していない（コードから確定）
 
@@ -148,7 +154,8 @@ single は 34.72 ms（既定 36.16 と同条件の run）になる。
 | `DS4_METAL_V41_BLOCK_ATTN_RAW=1` | layer 0–1 を union 1回 staging の共有形へ。`FIT_SPLITS` と合成可 |
 | `DS4_V41_ROWTILE_CHECK=7` | 上記6アームの判別実験（2 regime、memcmp + 両順序） |
 | `DS4_V41_ROWTILE_CHECK=8` | attention core の hot replay 下限。**天井ではない**（§6） |
-| `DS4_V41_ABLATE=1` | exact replay ablation。固定 K=8 block、4アーム、logits は全アーム reference と byte 一致 |
+| `DS4_V41_ABLATE=1\|2` | control 付き exact replay ablation（§6c）。`=1` は coarse 4 stage、`=2` は attention を4分割 |
+| `DS4_METAL_V41_BATCH_FUSE=1` | batch 経路の融合 sweep（§6d）。byte 一致、step では null、**既定 OFF** |
 | `DS4_METAL_V41_LOW_BATCH=0\|1\|2\|4` | `attn_output_a` を default 経路で行ループの外へ。**既定は 4（row tile）**、`=1` は batch entry point、`=0` で元に戻る。全て byte 一致 |
 | `DS4_METAL_FLASH_NWG=<n>` | 既存。**今回まで NWG<32 で壊れていた。** 直ったので再び使える |
 
@@ -316,6 +323,233 @@ ablation の次に大きい項目（6〜11 ms）なので調べた。**既に ro
 `ds4_gpu_matmul_q8_0_decode_rows_reuse_tensor` の BR=4 へ送り、`attn_output_b` は
 4096 出力なので、重みは既に4行ぶん1度しか読まれていない。**同じ手の二杯目は無い。**
 
+## 6c. control 付き exact replay ablation（`DS4_V41_ABLATE=1|2`）
+
+§6 と §6b の replay 差には3つ欠陥があった。
+
+1. replay 腕は演算の代わりに保存値を copy するので、`normal − replay` は
+   「演算時間 − replay copy 税」である
+2. heads・low・block は copy 量が違うので、**stage 同士も同じ定規に乗っていない**
+3. 腕が入れ子なので、隣接差は stage 差ではない
+
+各 stage に**同量コピーの control** を置いた。
+
+```
+control: canonical stage を実行 → 保存値を同じサイズだけ copy して上書き
+replay:  canonical stage を省略 → 保存値を同じサイズだけ copy
+差:      canonical stage の実時間
+```
+
+control の上書きは答えに対して no-op（保存値は stage が作る値そのもの）なので、
+**両腕とも canonical と byte 一致する**。両腕が同じバイト数を copy するので、copy 税・
+コピーサイズ・cache warming が差で相殺される。stage は入れ子ではなく独立で、各数字は
+自分の対だけで立つ。腕順は前後反転ではなく**毎 round 1つ巡回させる Latin square**。
+
+### 静穏機、8 round、step 約 181 ms
+
+| stage | ms of a step（中央値、min–max） | 判定 |
+|---|---:|---|
+| **routed experts** | **+53.37**（45.80–64.02） | 全 round 正 |
+| attention tail | +32.02（27.95–34.90） | 全 round 正 |
+| pre | +20.18（13.79–24.92） | 全 round 正 |
+| shared expert | +7.25（−8.22–+11.64） | **符号不一致 = 未確定** |
+
+control 0 / 8,273,920、全 seam の logits が reference と byte 一致。
+
+**確定しているのは routed 53 ms だけである。** shared が符号不一致なので「MoE は 60 ms」
+とは言えない。そして**確定3つを足して残りを引く読み方をしてはいけない**——独立
+ablation の差は排他区間ではなく、単純加算も保証されない。
+
+図に入っていないもの: prologue（KV write、FP8 quantize、window publish、
+`selected_comp` を書く indexer）と router は全腕で走る——省略すると仕事ではなく
+モデルを ablate するので。だから `DS41_ABL_ATTN` は「attention」ではなく
+**選択後の attention tail** であり、report が毎回その行を印字する。`DS41_ABL_ROUTED`
+は streaming cache の accounting を伴う（この動作点では 0 misses / 0 evictions）。
+
+## 6d. batch fusion sweep —— byte 一致、step では null
+
+単一行経路が producer の store で BF16 丸めを済ませているのに、batch 経路は結果を
+書いて全体を読み直して丸めていた。融合形は**すべて既に存在**していた:
+`ds4_gpu_rms_norm_weight_rows_round` は最初から `round_bf16` を取り rows 版と
+rounding 版だけが export されていた、HC weighted sum / expand の bf16 兄弟は同じ
+strided helper を通り row 数を出力 tensor サイズから取るので最初から batch 形、
+row tile の reduction helper も `round_bf16` を取るのに host が渡していなかった。
+
+`DS4_METAL_V41_BATCH_FUSE=1`（**既定 OFF**）で入るもの:
+
+- rows RMSNorm BF16、HC weighted-sum/expand BF16、row-tile matmul の BF16 store
+- token embed を K 回から 1 回へ（`ds4_gpu_embed_tokens_hc_tensor`）
+- head 前処理を 6 dispatch × K から 2 dispatch へ、state publish は最終行のみ
+- logits の K 回コピーを最終行のみへ（4.1 MB のうち 3.6 MB が死に copy だった）
+- `ds41_matmul_batch` の per-call `getenv` 2本を step 入口へ。うち `exact_vocab` は
+  **「static に cache しない」というコメントの直下で static** だった——
+  `EXACT_VOCAB_ROWS` の A/B は片腕を二度測っていた
+
+byte 一致（control 0、batch logits が single と一致、rollback も再現）。
+
+**step では null。** 静穏機 6 round: unset-first −4.8%、set-first +3.9%、両順序で符号
+不一致。width は全12腕で 1.45〜1.58、系統差なし（必要 3.49）。
+
+## 6e. 既定 ON にしなかった理由
+
+`LOW_BATCH=4` も `BATCH_FUSE=1` も**既定 OFF に戻した**。採用の門は5つある。
+
+1. operator 境界で byte 一致
+2. 同一プロセス paired ABBA で両順序 faster
+3. engagement counter が一致
+4. **production 経路でも速い**
+5. その後 default ON
+
+`LOW_BATCH` は 1〜3 を通り、4 を通っていない。`BATCH_FUSE` は 1 と 3 だけ。
+**byte 一致は採用条件の半分であって、順序を飛ばす理由にはならない。**
+
+## 10. production は K 行経路を呼ばない。そして drafter が存在しない
+
+`ds41_graph_step_batch_logits` が decode 経路の実績を数え、64 token ごとの gate
+report に出す。実生成 64 token の結果:
+
+```
+decode path so far: 64 single-row steps, 0 K-row verification steps over 0
+positions, 0 batch-fusion sites taken; candidate K none
+```
+
+`bench/sustained.sh` はこの行を読み、**K 行 step が 0 / 候補幅が期待値と違う /
+`BATCH_FUSE` 指定で融合サイトが 0** のいずれかで非ゼロ終了する。単一行経路の tok/s を
+block 経路の成果として印字させないための門である。
+
+### なぜ K 行 step が production に無いのか（確認済み、仮定ではない）
+
+- `DeepSeek-V4.1-Flash-Q2.gguf` の **1046 tensor のうち `mtp.*` / `nextn` は 0 本**
+  （GGUF 自身の tensor 名を列挙して確認）
+- FLASH41 の shape は `n_nextn_predict` を宣言していない → `DS4_N_NEXTN_PREDICT == 0`
+- `ds4_session_eval_speculative_argmax_impl` に **ds41 分岐が存在しない**
+  （qwen4 / glm / dspark だけで、ds41 は `ds4_session_eval()` に落ちる）
+
+**v41-9 以来の「drafter 重みを持つか未確認」への答え: 持っていない。** draft する
+ものが無いので K=8 verifier には候補源が無く、生成 loop へ繋いでも繋ぐ先が無い。
+重み不要の draft（prompt-lookup / n-gram）の既存実装も無い（`n_ple_ngram` は PLE
+embedding で無関係）。
+
+### 算数
+
+| | 値 |
+|---|---:|
+| production の単一行 decode | 34.88 ms/token = **28.7 tok/s** |
+| K=8 step（静穏） | 181 ms → perfect draft で上限 **44.2 tok/s** |
+| 確定3 stage（routed+attention+pre） | 105 ms → 他を全部ゼロにしても **76.2 tok/s** |
+| 必要 width | 3.49（現状 1.45〜1.58） |
+
+**cleanup は本線ではない。** そして verifier を速くしても、drafter が無い限り
+production の tok/s は 1 も動かない。
+
+## 7. compressed 層へ進めない理由（レイアウトではなくカーネルが要る）
+
+layer 2–39 は同じ手では書けない。**鍵の順序が塞いでいる。**
+
+canonical な1行の鍵列は `[raw window][selected compressed]` である（`encode_flash_
+kv_stage_f16` が dst の先頭に raw、その後ろに comp を置く）。連続位置の raw 窓は
+1鍵ずつずれるので、行 i の comp が始まるべき位置は行 i+1 の raw が占める。
+**共有 raw 領域と各行の選択集合を1本の線形 buffer に並べる置き方は存在しない。**
+
+したがって compressed 側の走査共有には **行ごとの鍵 descriptor を取るカーネル**が
+要る——選択集合の union を作り、key ごとの query multiplicity を持ち、
+**load だけ共有して reduction 順は各 query の canonical 順を保つ**形である
+（expert-major と同じく、共有順で足してはいけない）。`ds4_gpu_attention_indexed_
+mixed_batch_heads_tensor` が indexed 形として既にあるが、v41-10 の通り別の
+materialisation を読むので bit 一致しない。**そこから始めること。**
+
+なお raw 窓が chunk 境界（128 = 32×4）に揃うのは窓が埋まった後だけなので、
+2範囲カーネル（前半を共有 raw、後半を行ごと comp）なら長文脈では chunk 整列する。
+ただし §2 の内訳では staging 共有は −13% のうちの一部で、**先に step での
+`FIT_SPLITS` の価格を知らないと、この新カーネルが割に合うか決められない。**
+
+## 8. threadgroup レベルの query tile について
+
+「1 threadgroup が raw KV tile を一度 load して BR query へ適用する」形は**まだ
+作っていない**。§2 の shared は **staging の共有**であって load の共有ではない
+（attend は依然 8 行が別々に読むが、同じ 135 鍵 = 135 KB を読むので cache が吸う）。
+
+作るなら形は決まっている。`DK=DV=512` では K/V tile を threadgroup memory に置く
+余地が無い（32鍵 × 512 × 2 = 32 KB）ので、共有するのは **register に載せた 1 float4 を
+BR 回使う**形になる。窓がずれる regime でも bit 一致は取れる——union の鍵 `u` を
+一度 load し、`c = u - r` が `[0,32)` に入る行 r へ配る「階段」indexing にすれば、
+各行の `mqk[r][c]` は自分の chunk のまま自分の ii 順で積まれる。
+
+代償は register である。`mqk[BR][32]` は BR=2 で 64 float。v41-10 が
+`sumf[8][NR0]` で踏んだのと同じ壁が BR=4 で来ると見てよい。**§3 が出た今、
+これは優先度で3番目である。**
+
+## 9. 次にやること（この順）
+
+§10 が順序を決めた。**verifier をこれ以上速くしても production の tok/s は動かない。**
+drafter が無いので K 行 step が一度も走らないからである。したがって分岐は3つで、
+等価ではない。
+
+1. **重み不要の self draft（prompt-lookup / n-gram）を実装し、K 行 verifier を
+   production で走らせる。** この checkpoint の内側で閉じる唯一の道で、計数と
+   `sustained.sh` の拒否条件がそのまま生きる。必要な計数は既に半分ある——
+   足すのは `drafted_len` / `accepted_len` の histogram、実前進 token 数、
+   draft ms・verify ms・accept/rollback ms、前進 token あたりの wall
+2. **drafter 重みを入手する。** 問題が repository の外へ出る。入手できるなら
+   1 より accept 率は高い
+3. **単一行経路を production として最適化する。** block の仕事を捨てるが、
+   今日の tok/s を確実に上げる唯一の道。**まず単一行 decode の 34.88 ms/token と
+   実 sustained の差を測ること**——前者は selftest の定規で、後者が production である
+
+1 または 2 を選んだ後、production 経路の上で:
+
+4. **routed experts の 53 ms を解体する。** 確定している最大項目。v41-10 §1 と
+   §「expert-major が取り得る形」がそのまま生きている
+5. attention tail 32 ms、pre 20 ms。どちらも §6c の control 付き定規で内訳を割れる
+   （`DS4_V41_ABLATE=2` が attention を4分割する。pre 用の seam も同じ形で足せる）
+6. shared expert を符号一致まで持っていく（現状 ±10 ms で未確定）
+
+**着手しないもの:**
+
+- 追加の小規模融合。§6d が byte 一致で null を出した
+- compressed descriptor カーネル（§7）と query tile（§8）。verifier 内部の話で、
+  verifier は production で走っていない
+- `LOW_BATCH` / `BATCH_FUSE` の既定 ON（§6e の門4が未通過）
+
+## 10. production は K 行経路を呼ばない。そして drafter が存在しない
+
+`ds41_graph_step_batch_logits` が decode 経路の実績を数え、64 token ごとの gate
+report に出す。実生成 64 token の結果:
+
+```
+decode path so far: 64 single-row steps, 0 K-row verification steps over 0
+positions, 0 batch-fusion sites taken; candidate K none
+```
+
+`bench/sustained.sh` はこの行を読み、**K 行 step が 0 / 候補幅が期待値と違う /
+`BATCH_FUSE` 指定で融合サイトが 0** のいずれかで非ゼロ終了する。単一行経路の tok/s を
+block 経路の成果として印字させないための門である。
+
+### なぜ K 行 step が production に無いのか（確認済み、仮定ではない）
+
+- `DeepSeek-V4.1-Flash-Q2.gguf` の **1046 tensor のうち `mtp.*` / `nextn` は 0 本**
+  （GGUF 自身の tensor 名を列挙して確認）
+- FLASH41 の shape は `n_nextn_predict` を宣言していない → `DS4_N_NEXTN_PREDICT == 0`
+- `ds4_session_eval_speculative_argmax_impl` に **ds41 分岐が存在しない**
+  （qwen4 / glm / dspark だけで、ds41 は `ds4_session_eval()` に落ちる）
+
+**v41-9 以来の「drafter 重みを持つか未確認」への答え: 持っていない。** draft する
+ものが無いので K=8 verifier には候補源が無く、生成 loop へ繋いでも繋ぐ先が無い。
+重み不要の draft（prompt-lookup / n-gram）の既存実装も無い（`n_ple_ngram` は PLE
+embedding で無関係）。
+
+### 算数
+
+| | 値 |
+|---|---:|
+| production の単一行 decode | 34.88 ms/token = **28.7 tok/s** |
+| K=8 step（静穏） | 181 ms → perfect draft で上限 **44.2 tok/s** |
+| 確定3 stage（routed+attention+pre） | 105 ms → 他を全部ゼロにしても **76.2 tok/s** |
+| 必要 width | 3.49（現状 1.45〜1.58） |
+
+**cleanup は本線ではない。** そして verifier を速くしても、drafter が無い限り
+production の tok/s は 1 も動かない。
+
 ## 7. compressed 層へ進めない理由（レイアウトではなくカーネルが要る）
 
 layer 2–39 は同じ手では書けない。**鍵の順序が塞いでいる。**
@@ -390,6 +624,9 @@ step の 21〜26% で、pre も約 15% ある。
 - **operator 境界の差を step の差として引用すること。** `FIT_SPLITS` は operator で
   −41%、step で null
 - **`DS4_METAL_FLASH_NWG` の過去の測定を引用すること。** NWG<32 は壊れていた
-- **microbenchmark を天井として引用すること。** hot replay は下限である（§6）。
-  回収可能時間を知りたいなら ablation を足すこと——`DS4_V41_ABLATE` の seam は
-  4つ目を足せる形にしてある
+- **microbenchmark を天井として引用すること。** hot replay は下限である（§6）
+- **control 無しの replay 差を stage 時間として引用すること。**「演算 − copy 税」で
+  あって、stage ごとに copy 量が違う（§6c）
+- **独立 ablation の差を足して残りを引くこと。** 排他区間ではない（§6c）
+- **selftest の step 時間を production の成果として引用すること。** production は
+  K 行経路を一度も呼ばない（§10）。`bench/sustained.sh` が門になっている
