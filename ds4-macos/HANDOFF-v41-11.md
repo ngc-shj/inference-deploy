@@ -291,6 +291,24 @@ row tile（−10.4%/−5.3%）と routed MoE batch（−16.3%/−3.8%）を既�
 ある。既定 ON なので **A/B は `DS4_METAL_V41_LOW_BATCH=0` の形で書くこと**。unset は
 tile を選ぶので、両腕が `row tile BR=4` と印字したらそれは1本の腕である。
 
+### 新しい既定での内訳（静穏 run、step 175〜185 ms、6 round）
+
+| 省略した仕事 | ms of a step（両順序） | share |
+|---|---:|---:|
+| gather + staging + core | +8.66 / +9.58 | 約 5% |
+| bf16 + inverse RoPE | +1.73 / +5.82 | 1〜3% |
+| attn_output_a（tile 後） | +8.13 / +8.39 | 約 4.6% |
+| attn_output_b（既に tile 済み） | +9.18 / +5.87 | 3〜5% |
+
+attention 合計は約 28〜33 ms = **step の 16〜19%**（tile 前は 40〜50 ms / 25%）。
+**どのバケットも 5% を超えない。** bf16+rope は前回 ORDERS DISAGREE だったが、
+静穏 run では両順序正で 2〜6 ms——小さいが実在する。
+
+**注意: ablation の絶対 ms は同一 run 内でしか比較できない。** 前回 run は step
+206〜221 ms、今回は 175〜185 ms で、**一切変えていない core バケットも 22 → 8.7 ms に
+「下がっている」**。機体状態がバケット幅ごとスケールする。tile の効果を裏付けるのは
+run をまたいだ引き算ではなく `LOW_BATCH=0` との ABBA である。
+
 ### `attn_output_b` には取り分が無い（確認済み、仮定ではない）
 
 ablation の次に大きい項目（6〜11 ms）なので調べた。**既に row tile を通っている。**
@@ -342,17 +360,23 @@ BR 回使う**形になる。窓がずれる regime でも bit 一致は取れ�
 step の 21〜26% で、pre も約 15% ある。
 
 1. **済み。** `LOW_BATCH=4` は両順序 faster（−6.8% / −2.7%）で既定 ON（§6b）
-2. **新しい既定で ablation を取り直す。** `LOW_BATCH=4` が既定になったので、
-   `attn_output_a` のバケットは tile 後の残りを測る。どのバケットに何が残ったかで
-   3以降の順序が決まる。**これが今かかっている**
-3. **compressed descriptor カーネル（§7）。** core 側 17〜19 ms のうち、descriptor が
-   消すのは行ごとの `gather_kv`・行ごとの KV staging・選択集合の materialisation で
-   ある。着手前に選択集合の **overlap を実測**すること（`GATE_ROUTE_LOG` と同じ形で
-   `selected_comp` を層ごと行ごとに落とし、key ごとの multiplicity を出す）。
-   **§2 の raw-only の結果が下限を与える**——staging 共有だけで operator 比 13% だった
-4. **query tile（§8）。** 3 の後。register 圧の実測が要る
-5. moe（step の 43.7%、routed だけで約 30%）。v41-10 §1 がそのまま生きている
-6. 実 drafter の平均前進数（v41-10 §5）
+2. **済み。** 新しい既定での内訳は §6b。**どのバケットも step の 5% 以下**で、
+   attention 全体が 16〜19% に下がった
+3. **moe**（step の 43.7%、routed だけで約 30%）。**attention の4バケットがどれも
+   5% 以下になったので、ここが残る唯一の大きな塊である。** v41-10 §1 と
+   §「expert-major が取り得る形」がそのまま生きている
+4. **pre**（約 15%）。まだ一度も割られていない。ablation の seam をもう1つ
+   （`ds41_before_attention_batch` / `ds41_attention_project_batch` の前後）足せば
+   同じやり方で割れる
+5. **compressed descriptor カーネル（§7）。** core バケット 8.7〜9.6 ms のうち、
+   descriptor が消すのは行ごとの `gather_kv`・行ごとの KV staging・選択集合の
+   materialisation だけで、dot と softmax は残る。**したがって上限は step の 5% 未満
+   で、その中の一部である。** 着手するなら先に選択集合の overlap を実測すること
+   （`GATE_ROUTE_LOG` と同じ形で `selected_comp` を層ごと行ごとに落とし、key ごとの
+   multiplicity を出す）。§2 の raw-only が下限を与える——staging 共有だけで
+   operator 比 13% だった
+6. **query tile（§8）。** 5 の後。register 圧の実測が要る
+7. 実 drafter の平均前進数（v41-10 §5）
 
 **着手しないもの:**
 
