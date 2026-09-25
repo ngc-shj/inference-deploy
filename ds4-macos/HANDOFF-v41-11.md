@@ -696,3 +696,80 @@ BLOCK_TXN requires: BLOCK_KV | CARRY_DELTA | ENGRAM_DELTA | POSITION_CHECK
   は実装済み・測定待ち（`DS4_V41_BLOCK_TXN_CHAIN=1`）
 - **transaction 追加後の oracle 速度は未測定。** 40.15 tok/s を維持できて初めて
   正しさと性能が同じ実装上で結合する
+
+## 13. 連続 transaction 合格、gate 付きで 40.12 tok/s —— 正しさと性能が同じ実装に乗った
+
+### 連続 transaction: 合格条件 8/8
+
+`DS4_V41_BLOCK_TXN_CHAIN=1`。block 間に single を挟まず、chain ごとに counter を
+reset し、期待値は chain の `(k,a)` リストから独立に算出（同じ helper を共有すると
+同じバグで一致する）。
+
+| chain | blocks | ΣK | ΣA | 結果 |
+|---|---:|---:|---:|---|
+| 0→8 / 8→0 / 1→7 / 7→1 | 2 | 16 | 8 | 24 位置、毎位置 全 129,280 logits 一致 |
+| 3 を 4 回 | 4 | 32 | 12 | 28 位置、同 |
+| K=8,4,2,6（A=3,4,1,5） | 4 | 20 | 13 | 29 位置、同 |
+| 0,0→8 | 3 | 24 | 8 | 24 位置、同 |
+| refuse 後の single 復帰 | — | — | — | refuse、その後 16 位置 全 logits 一致 |
+
+`parked` / `commit_rows` / `published` / `held` / `blocks` すべて期待値と一致、
+**MISMATCH 0 件**、`base-write-before-commit` 0、`tag violations` 0
+（chain あたり 3140〜3540 read）、`refused` 0。
+
+#### 撤回: 最初の counter 照合
+
+process 累積の totals に対して、一致する集合を自分で選んで照合していた。
+chain だけなら parked 420 / ΣA 65 で、観測の 636 / 101 との差は同一プロセスで先に
+走った A sweep（9 block、ΣK=72、ΣA=36）ぶん。差は説明できるが chain の engage
+証明にはならない。**counter は claim する単位に scope する。**
+
+#### 直した順序欠陥
+
+`ds41_block_tags_commit` が commit の先頭、しかも command scope の内側にあった。
+**data を copy → 完了 ticket（`ds4_gpu_end_commands` の戻り）→ tag publish →
+次 step の read 許可** の順にした。tag が byte より先に commit 済みになると、
+書かれていない行を次 step の入口検査が通してしまう。
+
+### gate 付きの oracle 速度（transaction 込み）
+
+`bench/abba-when-quiet.sh`、`DS4_V41_ORACLE_BLOCK=8`、両 arm `BLOCK_KV=1`。
+
+| arm | tok/s | ms/token | publish+commit | entry check |
+|---|---:|---:|---:|---:|
+| q-txn-1 | 38.66 | 25.87 | 3.3 ms | 0.0 ms |
+| q-base-1 | 38.80 | 25.78 | 0.0 ms | — |
+| **q-txn-2** | **40.12** | **24.93** | 2.9 ms | 0.0 ms |
+
+記録値 40.11 tok/s / 24.91 ms/token と同値。**transaction 込みで維持している。**
+
+step 内訳は 3 arm とも verify 99.7〜99.9%、forced accept 1.1〜1.3 ms、
+publish+commit 2.9〜3.3 ms、next-step entry check 0.0 ms。
+**accept は oracle による強制値**であり、実候補の accept 判定費用ではない。
+entry check は production step が走らせないものである。
+
+#### 撤回: 「transaction は throughput の利得」
+
+un-gated で txn 38.00〜38.76 対 base 34.42〜36.56 を見て利得と書いたが、両方誤り。
+
+1. gated では base 38.80 が txn（38.66, 40.12）の分布の内側。方向は成立しない。
+   un-gated の base 低値は build 直後の warm-up
+2. 機構の説明も誤り。position 31 の write-through は層あたり 128 行ではなく
+   `kept = previous + rows = 39` 行で、40 層で 3.1 MB 対 0.64 MB。差 2.5 MB は
+   600 GB/s で約 33 µs。128 行になっても差は約 16 µs で、測定できる量ではない。
+   **copy 量は利得も損失も説明しない**
+
+正しい言い方: **transaction の費用は block wall の 0.2%（8 block で 2.9〜3.3 ms、
+0.4 ms/block）で、それ以外は差が見えない。**
+
+### まだ成立していないこと
+
+- **生成 boundary sweep が未実行。** 届く境界は 128 / 256 / 512 / 1024（2 定義）/
+  2048（2 定義）。ctx 8192 では compressed capacity（8194）と candidate block cap
+  （32768）は届かない
+- **Engram hash tail（位置 3）は現在の生成条件から落ちている。** `B−K` が負になる。
+  小さい start を扱う形にするか、この境界だけ別扱いが必要
+- index cache 側の producer tag は**恒真**。両 publish 地点が 2 つの行番号を 1 つの
+  変数から導くので食い違えない。regression guard としてのみ有効
+- **実候補の accept 判定費用は未測定**
+- 演算契約（exact single 対 現行 production `greedy_splitkv`）は未決
