@@ -19,7 +19,7 @@
 ## 作業場所
 
 - 主worktree: `~/ghq/github.com/antirez/ds4-v41-mtl4dag`、branch `perf/v41-mtl4-dag`
-- HEAD: `9faa97c`（clean、未 push）
+- HEAD: `cd3f9c6`（clean、未 push）
 - 記録・ハーネス: この repository、branch `docs/v41-tuning`
 
 | commit | 内容 |
@@ -29,6 +29,7 @@
 | `2e2f415` | `FIT_SPLITS` の step 価格（null）、core の hot replay 下限（`ROWTILE_CHECK=8`） |
 | `43dae53` | exact replay ablation（`DS4_V41_ABLATE`）。attention 40〜50 ms が名前で割れた |
 | `9faa97c` | `attn_output_a` を default 経路で batch 化（`LOW_BATCH`、byte 一致） |
+| `cd3f9c6` | grouped low の row tile（`DST_GROUPED`、BR=4 で batch の 1.43倍、単一行と一致） |
 
 ## 1. `BLOCK_ATTN_K` は KV を共有していない（コードから確定）
 
@@ -147,7 +148,7 @@ single は 34.72 ms（既定 36.16 と同条件の run）になる。
 | `DS4_V41_ROWTILE_CHECK=7` | 上記6アームの判別実験（2 regime、memcmp + 両順序） |
 | `DS4_V41_ROWTILE_CHECK=8` | attention core の hot replay 下限。**天井ではない**（§6） |
 | `DS4_V41_ABLATE=1` | exact replay ablation。固定 K=8 block、4アーム、logits は全アーム reference と byte 一致 |
-| `DS4_METAL_V41_LOW_BATCH=1` | `attn_output_a` を default 経路で行ループの外へ。byte 一致、step 価格は測定中 |
+| `DS4_METAL_V41_LOW_BATCH=1\|2\|4` | `attn_output_a` を default 経路で行ループの外へ。`=1` は batch entry point、`=2/4` は row tile。全て byte 一致 |
 | `DS4_METAL_FLASH_NWG=<n>` | 既存。**今回まで NWG<32 で壊れていた。** 直ったので再び使える |
 
 検証: `BLOCK=1 EXACT_VOCAB_ROWS=1` に両 flag を足して
@@ -226,6 +227,20 @@ buffer へ保存する。
   dispatch を約 5 µs と価格付けたことから約 3 ms を見込んだが、**外れた。**
   dispatch 数からの外挿は operator 境界の中でしか通らない
 
+### 5アームへ割った（`attn_output_a` と `_b` を分離）
+
+seam を1つ足して（`active.low` の直後）5アームにすると、第二バケットの中身が
+bf16/rope ではなく projection であることが確定した。6 round、step 約 215 ms:
+
+| 何を省略したか | ms of a step（両順序） |
+|---|---:|
+| gather + staging + core | +22.00 / +17.02 |
+| bf16 + inverse RoPE | −6.52 / +5.81 **ORDERS DISAGREE = null** |
+| **attn_output_a** | **+18.95 / +21.63** |
+| attn_output_b | +10.81 / +6.08 |
+
+**`attn_output_a` 単独が attention block 最大の項目である。**
+
 **prologue（KV write、quantize、`selected_comp` を書く indexer）は全アームで走る**
 ——省略すると仕事ではなくモデルを ablate してしまうので。したがって上の3つの数字の
 どれにも入っていない。
@@ -233,6 +248,38 @@ buffer へ保存する。
 なお `FIT_SPLITS` の null もこれで説明がつく。core 側 17〜19 ms のうち split-K
 partial が占める分を operator 比 41% と置いても 7 ms 程度で、ABBA の分解能（この
 機体では round 内の warm-up だけで 4〜5%、約 8 ms）の下である。
+
+## 6b. `attn_output_a` の row tile（`LOW_BATCH=2|4`）
+
+`LOW_BATCH=1`（batch entry point）は静穏 ABBA で **両順序 faster**（unset-first
+−1.0%、set-first −2.8%、control 0、logits 一致）。実在するが約 4 ms で、ablation が
+`attn_output_a` に付けた 19〜22 ms の一部にすぎない。
+
+理由は dense 側が既に学んだものと同じである。**batch entry point は token を grid
+軸に置くだけなので、8 token それぞれが group 重み 4.5 MB を読み直す**（層あたり
+36 MB を8回）。
+
+`kernel_mul_mv_q8_0_f32_rows_impl` は既に「weight block を BR 行ぶん1度読む」形で
+bit 一致が確認済みで、**Q8_0 は row tile が効いた型**である（IQ2 が凍結された方）。
+足りなかったのは dst の並びだけ——generic は `[im][batch row][ne0]`、grouped low は
+`[batch row][group][ne0]` で group が im に乗る。そこで `DST_GROUPED` template flag で
+**アドレスだけ**を切り替え、group 数は `ne02` で渡す。K walk・i 順・pair ごとの FMA
+順・reduction tree は**1つの共有コピー**のままで、これが bit 一致を保つ。
+
+`DS4_V41_ROWTILE_CHECK=4` が同一プロセス・同一データで3形を測る（**batch ではなく
+単一行と比べる**——両腕が一致しても両方が単一行と食い違い得る）:
+
+| rows | BR=2 | BR=4 | batch |
+|---:|---:|---:|---:|
+| 2 | 0.080 | 0.089 | 0.076 |
+| 4 | 0.117 | **0.098** | 0.200 |
+| 8 | 0.242 | **0.204** | 0.291 |
+
+**全て単一行と一致。** 8行で BR=4 が batch の 1.43倍、4行で 2.04倍。2行では償却する
+ものが無く負ける——dense sweep と同じ形である。
+
+`DS4_METAL_V41_LOW_BATCH=4` で block は全 logits を再現（control 0 / 8,273,920）。
+**step 価格は静穏 gate に queue 済み。**
 
 ## 7. compressed 層へ進めない理由（レイアウトではなくカーネルが要る）
 
@@ -277,13 +324,13 @@ BR 回使う**形になる。窓がずれる regime でも bit 一致は取れ�
 実在する。** そして「MoE にしか質量が無い」は誤りだった——attention 残差 40〜50 ms は
 step の 21〜26% で、pre も約 15% ある。
 
-1. **`DS4_METAL_V41_LOW_BATCH` の step 価格**（静穏 ABBA、`bench/abba-when-quiet.sh`）。
-   `attn_output_a` を行ごと8発から1発へ。projection 側 22〜31 ms の一部が直接消える
-   はずで、既定 ON の第一候補である。**これが今かかっている**
-2. **`attn_output_a` と `attn_output_b` の残りを ablation で更に割る。** seam は
-   もう1つ入れられる（`active.low` の直後）。片方が支配しているなら、そちらの
-   kernel（grouped low は専用 kernel で generic matmul とは別 contract）に
-   row tile と weight 共有を入れる
+1. **`DS4_METAL_V41_LOW_BATCH=4` の step 価格**（静穏 ABBA、`bench/abba-when-quiet.sh`）。
+   `=1` は両順序 faster で約 4 ms、`=4` は operator で batch の 1.43倍。
+   **既定 ON の第一候補で、これが今かかっている**
+2. **`attn_output_b` に同じ手を当てる。** ablation が 6〜11 ms を付けた。こちらは
+   既に `ds41_matmul_batch` で行をまとめてあるが、**それが exact-rows kernel なら
+   行ごとに weight を読み直している**（v41-10 §0b 段階1の帰属に注意書きがある）。
+   generic Q8 の `rows2/rows4` に回せるかを `WEIGHT_READS=2` の contract で確認する
 3. **compressed descriptor カーネル（§7）。** core 側 17〜19 ms のうち、descriptor が
    消すのは行ごとの `gather_kv`・行ごとの KV staging・選択集合の materialisation で
    ある。着手前に選択集合の **overlap を実測**すること（`GATE_ROUTE_LOG` と同じ形で
