@@ -13,6 +13,9 @@
 # than deciding for itself what quiet means. Exit 2 from the gate means the
 # load logger is dead, and waiting on a dead logger is a silent forever - it
 # stops instead.
+# It execs selftest.sh once the gate opens, so this script's own name stops
+# matching afterwards: wait on the pid, not on "abba-when-quiet", or the wait
+# returns the moment the run actually begins.
 set -u
 S=$(cd "$(dirname "$0")" && pwd)
 NAME=${1:?usage: abba-when-quiet.sh <name> VAR=VALUE...}; shift
