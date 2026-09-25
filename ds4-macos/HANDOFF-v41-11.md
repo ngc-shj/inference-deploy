@@ -403,153 +403,6 @@ byte 一致（control 0、batch logits が single と一致、rollback も再現
 `LOW_BATCH` は 1〜3 を通り、4 を通っていない。`BATCH_FUSE` は 1 と 3 だけ。
 **byte 一致は採用条件の半分であって、順序を飛ばす理由にはならない。**
 
-## 10. production は K 行経路を呼ばない。そして drafter が存在しない
-
-`ds41_graph_step_batch_logits` が decode 経路の実績を数え、64 token ごとの gate
-report に出す。実生成 64 token の結果:
-
-```
-decode path so far: 64 single-row steps, 0 K-row verification steps over 0
-positions, 0 batch-fusion sites taken; candidate K none
-```
-
-`bench/sustained.sh` はこの行を読み、**K 行 step が 0 / 候補幅が期待値と違う /
-`BATCH_FUSE` 指定で融合サイトが 0** のいずれかで非ゼロ終了する。単一行経路の tok/s を
-block 経路の成果として印字させないための門である。
-
-### なぜ K 行 step が production に無いのか（確認済み、仮定ではない）
-
-- `DeepSeek-V4.1-Flash-Q2.gguf` の **1046 tensor のうち `mtp.*` / `nextn` は 0 本**
-  （GGUF 自身の tensor 名を列挙して確認）
-- FLASH41 の shape は `n_nextn_predict` を宣言していない → `DS4_N_NEXTN_PREDICT == 0`
-- `ds4_session_eval_speculative_argmax_impl` に **ds41 分岐が存在しない**
-  （qwen4 / glm / dspark だけで、ds41 は `ds4_session_eval()` に落ちる）
-
-**v41-9 以来の「drafter 重みを持つか未確認」への答え: 持っていない。** draft する
-ものが無いので K=8 verifier には候補源が無く、生成 loop へ繋いでも繋ぐ先が無い。
-重み不要の draft（prompt-lookup / n-gram）の既存実装も無い（`n_ple_ngram` は PLE
-embedding で無関係）。
-
-### 算数
-
-| | 値 |
-|---|---:|
-| production の単一行 decode | 34.88 ms/token = **28.7 tok/s** |
-| K=8 step（静穏） | 181 ms → perfect draft で上限 **44.2 tok/s** |
-| 確定3 stage（routed+attention+pre） | 105 ms → 他を全部ゼロにしても **76.2 tok/s** |
-| 必要 width | 3.49（現状 1.45〜1.58） |
-
-**cleanup は本線ではない。** そして verifier を速くしても、drafter が無い限り
-production の tok/s は 1 も動かない。
-
-## 7. compressed 層へ進めない理由（レイアウトではなくカーネルが要る）
-
-layer 2–39 は同じ手では書けない。**鍵の順序が塞いでいる。**
-
-canonical な1行の鍵列は `[raw window][selected compressed]` である（`encode_flash_
-kv_stage_f16` が dst の先頭に raw、その後ろに comp を置く）。連続位置の raw 窓は
-1鍵ずつずれるので、行 i の comp が始まるべき位置は行 i+1 の raw が占める。
-**共有 raw 領域と各行の選択集合を1本の線形 buffer に並べる置き方は存在しない。**
-
-したがって compressed 側の走査共有には **行ごとの鍵 descriptor を取るカーネル**が
-要る——選択集合の union を作り、key ごとの query multiplicity を持ち、
-**load だけ共有して reduction 順は各 query の canonical 順を保つ**形である
-（expert-major と同じく、共有順で足してはいけない）。`ds4_gpu_attention_indexed_
-mixed_batch_heads_tensor` が indexed 形として既にあるが、v41-10 の通り別の
-materialisation を読むので bit 一致しない。**そこから始めること。**
-
-なお raw 窓が chunk 境界（128 = 32×4）に揃うのは窓が埋まった後だけなので、
-2範囲カーネル（前半を共有 raw、後半を行ごと comp）なら長文脈では chunk 整列する。
-ただし §2 の内訳では staging 共有は −13% のうちの一部で、**先に step での
-`FIT_SPLITS` の価格を知らないと、この新カーネルが割に合うか決められない。**
-
-## 8. threadgroup レベルの query tile について
-
-「1 threadgroup が raw KV tile を一度 load して BR query へ適用する」形は**まだ
-作っていない**。§2 の shared は **staging の共有**であって load の共有ではない
-（attend は依然 8 行が別々に読むが、同じ 135 鍵 = 135 KB を読むので cache が吸う）。
-
-作るなら形は決まっている。`DK=DV=512` では K/V tile を threadgroup memory に置く
-余地が無い（32鍵 × 512 × 2 = 32 KB）ので、共有するのは **register に載せた 1 float4 を
-BR 回使う**形になる。窓がずれる regime でも bit 一致は取れる——union の鍵 `u` を
-一度 load し、`c = u - r` が `[0,32)` に入る行 r へ配る「階段」indexing にすれば、
-各行の `mqk[r][c]` は自分の chunk のまま自分の ii 順で積まれる。
-
-代償は register である。`mqk[BR][32]` は BR=2 で 64 float。v41-10 が
-`sumf[8][NR0]` で踏んだのと同じ壁が BR=4 で来ると見てよい。**§3 が出た今、
-これは優先度で3番目である。**
-
-## 9. 次にやること（この順）
-
-§10 が順序を決めた。**verifier をこれ以上速くしても production の tok/s は動かない。**
-drafter が無いので K 行 step が一度も走らないからである。したがって分岐は3つで、
-等価ではない。
-
-1. **重み不要の self draft（prompt-lookup / n-gram）を実装し、K 行 verifier を
-   production で走らせる。** この checkpoint の内側で閉じる唯一の道で、計数と
-   `sustained.sh` の拒否条件がそのまま生きる。必要な計数は既に半分ある——
-   足すのは `drafted_len` / `accepted_len` の histogram、実前進 token 数、
-   draft ms・verify ms・accept/rollback ms、前進 token あたりの wall
-2. **drafter 重みを入手する。** 問題が repository の外へ出る。入手できるなら
-   1 より accept 率は高い
-3. **単一行経路を production として最適化する。** block の仕事を捨てるが、
-   今日の tok/s を確実に上げる唯一の道。**まず単一行 decode の 34.88 ms/token と
-   実 sustained の差を測ること**——前者は selftest の定規で、後者が production である
-
-1 または 2 を選んだ後、production 経路の上で:
-
-4. **routed experts の 53 ms を解体する。** 確定している最大項目。v41-10 §1 と
-   §「expert-major が取り得る形」がそのまま生きている
-5. attention tail 32 ms、pre 20 ms。どちらも §6c の control 付き定規で内訳を割れる
-   （`DS4_V41_ABLATE=2` が attention を4分割する。pre 用の seam も同じ形で足せる）
-6. shared expert を符号一致まで持っていく（現状 ±10 ms で未確定）
-
-**着手しないもの:**
-
-- 追加の小規模融合。§6d が byte 一致で null を出した
-- compressed descriptor カーネル（§7）と query tile（§8）。verifier 内部の話で、
-  verifier は production で走っていない
-- `LOW_BATCH` / `BATCH_FUSE` の既定 ON（§6e の門4が未通過）
-
-## 10. production は K 行経路を呼ばない。そして drafter が存在しない
-
-`ds41_graph_step_batch_logits` が decode 経路の実績を数え、64 token ごとの gate
-report に出す。実生成 64 token の結果:
-
-```
-decode path so far: 64 single-row steps, 0 K-row verification steps over 0
-positions, 0 batch-fusion sites taken; candidate K none
-```
-
-`bench/sustained.sh` はこの行を読み、**K 行 step が 0 / 候補幅が期待値と違う /
-`BATCH_FUSE` 指定で融合サイトが 0** のいずれかで非ゼロ終了する。単一行経路の tok/s を
-block 経路の成果として印字させないための門である。
-
-### なぜ K 行 step が production に無いのか（確認済み、仮定ではない）
-
-- `DeepSeek-V4.1-Flash-Q2.gguf` の **1046 tensor のうち `mtp.*` / `nextn` は 0 本**
-  （GGUF 自身の tensor 名を列挙して確認）
-- FLASH41 の shape は `n_nextn_predict` を宣言していない → `DS4_N_NEXTN_PREDICT == 0`
-- `ds4_session_eval_speculative_argmax_impl` に **ds41 分岐が存在しない**
-  （qwen4 / glm / dspark だけで、ds41 は `ds4_session_eval()` に落ちる）
-
-**v41-9 以来の「drafter 重みを持つか未確認」への答え: 持っていない。** draft する
-ものが無いので K=8 verifier には候補源が無く、生成 loop へ繋いでも繋ぐ先が無い。
-重み不要の draft（prompt-lookup / n-gram）の既存実装も無い（`n_ple_ngram` は PLE
-embedding で無関係）。
-
-### 算数
-
-| | 値 |
-|---|---:|
-| production の単一行 decode | 34.88 ms/token = **28.7 tok/s** |
-| K=8 step（静穏） | 181 ms → perfect draft で上限 **44.2 tok/s** |
-| 確定3 stage（routed+attention+pre） | 105 ms → 他を全部ゼロにしても **76.2 tok/s** |
-| 必要 width | 3.49（現状 1.45〜1.58） |
-
-**cleanup は本線ではない。** そして verifier を速くしても、drafter が無い限り
-production の tok/s は 1 も動かない。
-
 ## 7. compressed 層へ進めない理由（レイアウトではなくカーネルが要る）
 
 layer 2–39 は同じ手では書けない。**鍵の順序が塞いでいる。**
@@ -617,6 +470,68 @@ step の 21〜26% で、pre も約 15% ある。
 - `FIT_SPLITS` / `BLOCK_ATTN_RAW` の既定 ON 化。正しく、operator では実在し、
   step では null。**既定を変える理由が無い**ので flag のまま残す
 - bf16 / inverse RoPE の batch 化。**ablation で約 1 ms と測れた**
+
+## 10. K 行経路は production だが、行は別 session である。単一 session の drafter は無い
+
+**本書が一度「K 行 verifier は selftest 内にしかない」と書いたのは誤りである。**
+`ds41_graph_step_batch_logits` は `ds4_sessions_eval_batch_*` から production で
+呼ばれる（`ds4.c:85136`）。ただし行の中身が違う:
+
+| 行の正体 | 到達するか |
+|---|---|
+| **別々の session の decode**（並行リクエスト N 本）＋ prefill 行 | **する** |
+| 同一 session の連続位置（投機検証の K 候補） | **しない**（drafter が無い） |
+
+batch entry は同一 session の重複を拒否するので、**1リクエストでは決して K 行に
+ならず、N リクエストで N 行になる。** したがって:
+
+- `LOW_BATCH` の row tile と `BATCH_FUSE` の融合は**並行 session の production 経路で
+  価格が付く**——重みは共有、KV は非共有
+- §2 の shared-prefix raw attention は `graphs[i] == graphs[0]` を要求するので
+  **設計どおり辞退する**
+- 「最終行だけ publish」は同一 session 限定なので `one_session` で門を置いてある
+
+`bench/sustained.sh` は `CONCURRENCY=N` を取る。1 なら単一行経路を測っていることに
+なり、拒否が発火する。
+
+`ds41_graph_step_batch_logits` が decode 経路の実績を数え、64 token ごとの gate
+report に出す。実生成 64 token の結果:
+
+```
+decode path so far: 64 single-row steps, 0 K-row verification steps over 0
+positions, 0 batch-fusion sites taken; candidate K none
+```
+
+`bench/sustained.sh` はこの行を読み、**K 行 step が 0 / 候補幅が期待値と違う /
+`BATCH_FUSE` 指定で融合サイトが 0** のいずれかで非ゼロ終了する。単一行経路の tok/s を
+block 経路の成果として印字させないための門である。
+
+### なぜ K 行 step が production に無いのか（確認済み、仮定ではない）
+
+- `DeepSeek-V4.1-Flash-Q2.gguf` の **1046 tensor のうち `mtp.*` / `nextn` は 0 本**
+  （GGUF 自身の tensor 名を列挙して確認）
+- FLASH41 の shape は `n_nextn_predict` を宣言していない → `DS4_N_NEXTN_PREDICT == 0`
+- `ds4_session_eval_speculative_argmax_impl` に **ds41 分岐が存在しない**
+  （qwen4 / glm / dspark だけで、ds41 は `ds4_session_eval()` に落ちる）
+
+**v41-9 以来の「drafter 重みを持つか未確認」への答え: 持っていない。** draft する
+ものが無いので、**同一 session の** K 候補には源が無い。重み不要の draft
+（prompt-lookup / n-gram）の既存実装も無い（`n_ple_ngram` は PLE embedding で無関係）。
+
+これは 100 tok/s の道に対する制約である（単一 stream の tok/s は投機でしか上がらない）。
+並行 session の集約 throughput は別の量で、そちらは K 行経路が既に production である。
+
+### 算数
+
+| | 値 |
+|---|---:|
+| production の単一行 decode | 34.88 ms/token = **28.7 tok/s** |
+| K=8 step（静穏） | 181 ms → perfect draft で上限 **44.2 tok/s** |
+| 確定3 stage（routed+attention+pre） | 105 ms → 他を全部ゼロにしても **76.2 tok/s** |
+| 必要 width | 3.49（現状 1.45〜1.58） |
+
+**cleanup は本線ではない。** そして verifier を速くしても、drafter が無い限り
+production の tok/s は 1 も動かない。
 
 ## やらないこと（追加）
 
