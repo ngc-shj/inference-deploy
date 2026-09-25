@@ -3,27 +3,41 @@
 # thing being measured did not run.
 #
 #   sustained.sh <name> [VAR=VALUE...]
-#   EXPECT_K=8  the candidate width production is supposed to verify at
+#   CONCURRENCY=N  requests in flight (1 = single stream)
+#   EXPECT_K=N     the row count production is supposed to batch at
 #
-# The selftest measures one k-row verification step in isolation. That is the
-# right ruler for a kernel change and the wrong one for the goal: 100 tok/s is a
-# wall-clock number over a real generation. But a generation rate is only
-# evidence about a block executor if the generation used one, and on this build
-# it does not: ds41_graph_step_batch_logits is called by ds41_verify_selftest,
-# while the server's decode advances at most two tokens through the MTP path
-# (server_slot::decode_accepted[2]).
+# The selftest measures one k-row step in isolation. That is the right ruler for
+# a kernel change and the wrong one for the goal: 100 tok/s is a wall-clock
+# number over a real generation. But a generation rate is only evidence about the
+# block executor if the generation used it, and which generations do is not
+# obvious:
 #
-# So this exits non-zero when the run shows no K-row verification steps, or a
-# candidate width other than EXPECT_K, or - with DS4_METAL_V41_BATCH_FUSE set -
-# no fusion sites taken. A tok/s number from a run that failed those checks is a
-# measurement of the single-row path wearing the block path's name, and this
-# harness refuses to print it as a result.
+#   - ds41_graph_step_batch_logits IS a production path, reached through
+#     ds4_sessions_eval_batch_* (ds4.c:85136), but its rows are DIFFERENT
+#     sessions - the batch entry rejects a repeated session - plus prefill rows.
+#     So N concurrent requests batch into it and one request never does.
+#   - single-session speculative verification does NOT reach it: this checkpoint
+#     has no drafter (zero mtp.*/nextn tensors, no n_nextn_predict on the
+#     FLASH41 shape, no ds41 branch in ds4_session_eval_speculative_argmax_impl),
+#     so there are no candidate rows to verify.
+#
+# Two consequences for anything measured here. A one-request run prices the
+# single-row path and says nothing about the row tile or the fusion sweep. And a
+# concurrent run prices them on independent sessions, where the weights are
+# shared but the KV is not - so the shared-prefix attention declines by design
+# and the weight-side work still applies.
+#
+# This exits non-zero when the run shows no K-row step, or a row count other
+# than EXPECT_K, or - with DS4_METAL_V41_BATCH_FUSE set - no fusion sites. A
+# tok/s number from a run that failed those checks is the single-row path wearing
+# the block path's name.
 set -u
 S=$(cd "$(dirname "$0")" && pwd)
 MODEL=$HOME/ghq/github.com/antirez/ds4/gguf/DeepSeek-V4.1-Flash-Q2.gguf
 NAME=$1; shift
 TOKENS=${TOKENS:-256}
-EXPECT_K=${EXPECT_K:-8}
+CONCURRENCY=${CONCURRENCY:-1}
+EXPECT_K=${EXPECT_K:-$CONCURRENCY}
 PORT=${PORT:-8017}
 LOG=$S/sus-$NAME.log
 WANT_FUSE=0
@@ -48,15 +62,23 @@ until grep -q 'listening on' "$LOG"; do
     n=$((n+1)); [ "$n" -gt 200 ] && { echo "server never listened"; exit 1; }
     sleep 3
 done
-# Greedy, so the rate is the model's and not the sampler's.
-curl -s --max-time 3600 "http://127.0.0.1:$PORT/v1/chat/completions" \
-  -H 'content-type: application/json' \
-  -d "{\"model\":\"ds4\",\"messages\":[{\"role\":\"user\",\"content\":\"Write a detailed explanation of how a B-tree insert works, including node splitting.\"}],\"max_tokens\":$TOKENS,\"temperature\":0}" \
-  > "$S/sus-$NAME.json" 2>&1
+# Greedy, so the rate is the model's and not the sampler's. The prompts differ
+# per stream: identical prompts would share a prefix cache and the streams would
+# not stay at the same frontier, which is not what a batch of clients looks like.
+wall0=$(python3 -c 'import time; print(time.time())')
+for c in $(seq 1 "$CONCURRENCY"); do
+    curl -s --max-time 3600 "http://127.0.0.1:$PORT/v1/chat/completions" \
+      -H 'content-type: application/json' \
+      -d "{\"model\":\"ds4\",\"messages\":[{\"role\":\"user\",\"content\":\"Stream $c: write a detailed explanation of how a B-tree insert works, including node splitting.\"}],\"max_tokens\":$TOKENS,\"temperature\":0}" \
+      > "$S/sus-$NAME-$c.json" 2>&1 &
+done
+wait
+wall1=$(python3 -c 'import time; print(time.time())')
 sleep 2
 kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
 
-echo "== sustained generation, $TOKENS tokens =="
+echo "== sustained generation, $CONCURRENCY x $TOKENS tokens =="
+python3 -c "print('aggregate %.2f tok/s over %.1f s wall' % ($CONCURRENCY*$TOKENS/($wall1-$wall0), $wall1-$wall0))"
 grep -E 'gen=[0-9]+ .*avg=' "$LOG" | tail -2
 grep -E 'finish=' "$LOG" | tail -1
 path=$(grep -E 'decode path so far:' "$LOG" | tail -1)
@@ -70,8 +92,8 @@ fuse=${fuse:-0}
 if [ "$kblocks" = "0" ]; then
     echo "REFUSED: no K-row verification step ran, so this rate is the single-row path" >&2
     rc=1
-elif ! printf '%s\n' "$path" | grep -q "candidate K.*\b$EXPECT_K:"; then
-    echo "REFUSED: no candidate width $EXPECT_K in the histogram" >&2
+elif ! printf '%s\n' "$path" | grep -q "candidate K.*[ ]$EXPECT_K:"; then
+    echo "REFUSED: no row count $EXPECT_K in the histogram" >&2
     rc=1
 fi
 if [ "$WANT_FUSE" = "1" ] && [ "$fuse" = "0" ]; then
