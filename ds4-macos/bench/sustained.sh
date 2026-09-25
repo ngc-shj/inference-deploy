@@ -90,6 +90,9 @@ grep -E 'finish=' "$LOG" | tail -1
 path=$(grep -E 'decode path so far:' "$LOG" | tail -1)
 echo "${path:-ds4:   decode path so far: (never printed)}"
 
+# Only meaningful for one stream: with N in flight each stream's wall per token
+# is N steps of GPU, so wall minus graph is queueing, not host work.
+if [ "$CONCURRENCY" != "1" ]; then graph_ms=""; fi
 # The split, from this one run on one ruler. Subtracting the selftest's median
 # single from a generation's tok/s would be two rulers and has been the mistake
 # here twice; the graph's per-step wall is now counted inside the same process
@@ -105,7 +108,7 @@ print('per token: %.1f ms wall at %.2f tok/s, %.1f ms inside the graph, %.1f ms 
 fi
 
 rc=0
-kblocks=$(printf '%s\n' "$path" | sed -n 's/.*graph), \([0-9]*\) K-row verification.*/\1/p')
+kblocks=$(printf '%s\n' "$path" | sed -n 's/.*[,)] \([0-9]*\) K-row verification.*/\1/p')
 kblocks=${kblocks:-0}
 fuse=$(printf '%s\n' "$path" | sed -n 's/.*positions, \([0-9]*\) batch-fusion.*/\1/p')
 fuse=${fuse:-0}

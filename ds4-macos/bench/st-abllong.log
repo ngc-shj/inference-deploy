@@ -1,0 +1,261 @@
+ds4: abort gate on for the first 40 layers
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: SSD streaming auto cache budget
+ds4:   metal recommends 107.52 GiB working set
+ds4:   using 84% total for model + cached experts: 90.00 GiB
+ds4:   non-routed weights: 9.37 GiB
+ds4:   routed expert size: 9.49 MiB
+ds4:   expert budget before prefill reserve: 8698 (80.63 GiB)
+ds4: metal SSD streaming cache target 80.63 GiB; effective 80.63 GiB = 7.12 GiB prefill headroom + 73.51 GiB dynamic cache (7930 experts, 9.49 MiB each)
+ds4: Metal SSD static weights locked 9.37 GiB; pageable 0.00 GiB
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.06 GiB (raw 0.01 + compressed 0.05) + buffers 3.27 GiB + resident model 9.37 GiB + expert cache 73.51 GiB + prefill expert reserve 7.12 GiB = 93.33 GiB planned
+ds4: memory detail: ctx=8192 prefill_cap=4096 raw_kv_rows=128 compressed_kv_rows=8193 backend=metal
+0925 22:58:43 ds4-server: context buffers 3411.39 MiB (ctx=8192, backend=metal, prefill_chunk=4096, raw_kv_rows=128, compressed_kv_rows=8193)
+ds4: V4.1 static context buffers 3411.39 MiB (ctx=8192), Engram disk-only
+0925 22:58:43 ds4-server: listening on http://127.0.0.1:8016
+0925 22:58:46 ds4-server: chat ctx=0..1051:1051 prompt start
+0925 22:59:06 ds4-server: chat ctx=0..1051:1051 prefill chunk 1051/1051 (100.0%) chunk=0.00 t/s avg=51.93 t/s 20.237s
+0925 22:59:06 ds4-server: chat ctx=0..1051:1051 prompt done 20.285s
+ds4: shared/routed FFN overlap ran, mode 1
+ds4:   decode path so far: 64 single-row steps (59.8 ms each inside the graph over the last 64), 0 K-row verification steps over 0 positions, 0 batch-fusion sites taken; candidate K none
+ds4: gate over tokens 1-64: 21.47 command buffers, 11.23 aborts, 240.0 expert ids accounted, 133.34 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.59 + commit-to-done 37.39 + repair-load 16.50 + accounting 0.14 + tail 1.42 = 57.04 of a 59.75 ms wall, residual 2.72
+ds4:   of the commit-to-done: GPU running 189.94 ms, GPU not running -152.55 ms
+ds4:   1645.5 gated dispatches a token, 37.5 of them behind an abort; 1407.7 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.23 segments used, 9.78 dropped, 2.57 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 176.72 attempted, 176.72 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   expert cache over the last 64 tokens: 239.98 hits, 127.55 misses, 3.64 evictions a token; 7930 of 7930 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 14.05 genuinely absent
+ds4:   residency a token: 14.05 adds, 0.00 removes, 14.05 commits
+ds4: V4.1 batch attn_output_b hoisted out of the per-row loop (8 rows)
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4:   decode path so far: 128 single-row steps (38.1 ms each inside the graph over the last 64), 8 K-row verification steps over 64 positions, 0 batch-fusion sites taken; candidate K 8:8
+ds4: gate over tokens 65-128: 14.64 command buffers, 0.97 aborts, 240.0 expert ids accounted, 9.20 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 0.41 + commit-to-done 31.87 + repair-load 1.32 + accounting 0.09 + tail 1.39 = 35.07 of a 37.04 ms wall, residual 1.97
+ds4:   of the commit-to-done: GPU running 51.60 ms, GPU not running -19.74 ms
+ds4:   1449.8 gated dispatches a token, 6.1 of them behind an abort; 679.2 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 11.67 segments used, 0.78 dropped, 1.92 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 87.94 attempted, 87.94 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   expert cache over the last 64 tokens: 476.03 hits, 4.94 misses, 4.94 evictions a token; 7930 of 7930 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 0.97 genuinely absent
+ds4:   residency a token: 0.97 adds, 0.00 removes, 0.97 commits
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4:   decode path so far: 192 single-row steps (36.0 ms each inside the graph over the last 64), 25 K-row verification steps over 200 positions, 0 batch-fusion sites taken; candidate K 8:25
+ds4: gate over tokens 129-192: 14.05 command buffers, 0.08 aborts, 240.0 expert ids accounted, 0.74 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 0.34 + commit-to-done 31.44 + repair-load 0.11 + accounting 0.04 + tail 1.39 = 33.32 of a 35.24 ms wall, residual 1.92
+ds4:   of the commit-to-done: GPU running 65.36 ms, GPU not running -33.91 ms
+ds4:   1435.1 gated dispatches a token, 0.0 of them behind an abort; 617.6 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 11.97 segments used, 0.06 dropped, 1.88 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 80.56 attempted, 80.56 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   expert cache over the last 64 tokens: 719.66 hits, 0.42 misses, 0.42 evictions a token; 7930 of 7930 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 0.08 genuinely absent
+ds4:   residency a token: 0.08 adds, 0.00 removes, 0.08 commits
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4:   decode path so far: 256 single-row steps (36.3 ms each inside the graph over the last 64), 42 K-row verification steps over 336 positions, 0 batch-fusion sites taken; candidate K 8:42
+ds4: gate over tokens 193-256: 14.00 command buffers, 0.00 aborts, 240.0 expert ids accounted, 0.00 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 0.34 + commit-to-done 31.97 + repair-load 0.00 + accounting 0.03 + tail 1.41 = 33.75 of a 35.64 ms wall, residual 1.89
+ds4:   of the commit-to-done: GPU running 65.81 ms, GPU not running -33.84 ms
+ds4:   1434.0 gated dispatches a token, 0.0 of them behind an abort; 613.0 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 12.00 segments used, 0.00 dropped, 1.85 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 80.00 attempted, 80.00 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   expert cache over the last 64 tokens: 719.94 hits, 0.06 misses, 0.06 evictions a token; 7930 of 7930 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 0.00 genuinely absent
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4:   decode path so far: 320 single-row steps (35.8 ms each inside the graph over the last 64), 59 K-row verification steps over 472 positions, 0 batch-fusion sites taken; candidate K 8:59
+ds4: gate over tokens 257-320: 14.02 command buffers, 0.02 aborts, 240.0 expert ids accounted, 0.15 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry -0.00 + encode 0.32 + commit-to-done 31.55 + repair-load 0.02 + accounting 0.03 + tail 1.39 = 33.31 of a 35.06 ms wall, residual 1.75
+ds4:   of the commit-to-done: GPU running 67.02 ms, GPU not running -35.47 ms
+ds4:   1434.0 gated dispatches a token, 0.0 of them behind an abort; 613.1 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 12.00 segments used, 0.00 dropped, 1.71 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 80.03 attempted, 80.03 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   expert cache over the last 64 tokens: 719.98 hits, 0.03 misses, 0.03 evictions a token; 7930 of 7930 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 0.02 genuinely absent
+ds4:   residency a token: 0.02 adds, 0.00 removes, 0.02 commits
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4:   decode path so far: 384 single-row steps (36.4 ms each inside the graph over the last 64), 76 K-row verification steps over 608 positions, 0 batch-fusion sites taken; candidate K 8:76
+ds4: gate over tokens 321-384: 14.00 command buffers, 0.00 aborts, 240.0 expert ids accounted, 0.00 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 0.31 + commit-to-done 32.35 + repair-load 0.00 + accounting 0.03 + tail 1.40 = 34.09 of a 35.82 ms wall, residual 1.72
+ds4:   of the commit-to-done: GPU running 67.58 ms, GPU not running -35.23 ms
+ds4:   1434.0 gated dispatches a token, 0.0 of them behind an abort; 613.0 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 12.00 segments used, 0.00 dropped, 1.69 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 80.00 attempted, 80.00 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   expert cache over the last 64 tokens: 719.95 hits, 0.05 misses, 0.05 evictions a token; 7930 of 7930 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 0.00 genuinely absent
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4:   decode path so far: 448 single-row steps (36.8 ms each inside the graph over the last 64), 93 K-row verification steps over 744 positions, 0 batch-fusion sites taken; candidate K 8:93
+ds4: gate over tokens 385-448: 14.00 command buffers, 0.00 aborts, 240.0 expert ids accounted, 0.00 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 0.32 + commit-to-done 32.68 + repair-load 0.00 + accounting 0.03 + tail 1.41 = 34.44 of a 36.16 ms wall, residual 1.72
+ds4:   of the commit-to-done: GPU running 68.99 ms, GPU not running -36.31 ms
+ds4:   1434.0 gated dispatches a token, 0.0 of them behind an abort; 613.0 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 12.00 segments used, 0.00 dropped, 1.69 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 80.00 attempted, 80.00 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   expert cache over the last 64 tokens: 719.98 hits, 0.02 misses, 0.02 evictions a token; 7930 of 7930 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 0.00 genuinely absent
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 verify selftest k=8, 64 positions from 1051 (odd start, pair carry restored), 6 alternating rounds
+  round 0: single 37.90 ms/token, batch 204.18 ms/step
+  round 1: single 36.05 ms/token, batch 203.10 ms/step
+  round 2: single 36.43 ms/token, batch 214.17 ms/step
+  round 3: single 35.84 ms/token, batch 214.17 ms/step
+  round 4: single 36.56 ms/token, batch 218.66 ms/step
+  round 5: single 36.91 ms/token, batch 220.35 ms/step
+  ablate engaged: 4800 stages skipped, 1920 saved outputs copied in; 8 arms over 6 rounds, rotating
+  ablate: the prologue - KV write, FP8 quantize, window publish, indexer - and the router run in every arm, so their cost is in none of these
+  pre                  DIVERGED - the saved set is incomplete (first at 0)
+  attention tail       DIVERGED - the saved set is incomplete (first at 0)
+  shared expert        DIVERGED - the saved set is incomplete (first at 0)
+  routed experts       DIVERGED - the saved set is incomplete (first at 0)
+  ablate round 0: pre 188.64/175.92 attention tail 194.44/148.11 shared expert 189.66/196.70 routed experts 194.82/135.84 ms control/replay
+  ablate round 1: pre 201.90/169.58 attention tail 192.96/153.53 shared expert 191.59/192.09 routed experts 189.64/137.62 ms control/replay
+  ablate round 2: pre 201.36/171.08 attention tail 199.74/157.92 shared expert 189.86/193.67 routed experts 190.31/146.13 ms control/replay
+  ablate round 3: pre 190.83/175.81 attention tail 207.42/144.27 shared expert 189.27/192.58 routed experts 195.85/143.37 ms control/replay
+  ablate round 4: pre 201.36/174.51 attention tail 198.89/148.23 shared expert 210.21/191.68 routed experts 197.49/151.81 ms control/replay
+  ablate round 5: pre 206.66/185.75 attention tail 208.56/157.76 shared expert 209.09/199.71 routed experts 199.80/151.18 ms control/replay
+ds4:   decode path so far: 512 single-row steps (37.1 ms each inside the graph over the last 64), 110 K-row verification steps over 880 positions, 0 batch-fusion sites taken; candidate K 8:110
+ds4: gate over tokens 449-512: 14.00 command buffers, 0.00 aborts, 240.0 expert ids accounted, 0.00 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 0.32 + commit-to-done 32.87 + repair-load 0.00 + accounting 0.03 + tail 1.41 = 34.63 of a 36.40 ms wall, residual 1.77
+ds4:   of the commit-to-done: GPU running 69.61 ms, GPU not running -36.74 ms
+ds4:   1434.0 gated dispatches a token, 0.0 of them behind an abort; 613.0 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 12.00 segments used, 0.00 dropped, 1.73 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 80.00 attempted, 80.00 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   expert cache over the last 64 tokens: 719.97 hits, 0.03 misses, 0.03 evictions a token; 7930 of 7930 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 0.00 genuinely absent
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4: selftest control: a second single pass differs from the reference in 8273920 of 8273920 logits
+  median single    : 36.56 ms/token
+  median 8-row step: 214.17 ms = 5.86x one single step
+  perfect-draft ceiling: 37.35 tok/s (100 tok/s requires <= 80.00 ms/step)
+  block width      : 1.37x of 8 (needs 3.66x for 100 tok/s)
+  concurrent       : 47696 sections opened of 47696 asked
+  marginal row cost: 25.37 ms = 69% of a standalone token
+  rollback         : DIVERGED
+  batch vs single  : DIVERGED (384 rows checked)
+  batch logits     : DIVERGED from the single pass
+  break-even       : accept 73% of drafted tokens to beat single
+  batch logits first differ at offset 0, vocab 0: single -0.742899537, batch 1.67038155 (49643515 elements over 384 rows)
+  rollback first diverged at offset 3, where the reference led second place by 2.23667
+  rolled-back passes agree with each other: no
+  batch first diverged at offset 3, where the reference led second place by 2.23667
+0925 22:59:49 ds4-server: chat ctx=1051..1055:4 gen=4 THINKING decoding chunk=0.09 t/s avg=0.09 t/s 42.824s
+ds4-server: thinking not closed, ignoring incomplete DSML in reasoning
+0925 22:59:49 ds4-server: chat ctx=0..1051:1051 gen=4 THINKING finish=length 63.109s
+0925 22:59:51 ds4-server: shutdown requested, draining requests

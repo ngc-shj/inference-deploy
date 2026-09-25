@@ -1,0 +1,590 @@
+ds4: abort gate on for the first 40 layers
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: SSD streaming auto cache budget
+ds4:   metal recommends 107.52 GiB working set
+ds4:   using 84% total for model + cached experts: 90.00 GiB
+ds4:   non-routed weights: 9.37 GiB
+ds4:   routed expert size: 9.49 MiB
+ds4:   expert budget before prefill reserve: 8698 (80.63 GiB)
+ds4: metal SSD streaming cache target 80.63 GiB; effective 80.63 GiB = 7.12 GiB prefill headroom + 73.51 GiB dynamic cache (7930 experts, 9.49 MiB each)
+ds4: V4.1 SSD cache fitted from 7930 to 6729 experts for context/runtime headroom
+ds4: Metal SSD static weights locked 9.37 GiB; pageable 0.00 GiB
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.06 GiB (raw 0.01 + compressed 0.05) + buffers 3.27 GiB + resident model 9.37 GiB + expert cache 62.38 GiB + prefill expert reserve 7.12 GiB = 82.20 GiB planned
+ds4: memory detail: ctx=8192 prefill_cap=4096 raw_kv_rows=128 compressed_kv_rows=8193 backend=metal
+0925 23:11:13 ds4-server: context buffers 3411.39 MiB (ctx=8192, backend=metal, prefill_chunk=4096, raw_kv_rows=128, compressed_kv_rows=8193)
+0925 23:11:13 ds4-server: 8 resident sessions request at least 26.65 GiB of context buffers, or 3.74 GiB when the model shares one prefill workspace
+ds4: V4.1 static context buffers 3411.39 MiB (ctx=8192), Engram disk-only
+ds4: V4.1 static context buffers 3411.39 MiB (ctx=8192), Engram disk-only
+ds4: V4.1 static context buffers 3411.39 MiB (ctx=8192), Engram disk-only
+ds4: V4.1 static context buffers 3411.39 MiB (ctx=8192), Engram disk-only
+ds4: V4.1 static context buffers 3411.39 MiB (ctx=8192), Engram disk-only
+ds4: V4.1 static context buffers 3411.39 MiB (ctx=8192), Engram disk-only
+ds4: V4.1 static context buffers 3411.39 MiB (ctx=8192), Engram disk-only
+ds4: V4.1 static context buffers 3411.39 MiB (ctx=8192), Engram disk-only
+0925 23:11:13 ds4-server: batched mode enabled resident_sessions=8 prefill_quantum=2048 mixed_prefill_quantum=128 decode_coalesce_us=30000
+0925 23:11:13 ds4-server: listening on http://127.0.0.1:8017
+0925 23:11:16 ds4-server: chat ctx=0..50:50 prompt start
+ds4: shared/routed FFN overlap ran, mode 1
+ds4: expert residency set on the queue
+0925 23:11:16 ds4-server: chat ctx=0..50:50 prefill chunk 1/50 (2.0%) chunk=0.00 t/s avg=5.86 t/s 0.171s
+0925 23:11:16 ds4-server: chat ctx=0..50:50 prefill chunk 2/50 (4.0%) chunk=10.24 t/s avg=7.45 t/s 0.268s
+0925 23:11:16 ds4-server: chat ctx=0..50:50 prefill chunk 3/50 (6.0%) chunk=12.94 t/s avg=8.68 t/s 0.346s
+0925 23:11:16 ds4-server: chat ctx=0..50:50 prefill chunk 4/50 (8.0%) chunk=15.84 t/s avg=9.79 t/s 0.409s
+0925 23:11:16 ds4-server: chat ctx=0..50:50 prefill chunk 5/50 (10.0%) chunk=17.01 t/s avg=10.69 t/s 0.468s
+0925 23:11:16 ds4-server: chat ctx=0..50:50 prefill chunk 6/50 (12.0%) chunk=18.83 t/s avg=11.52 t/s 0.521s
+0925 23:11:16 ds4-server: chat ctx=0..50:50 prefill chunk 7/50 (14.0%) chunk=18.14 t/s avg=12.16 t/s 0.576s
+0925 23:11:16 ds4-server: chat ctx=0..50:50 prefill chunk 8/50 (16.0%) chunk=18.71 t/s avg=12.71 t/s 0.629s
+0925 23:11:16 ds4-server: chat ctx=0..50:50 prefill chunk 9/50 (18.0%) chunk=17.93 t/s avg=13.14 t/s 0.685s
+0925 23:11:16 ds4-server: chat ctx=0..50:50 prefill chunk 10/50 (20.0%) chunk=18.39 t/s avg=13.52 t/s 0.739s
+0925 23:11:16 ds4-server: chat ctx=0..50:50 prefill chunk 11/50 (22.0%) chunk=17.61 t/s avg=13.82 t/s 0.796s
+0925 23:11:16 ds4-server: chat ctx=0..50:50 prefill chunk 12/50 (24.0%) chunk=20.53 t/s avg=14.20 t/s 0.845s
+0925 23:11:17 ds4-server: chat ctx=0..50:50 prefill chunk 13/50 (26.0%) chunk=19.53 t/s avg=14.51 t/s 0.896s
+0925 23:11:17 ds4-server: chat ctx=0..50:50 prefill chunk 14/50 (28.0%) chunk=20.40 t/s avg=14.81 t/s 0.945s
+0925 23:11:17 ds4-server: chat ctx=0..50:50 prefill chunk 15/50 (30.0%) chunk=21.90 t/s avg=15.14 t/s 0.991s
+0925 23:11:17 ds4-server: chat ctx=0..50:50 prefill chunk 16/50 (32.0%) chunk=19.07 t/s avg=15.34 t/s 1.043s
+0925 23:11:17 ds4-server: chat ctx=0..50:50 prefill chunk 17/50 (34.0%) chunk=19.79 t/s avg=15.54 t/s 1.094s
+0925 23:11:17 ds4-server: chat ctx=0..50:50 prefill chunk 18/50 (36.0%) chunk=17.94 t/s avg=15.66 t/s 1.149s
+0925 23:11:17 ds4-server: chat ctx=0..50:50 prefill chunk 19/50 (38.0%) chunk=19.08 t/s avg=15.81 t/s 1.202s
+0925 23:11:17 ds4-server: chat ctx=0..50:50 prefill chunk 20/50 (40.0%) chunk=21.00 t/s avg=16.01 t/s 1.249s
+0925 23:11:17 ds4-server: chat ctx=0..50:50 prefill chunk 21/50 (42.0%) chunk=21.73 t/s avg=16.21 t/s 1.296s
+0925 23:11:17 ds4-server: chat ctx=0..50:50 prefill chunk 22/50 (44.0%) chunk=21.06 t/s avg=16.38 t/s 1.343s
+0925 23:11:17 ds4-server: chat ctx=0..50:50 prefill chunk 23/50 (46.0%) chunk=21.37 t/s avg=16.55 t/s 1.390s
+0925 23:11:17 ds4-server: chat ctx=0..50:50 prefill chunk 24/50 (48.0%) chunk=19.72 t/s avg=16.66 t/s 1.441s
+0925 23:11:17 ds4-server: chat ctx=0..50:50 prefill chunk 25/50 (50.0%) chunk=22.36 t/s avg=16.83 t/s 1.485s
+0925 23:11:17 ds4-server: chat ctx=0..50:50 prefill chunk 26/50 (52.0%) chunk=22.77 t/s avg=17.00 t/s 1.529s
+0925 23:11:17 ds4-server: chat ctx=0..50:50 prefill chunk 27/50 (54.0%) chunk=20.05 t/s avg=17.10 t/s 1.579s
+0925 23:11:17 ds4-server: chat ctx=0..50:50 prefill chunk 28/50 (56.0%) chunk=19.74 t/s avg=17.18 t/s 1.630s
+0925 23:11:17 ds4-server: chat ctx=0..50:50 prefill chunk 29/50 (58.0%) chunk=19.71 t/s avg=17.26 t/s 1.680s
+0925 23:11:17 ds4-server: chat ctx=0..50:50 prefill chunk 30/50 (60.0%) chunk=19.60 t/s avg=17.33 t/s 1.731s
+0925 23:11:17 ds4-server: chat ctx=0..50:50 prefill chunk 31/50 (62.0%) chunk=19.89 t/s avg=17.40 t/s 1.782s
+0925 23:11:17 ds4-server: chat ctx=0..50:50 prefill chunk 32/50 (64.0%) chunk=21.55 t/s avg=17.50 t/s 1.828s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 33/50 (66.0%) chunk=19.87 t/s avg=17.57 t/s 1.878s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 34/50 (68.0%) chunk=22.30 t/s avg=17.68 t/s 1.923s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 35/50 (70.0%) chunk=18.83 t/s avg=17.71 t/s 1.976s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 36/50 (72.0%) chunk=20.72 t/s avg=17.78 t/s 2.025s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 37/50 (74.0%) chunk=18.70 t/s avg=17.80 t/s 2.078s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 38/50 (76.0%) chunk=21.02 t/s avg=17.88 t/s 2.126s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 39/50 (78.0%) chunk=21.16 t/s avg=17.95 t/s 2.173s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 40/50 (80.0%) chunk=18.55 t/s avg=17.96 t/s 2.227s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 41/50 (82.0%) chunk=17.45 t/s avg=17.95 t/s 2.284s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 42/50 (84.0%) chunk=19.22 t/s avg=17.98 t/s 2.336s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 43/50 (86.0%) chunk=20.03 t/s avg=18.02 t/s 2.386s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 44/50 (88.0%) chunk=20.71 t/s avg=18.07 t/s 2.434s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 45/50 (90.0%) chunk=18.97 t/s avg=18.09 t/s 2.487s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 46/50 (92.0%) chunk=19.56 t/s avg=18.12 t/s 2.538s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 47/50 (94.0%) chunk=22.37 t/s avg=18.20 t/s 2.583s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 48/50 (96.0%) chunk=19.83 t/s avg=18.23 t/s 2.633s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 49/50 (98.0%) chunk=20.98 t/s avg=18.28 t/s 2.681s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 50/50 (100.0%) chunk=21.12 t/s avg=18.33 t/s 2.728s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prompt done 2.730s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prompt start
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prompt start
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prompt start
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prompt start
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prompt start
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prompt start
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prompt start
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 1/50 (2.0%) chunk=0.00 t/s avg=29.40 t/s 0.034s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 2/50 (4.0%) chunk=29.57 t/s avg=29.48 t/s 0.068s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 3/50 (6.0%) chunk=29.91 t/s avg=29.63 t/s 0.101s
+0925 23:11:18 ds4-server: chat ctx=0..50:50 prefill chunk 4/50 (8.0%) chunk=29.95 t/s avg=29.71 t/s 0.135s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 5/50 (10.0%) chunk=30.00 t/s avg=29.76 t/s 0.168s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 6/50 (12.0%) chunk=30.28 t/s avg=29.85 t/s 0.201s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 7/50 (14.0%) chunk=30.00 t/s avg=29.87 t/s 0.234s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 8/50 (16.0%) chunk=29.95 t/s avg=29.88 t/s 0.268s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 9/50 (18.0%) chunk=30.06 t/s avg=29.90 t/s 0.301s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 10/50 (20.0%) chunk=30.45 t/s avg=29.95 t/s 0.334s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 11/50 (22.0%) chunk=29.95 t/s avg=29.95 t/s 0.367s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 12/50 (24.0%) chunk=29.99 t/s avg=29.96 t/s 0.401s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 13/50 (26.0%) chunk=29.95 t/s avg=29.96 t/s 0.434s
+ds4:   decode path so far: 64 single-row steps (49.4 ms each inside the graph over the last 64), 0 K-row verification steps over 0 positions, 0 batch-fusion sites taken; candidate K none
+ds4: gate over tokens 1-64: 32.52 command buffers, 27.36 aborts, 240.0 expert ids accounted, 636.42 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 2.83 + commit-to-done 34.94 + repair-load 7.40 + accounting 0.03 + tail 0.00 = 45.20 of a 49.02 ms wall, residual 3.82
+ds4:   of the commit-to-done: GPU running 31.98 ms, GPU not running 2.96 ms
+ds4:   1995.2 gated dispatches a token, 67.3 of them behind an abort; 2605.2 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 3.16 segments used, 24.62 dropped, 3.59 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 325.28 attempted, 325.28 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   expert cache over the last 64 tokens: 240.00 hits, 67.05 misses, 0.00 evictions a token; 4291 of 6729 entries live (63.8%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 67.05 genuinely absent
+ds4:   residency a token: 67.05 adds, 0.00 removes, 67.05 commits
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 14/50 (28.0%) chunk=29.97 t/s avg=29.96 t/s 0.467s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 15/50 (30.0%) chunk=30.02 t/s avg=29.96 t/s 0.501s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 16/50 (32.0%) chunk=30.01 t/s avg=29.96 t/s 0.534s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 17/50 (34.0%) chunk=30.12 t/s avg=29.97 t/s 0.567s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 18/50 (36.0%) chunk=29.77 t/s avg=29.96 t/s 0.601s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 19/50 (38.0%) chunk=30.08 t/s avg=29.97 t/s 0.634s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 20/50 (40.0%) chunk=29.91 t/s avg=29.97 t/s 0.667s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 21/50 (42.0%) chunk=30.18 t/s avg=29.98 t/s 0.701s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 22/50 (44.0%) chunk=28.43 t/s avg=29.90 t/s 0.736s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 23/50 (46.0%) chunk=30.04 t/s avg=29.91 t/s 0.769s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 24/50 (48.0%) chunk=29.89 t/s avg=29.91 t/s 0.802s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 25/50 (50.0%) chunk=29.87 t/s avg=29.91 t/s 0.836s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 26/50 (52.0%) chunk=30.06 t/s avg=29.91 t/s 0.869s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 27/50 (54.0%) chunk=29.92 t/s avg=29.91 t/s 0.903s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 28/50 (56.0%) chunk=30.19 t/s avg=29.92 t/s 0.936s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 29/50 (58.0%) chunk=26.67 t/s avg=29.80 t/s 0.973s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 30/50 (60.0%) chunk=29.76 t/s avg=29.80 t/s 1.007s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 31/50 (62.0%) chunk=24.50 t/s avg=29.59 t/s 1.048s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 32/50 (64.0%) chunk=26.02 t/s avg=29.46 t/s 1.086s
+0925 23:11:19 ds4-server: chat ctx=0..50:50 prefill chunk 33/50 (66.0%) chunk=27.03 t/s avg=29.38 t/s 1.123s
+0925 23:11:20 ds4-server: chat ctx=0..50:50 prefill chunk 34/50 (68.0%) chunk=28.77 t/s avg=29.36 t/s 1.158s
+0925 23:11:20 ds4-server: chat ctx=0..50:50 prefill chunk 35/50 (70.0%) chunk=26.09 t/s avg=29.26 t/s 1.196s
+0925 23:11:20 ds4-server: chat ctx=0..50:50 prefill chunk 36/50 (72.0%) chunk=27.73 t/s avg=29.21 t/s 1.232s
+0925 23:11:20 ds4-server: chat ctx=0..50:50 prefill chunk 37/50 (74.0%) chunk=25.78 t/s avg=29.11 t/s 1.271s
+0925 23:11:20 ds4-server: chat ctx=0..50:50 prefill chunk 38/50 (76.0%) chunk=27.92 t/s avg=29.08 t/s 1.307s
+0925 23:11:20 ds4-server: chat ctx=0..50:50 prefill chunk 39/50 (78.0%) chunk=26.62 t/s avg=29.01 t/s 1.344s
+0925 23:11:20 ds4-server: chat ctx=0..50:50 prefill chunk 40/50 (80.0%) chunk=27.05 t/s avg=28.96 t/s 1.381s
+0925 23:11:20 ds4-server: chat ctx=0..50:50 prefill chunk 41/50 (82.0%) chunk=28.53 t/s avg=28.95 t/s 1.416s
+0925 23:11:20 ds4-server: chat ctx=0..50:50 prefill chunk 42/50 (84.0%) chunk=27.14 t/s avg=28.90 t/s 1.453s
+0925 23:11:20 ds4-server: chat ctx=0..50:50 prefill chunk 43/50 (86.0%) chunk=28.17 t/s avg=28.88 t/s 1.489s
+0925 23:11:20 ds4-server: chat ctx=0..50:50 prefill chunk 44/50 (88.0%) chunk=27.44 t/s avg=28.85 t/s 1.525s
+0925 23:11:20 ds4-server: chat ctx=0..50:50 prefill chunk 45/50 (90.0%) chunk=27.91 t/s avg=28.83 t/s 1.561s
+0925 23:11:20 ds4-server: chat ctx=0..50:50 prefill chunk 46/50 (92.0%) chunk=27.70 t/s avg=28.80 t/s 1.597s
+0925 23:11:20 ds4-server: chat ctx=0..50:50 prefill chunk 47/50 (94.0%) chunk=28.95 t/s avg=28.80 t/s 1.632s
+0925 23:11:20 ds4-server: chat ctx=0..50:50 prefill chunk 48/50 (96.0%) chunk=27.03 t/s avg=28.77 t/s 1.669s
+0925 23:11:20 ds4-server: chat ctx=0..50:50 prefill chunk 49/50 (98.0%) chunk=25.70 t/s avg=28.70 t/s 1.708s
+0925 23:11:20 ds4-server: chat ctx=0..50:50 prefill chunk 50/50 (100.0%) chunk=27.99 t/s avg=28.68 t/s 1.743s
+0925 23:11:20 ds4-server: chat ctx=0..50:50 prompt done 1.745s
+ds4: V4.1 attn_output_a out of the per-row loop, 2 rows, row tile BR=4
+ds4: V4.1 batch attn_output_b hoisted out of the per-row loop (2 rows)
+ds4: V4.1 batch step rows=2 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 1/50 (2.0%) chunk=0.00 t/s avg=0.46 t/s 2.178s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 2/50 (4.0%) chunk=29.57 t/s avg=0.90 t/s 2.212s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 3/50 (6.0%) chunk=29.95 t/s avg=1.34 t/s 2.245s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 4/50 (8.0%) chunk=30.29 t/s avg=1.76 t/s 2.278s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 5/50 (10.0%) chunk=30.14 t/s avg=2.16 t/s 2.311s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 6/50 (12.0%) chunk=29.93 t/s avg=2.56 t/s 2.345s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 7/50 (14.0%) chunk=30.07 t/s avg=2.94 t/s 2.378s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 8/50 (16.0%) chunk=30.06 t/s avg=3.32 t/s 2.411s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 9/50 (18.0%) chunk=30.13 t/s avg=3.68 t/s 2.444s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 10/50 (20.0%) chunk=30.18 t/s avg=4.04 t/s 2.477s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 11/50 (22.0%) chunk=29.99 t/s avg=4.38 t/s 2.511s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 12/50 (24.0%) chunk=29.99 t/s avg=4.72 t/s 2.544s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 13/50 (26.0%) chunk=30.08 t/s avg=5.04 t/s 2.577s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 14/50 (28.0%) chunk=30.02 t/s avg=5.36 t/s 2.611s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 15/50 (30.0%) chunk=30.14 t/s avg=5.67 t/s 2.644s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 16/50 (32.0%) chunk=30.19 t/s avg=5.98 t/s 2.677s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 17/50 (34.0%) chunk=29.61 t/s avg=6.27 t/s 2.711s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 18/50 (36.0%) chunk=29.95 t/s avg=6.56 t/s 2.744s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 19/50 (38.0%) chunk=30.21 t/s avg=6.84 t/s 2.777s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 20/50 (40.0%) chunk=30.19 t/s avg=7.12 t/s 2.810s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 21/50 (42.0%) chunk=29.93 t/s avg=7.38 t/s 2.844s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 22/50 (44.0%) chunk=30.37 t/s avg=7.65 t/s 2.877s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 23/50 (46.0%) chunk=30.10 t/s avg=7.90 t/s 2.910s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 24/50 (48.0%) chunk=29.98 t/s avg=8.15 t/s 2.943s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 25/50 (50.0%) chunk=30.20 t/s avg=8.40 t/s 2.976s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 26/50 (52.0%) chunk=29.80 t/s avg=8.64 t/s 3.010s
+ds4:   decode path so far: 128 single-row steps (34.8 ms each inside the graph over the last 64), 1 K-row verification steps over 2 positions, 403 batch-fusion sites taken; candidate K 2:1
+ds4: gate over tokens 65-128: 16.16 command buffers, 3.23 aborts, 240.0 expert ids accounted, 37.82 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 0.61 + commit-to-done 30.77 + repair-load 0.60 + accounting 0.03 + tail 0.02 = 32.03 of a 34.09 ms wall, residual 2.06
+ds4:   of the commit-to-done: GPU running 30.87 ms, GPU not running -0.10 ms
+ds4:   1486.9 gated dispatches a token, 11.4 of them behind an abort; 838.8 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 10.92 segments used, 2.80 dropped, 2.00 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 107.66 attempted, 107.66 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   expert cache over the last 64 tokens: 246.66 hits, 4.83 misses, 0.00 evictions a token; 4600 of 6729 entries live (68.4%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 3.98 genuinely absent
+ds4:   residency a token: 3.98 adds, 0.00 removes, 3.98 commits
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 27/50 (54.0%) chunk=30.26 t/s avg=8.87 t/s 3.043s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 28/50 (56.0%) chunk=29.97 t/s avg=9.10 t/s 3.076s
+0925 23:11:21 ds4-server: chat ctx=0..50:50 prefill chunk 29/50 (58.0%) chunk=29.94 t/s avg=9.33 t/s 3.110s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 30/50 (60.0%) chunk=29.49 t/s avg=9.54 t/s 3.144s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 31/50 (62.0%) chunk=28.47 t/s avg=9.75 t/s 3.179s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 32/50 (64.0%) chunk=28.38 t/s avg=9.96 t/s 3.214s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 33/50 (66.0%) chunk=27.33 t/s avg=10.15 t/s 3.251s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 34/50 (68.0%) chunk=29.24 t/s avg=10.35 t/s 3.285s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 35/50 (70.0%) chunk=29.60 t/s avg=10.55 t/s 3.319s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 36/50 (72.0%) chunk=28.22 t/s avg=10.73 t/s 3.354s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 37/50 (74.0%) chunk=28.24 t/s avg=10.92 t/s 3.389s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 38/50 (76.0%) chunk=28.12 t/s avg=11.09 t/s 3.425s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 39/50 (78.0%) chunk=28.61 t/s avg=11.27 t/s 3.460s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 40/50 (80.0%) chunk=29.31 t/s avg=11.45 t/s 3.494s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 41/50 (82.0%) chunk=29.71 t/s avg=11.62 t/s 3.528s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 42/50 (84.0%) chunk=28.21 t/s avg=11.79 t/s 3.563s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 43/50 (86.0%) chunk=28.76 t/s avg=11.95 t/s 3.598s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 44/50 (88.0%) chunk=29.55 t/s avg=12.12 t/s 3.632s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 45/50 (90.0%) chunk=28.79 t/s avg=12.27 t/s 3.667s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 46/50 (92.0%) chunk=26.37 t/s avg=12.42 t/s 3.704s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 47/50 (94.0%) chunk=28.83 t/s avg=12.57 t/s 3.739s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 48/50 (96.0%) chunk=29.08 t/s avg=12.72 t/s 3.774s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 49/50 (98.0%) chunk=28.85 t/s avg=12.87 t/s 3.808s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prefill chunk 50/50 (100.0%) chunk=29.30 t/s avg=13.01 t/s 3.842s
+0925 23:11:22 ds4-server: chat ctx=0..50:50 prompt done 3.844s
+ds4: V4.1 batch step rows=2 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=3 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=3 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 1/50 (2.0%) chunk=0.00 t/s avg=0.23 t/s 4.417s
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 2/50 (4.0%) chunk=29.62 t/s avg=0.45 t/s 4.451s
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 3/50 (6.0%) chunk=29.97 t/s avg=0.67 t/s 4.484s
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 4/50 (8.0%) chunk=29.96 t/s avg=0.89 t/s 4.518s
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 5/50 (10.0%) chunk=29.98 t/s avg=1.10 t/s 4.551s
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 6/50 (12.0%) chunk=30.16 t/s avg=1.31 t/s 4.584s
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 7/50 (14.0%) chunk=29.60 t/s avg=1.52 t/s 4.618s
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 8/50 (16.0%) chunk=29.07 t/s avg=1.72 t/s 4.652s
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 9/50 (18.0%) chunk=28.40 t/s avg=1.92 t/s 4.688s
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 10/50 (20.0%) chunk=27.80 t/s avg=2.12 t/s 4.724s
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 11/50 (22.0%) chunk=27.19 t/s avg=2.31 t/s 4.760s
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 12/50 (24.0%) chunk=27.24 t/s avg=2.50 t/s 4.797s
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 13/50 (26.0%) chunk=27.26 t/s avg=2.69 t/s 4.834s
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 14/50 (28.0%) chunk=26.94 t/s avg=2.87 t/s 4.871s
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 15/50 (30.0%) chunk=26.71 t/s avg=3.06 t/s 4.908s
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 16/50 (32.0%) chunk=26.93 t/s avg=3.24 t/s 4.946s
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 17/50 (34.0%) chunk=26.69 t/s avg=3.41 t/s 4.983s
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 18/50 (36.0%) chunk=26.29 t/s avg=3.58 t/s 5.021s
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 19/50 (38.0%) chunk=26.70 t/s avg=3.76 t/s 5.058s
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 20/50 (40.0%) chunk=27.00 t/s avg=3.93 t/s 5.096s
+0925 23:11:23 ds4-server: chat ctx=0..50:50 prefill chunk 21/50 (42.0%) chunk=25.06 t/s avg=4.09 t/s 5.135s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 22/50 (44.0%) chunk=26.41 t/s avg=4.25 t/s 5.173s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 23/50 (46.0%) chunk=26.85 t/s avg=4.41 t/s 5.211s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 24/50 (48.0%) chunk=26.34 t/s avg=4.57 t/s 5.248s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 25/50 (50.0%) chunk=25.87 t/s avg=4.73 t/s 5.287s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 26/50 (52.0%) chunk=26.99 t/s avg=4.88 t/s 5.324s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 27/50 (54.0%) chunk=27.43 t/s avg=5.04 t/s 5.361s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 28/50 (56.0%) chunk=26.40 t/s avg=5.19 t/s 5.399s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 29/50 (58.0%) chunk=25.90 t/s avg=5.33 t/s 5.437s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 30/50 (60.0%) chunk=24.97 t/s avg=5.48 t/s 5.477s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 31/50 (62.0%) chunk=22.12 t/s avg=5.61 t/s 5.522s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 32/50 (64.0%) chunk=14.34 t/s avg=5.72 t/s 5.592s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 33/50 (66.0%) chunk=22.92 t/s avg=5.86 t/s 5.636s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 34/50 (68.0%) chunk=23.73 t/s avg=5.99 t/s 5.678s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 35/50 (70.0%) chunk=24.32 t/s avg=6.12 t/s 5.719s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 36/50 (72.0%) chunk=26.04 t/s avg=6.25 t/s 5.757s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 37/50 (74.0%) chunk=23.73 t/s avg=6.38 t/s 5.800s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 38/50 (76.0%) chunk=22.79 t/s avg=6.50 t/s 5.843s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 39/50 (78.0%) chunk=22.87 t/s avg=6.62 t/s 5.887s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 40/50 (80.0%) chunk=22.05 t/s avg=6.74 t/s 5.933s
+ds4:   decode path so far: 192 single-row steps (37.2 ms each inside the graph over the last 64), 4 K-row verification steps over 10 positions, 1614 batch-fusion sites taken; candidate K 2:2 3:2
+ds4: gate over tokens 129-192: 15.22 command buffers, 1.80 aborts, 240.0 expert ids accounted, 17.65 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 0.50 + commit-to-done 33.38 + repair-load 0.73 + accounting 0.03 + tail 0.00 = 34.65 of a 36.67 ms wall, residual 2.02
+ds4:   of the commit-to-done: GPU running 34.92 ms, GPU not running -1.53 ms
+ds4:   1466.9 gated dispatches a token, 5.3 of them behind an abort; 742.0 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 11.42 segments used, 1.62 dropped, 1.97 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 96.19 attempted, 96.19 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   expert cache over the last 64 tokens: 267.27 hits, 4.59 misses, 0.00 evictions a token; 4894 of 6729 entries live (72.7%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 1.86 genuinely absent
+ds4:   residency a token: 1.86 adds, 0.00 removes, 1.86 commits
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 41/50 (82.0%) chunk=22.61 t/s avg=6.86 t/s 5.977s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 42/50 (84.0%) chunk=22.37 t/s avg=6.98 t/s 6.021s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 43/50 (86.0%) chunk=22.70 t/s avg=7.09 t/s 6.065s
+0925 23:11:24 ds4-server: chat ctx=0..50:50 prefill chunk 44/50 (88.0%) chunk=21.64 t/s avg=7.20 t/s 6.112s
+0925 23:11:25 ds4-server: chat ctx=0..50:50 prefill chunk 45/50 (90.0%) chunk=21.94 t/s avg=7.31 t/s 6.157s
+0925 23:11:25 ds4-server: chat ctx=0..50:50 prefill chunk 46/50 (92.0%) chunk=21.42 t/s avg=7.41 t/s 6.204s
+0925 23:11:25 ds4-server: chat ctx=0..50:50 prefill chunk 47/50 (94.0%) chunk=21.24 t/s avg=7.52 t/s 6.251s
+0925 23:11:25 ds4-server: chat ctx=0..50:50 prefill chunk 48/50 (96.0%) chunk=20.60 t/s avg=7.62 t/s 6.300s
+0925 23:11:25 ds4-server: chat ctx=0..50:50 prefill chunk 49/50 (98.0%) chunk=21.22 t/s avg=7.72 t/s 6.347s
+0925 23:11:25 ds4-server: chat ctx=0..50:50 prefill chunk 50/50 (100.0%) chunk=21.20 t/s avg=7.82 t/s 6.394s
+0925 23:11:25 ds4-server: chat ctx=0..50:50 prompt done 6.396s
+ds4: V4.1 batch step rows=3 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+0925 23:11:25 ds4-server: chat ctx=0..50:50 prefill chunk 1/50 (2.0%) chunk=0.00 t/s avg=0.15 t/s 6.848s
+0925 23:11:25 ds4-server: chat ctx=0..50:50 prefill chunk 2/50 (4.0%) chunk=26.52 t/s avg=0.29 t/s 6.886s
+0925 23:11:25 ds4-server: chat ctx=0..50:50 prefill chunk 3/50 (6.0%) chunk=26.44 t/s avg=0.43 t/s 6.923s
+0925 23:11:25 ds4-server: chat ctx=0..50:50 prefill chunk 4/50 (8.0%) chunk=25.82 t/s avg=0.57 t/s 6.962s
+0925 23:11:25 ds4-server: chat ctx=0..50:50 prefill chunk 5/50 (10.0%) chunk=24.69 t/s avg=0.71 t/s 7.003s
+0925 23:11:25 ds4-server: chat ctx=0..50:50 prefill chunk 6/50 (12.0%) chunk=23.86 t/s avg=0.85 t/s 7.045s
+0925 23:11:25 ds4-server: chat ctx=0..50:50 prefill chunk 7/50 (14.0%) chunk=22.78 t/s avg=0.99 t/s 7.088s
+0925 23:11:25 ds4-server: chat ctx=0..50:50 prefill chunk 8/50 (16.0%) chunk=22.26 t/s avg=1.12 t/s 7.133s
+0925 23:11:26 ds4-server: chat ctx=0..50:50 prefill chunk 9/50 (18.0%) chunk=22.13 t/s avg=1.25 t/s 7.179s
+0925 23:11:26 ds4-server: chat ctx=0..50:50 prefill chunk 10/50 (20.0%) chunk=21.65 t/s avg=1.38 t/s 7.225s
+0925 23:11:26 ds4-server: chat ctx=0..50:50 prefill chunk 11/50 (22.0%) chunk=21.43 t/s avg=1.51 t/s 7.271s
+0925 23:11:26 ds4-server: chat ctx=0..50:50 prefill chunk 12/50 (24.0%) chunk=21.72 t/s avg=1.64 t/s 7.317s
+0925 23:11:26 ds4-server: chat ctx=0..50:50 prefill chunk 13/50 (26.0%) chunk=22.70 t/s avg=1.77 t/s 7.361s
+0925 23:11:26 ds4-server: chat ctx=0..50:50 prefill chunk 14/50 (28.0%) chunk=20.57 t/s avg=1.89 t/s 7.410s
+0925 23:11:26 ds4-server: chat ctx=0..50:50 prefill chunk 15/50 (30.0%) chunk=20.04 t/s avg=2.01 t/s 7.460s
+0925 23:11:26 ds4-server: chat ctx=0..50:50 prefill chunk 16/50 (32.0%) chunk=20.07 t/s avg=2.13 t/s 7.510s
+0925 23:11:26 ds4-server: chat ctx=0..50:50 prefill chunk 17/50 (34.0%) chunk=19.82 t/s avg=2.25 t/s 7.560s
+0925 23:11:26 ds4-server: chat ctx=0..50:50 prefill chunk 18/50 (36.0%) chunk=19.32 t/s avg=2.36 t/s 7.612s
+0925 23:11:26 ds4-server: chat ctx=0..50:50 prefill chunk 19/50 (38.0%) chunk=18.25 t/s avg=2.48 t/s 7.667s
+0925 23:11:26 ds4-server: chat ctx=0..50:50 prefill chunk 20/50 (40.0%) chunk=18.76 t/s avg=2.59 t/s 7.720s
+0925 23:11:26 ds4-server: chat ctx=0..50:50 prefill chunk 21/50 (42.0%) chunk=19.38 t/s avg=2.70 t/s 7.772s
+0925 23:11:26 ds4-server: chat ctx=0..50:50 prefill chunk 22/50 (44.0%) chunk=20.04 t/s avg=2.81 t/s 7.822s
+0925 23:11:26 ds4-server: chat ctx=0..50:50 prefill chunk 23/50 (46.0%) chunk=18.69 t/s avg=2.92 t/s 7.875s
+0925 23:11:26 ds4-server: chat ctx=0..50:50 prefill chunk 24/50 (48.0%) chunk=18.75 t/s avg=3.03 t/s 7.928s
+0925 23:11:26 ds4-server: chat ctx=0..50:50 prefill chunk 25/50 (50.0%) chunk=18.97 t/s avg=3.13 t/s 7.981s
+0925 23:11:26 ds4-server: chat ctx=0..50:50 prefill chunk 26/50 (52.0%) chunk=19.51 t/s avg=3.24 t/s 8.032s
+0925 23:11:26 ds4-server: chat ctx=0..50:50 prefill chunk 27/50 (54.0%) chunk=19.67 t/s avg=3.34 t/s 8.083s
+0925 23:11:26 ds4-server: chat ctx=0..50:50 prefill chunk 28/50 (56.0%) chunk=19.62 t/s avg=3.44 t/s 8.134s
+0925 23:11:27 ds4-server: chat ctx=0..50:50 prefill chunk 29/50 (58.0%) chunk=19.71 t/s avg=3.54 t/s 8.185s
+0925 23:11:27 ds4-server: chat ctx=0..50:50 prefill chunk 30/50 (60.0%) chunk=20.03 t/s avg=3.64 t/s 8.235s
+0925 23:11:27 ds4-server: chat ctx=0..50:50 prefill chunk 31/50 (62.0%) chunk=18.18 t/s avg=3.74 t/s 8.290s
+0925 23:11:27 ds4-server: chat ctx=0..50:50 prefill chunk 32/50 (64.0%) chunk=19.30 t/s avg=3.84 t/s 8.342s
+0925 23:11:27 ds4-server: chat ctx=0..50:50 prefill chunk 33/50 (66.0%) chunk=20.01 t/s avg=3.93 t/s 8.392s
+0925 23:11:27 ds4-server: chat ctx=0..50:50 prefill chunk 34/50 (68.0%) chunk=20.48 t/s avg=4.03 t/s 8.440s
+0925 23:11:27 ds4-server: chat ctx=0..50:50 prefill chunk 35/50 (70.0%) chunk=20.25 t/s avg=4.12 t/s 8.490s
+0925 23:11:27 ds4-server: chat ctx=0..50:50 prefill chunk 36/50 (72.0%) chunk=20.52 t/s avg=4.22 t/s 8.539s
+0925 23:11:27 ds4-server: chat ctx=0..50:50 prefill chunk 37/50 (74.0%) chunk=20.09 t/s avg=4.31 t/s 8.588s
+0925 23:11:27 ds4-server: chat ctx=0..50:50 prefill chunk 38/50 (76.0%) chunk=20.41 t/s avg=4.40 t/s 8.637s
+0925 23:11:27 ds4-server: chat ctx=0..50:50 prefill chunk 39/50 (78.0%) chunk=20.40 t/s avg=4.49 t/s 8.686s
+0925 23:11:27 ds4-server: chat ctx=0..50:50 prefill chunk 40/50 (80.0%) chunk=19.74 t/s avg=4.58 t/s 8.737s
+0925 23:11:27 ds4-server: chat ctx=0..50:50 prefill chunk 41/50 (82.0%) chunk=20.70 t/s avg=4.67 t/s 8.785s
+0925 23:11:27 ds4-server: chat ctx=0..50:50 prefill chunk 42/50 (84.0%) chunk=20.56 t/s avg=4.75 t/s 8.834s
+0925 23:11:27 ds4-server: chat ctx=0..50:50 prefill chunk 43/50 (86.0%) chunk=20.33 t/s avg=4.84 t/s 8.883s
+0925 23:11:27 ds4-server: chat ctx=0..50:50 prefill chunk 44/50 (88.0%) chunk=20.72 t/s avg=4.93 t/s 8.931s
+0925 23:11:27 ds4-server: chat ctx=0..50:50 prefill chunk 45/50 (90.0%) chunk=21.12 t/s avg=5.01 t/s 8.979s
+0925 23:11:27 ds4-server: chat ctx=0..50:50 prefill chunk 46/50 (92.0%) chunk=20.84 t/s avg=5.10 t/s 9.027s
+0925 23:11:27 ds4-server: chat ctx=0..50:50 prefill chunk 47/50 (94.0%) chunk=21.10 t/s avg=5.18 t/s 9.074s
+0925 23:11:27 ds4-server: chat ctx=0..50:50 prefill chunk 48/50 (96.0%) chunk=20.65 t/s avg=5.26 t/s 9.123s
+0925 23:11:28 ds4-server: chat ctx=0..50:50 prefill chunk 49/50 (98.0%) chunk=19.97 t/s avg=5.34 t/s 9.173s
+0925 23:11:28 ds4-server: chat ctx=0..50:50 prefill chunk 50/50 (100.0%) chunk=21.49 t/s avg=5.42 t/s 9.219s
+0925 23:11:28 ds4-server: chat ctx=0..50:50 prompt done 9.221s
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=5 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+0925 23:11:28 ds4-server: chat ctx=0..50:50 prefill chunk 1/50 (2.0%) chunk=0.00 t/s avg=0.10 t/s 9.798s
+0925 23:11:28 ds4-server: chat ctx=0..50:50 prefill chunk 2/50 (4.0%) chunk=24.59 t/s avg=0.20 t/s 9.838s
+0925 23:11:28 ds4-server: chat ctx=0..50:50 prefill chunk 3/50 (6.0%) chunk=26.40 t/s avg=0.30 t/s 9.876s
+0925 23:11:28 ds4-server: chat ctx=0..50:50 prefill chunk 4/50 (8.0%) chunk=24.73 t/s avg=0.40 t/s 9.917s
+ds4:   decode path so far: 256 single-row steps (47.3 ms each inside the graph over the last 64), 8 K-row verification steps over 26 positions, 3234 batch-fusion sites taken; candidate K 2:2 3:3 4:2 5:1
+ds4: gate over tokens 193-256: 14.50 command buffers, 0.73 aborts, 240.0 expert ids accounted, 6.97 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 0.44 + commit-to-done 43.78 + repair-load 0.13 + accounting 0.03 + tail 0.00 = 44.39 of a 46.50 ms wall, residual 2.11
+ds4:   of the commit-to-done: GPU running 48.73 ms, GPU not running -4.95 ms
+ds4:   1446.1 gated dispatches a token, 4.5 of them behind an abort; 661.0 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 11.77 segments used, 0.61 dropped, 2.05 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 86.31 attempted, 86.31 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   expert cache over the last 64 tokens: 296.47 hits, 4.27 misses, 0.00 evictions a token; 5167 of 6729 entries live (76.8%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 0.73 genuinely absent
+ds4:   residency a token: 0.73 adds, 0.00 removes, 0.73 commits
+0925 23:11:28 ds4-server: chat ctx=0..50:50 prefill chunk 5/50 (10.0%) chunk=24.83 t/s avg=0.50 t/s 9.957s
+0925 23:11:28 ds4-server: chat ctx=0..50:50 prefill chunk 6/50 (12.0%) chunk=24.97 t/s avg=0.60 t/s 9.997s
+0925 23:11:28 ds4-server: chat ctx=0..50:50 prefill chunk 7/50 (14.0%) chunk=24.96 t/s avg=0.70 t/s 10.037s
+0925 23:11:28 ds4-server: chat ctx=0..50:50 prefill chunk 8/50 (16.0%) chunk=24.43 t/s avg=0.79 t/s 10.078s
+0925 23:11:28 ds4-server: chat ctx=0..50:50 prefill chunk 9/50 (18.0%) chunk=24.24 t/s avg=0.89 t/s 10.119s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 10/50 (20.0%) chunk=23.10 t/s avg=0.98 t/s 10.162s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 11/50 (22.0%) chunk=23.82 t/s avg=1.08 t/s 10.204s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 12/50 (24.0%) chunk=21.84 t/s avg=1.17 t/s 10.250s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 13/50 (26.0%) chunk=21.54 t/s avg=1.26 t/s 10.297s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 14/50 (28.0%) chunk=21.44 t/s avg=1.35 t/s 10.343s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 15/50 (30.0%) chunk=21.17 t/s avg=1.44 t/s 10.391s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 16/50 (32.0%) chunk=21.67 t/s avg=1.53 t/s 10.437s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 17/50 (34.0%) chunk=21.28 t/s avg=1.62 t/s 10.484s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 18/50 (36.0%) chunk=22.64 t/s avg=1.71 t/s 10.528s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 19/50 (38.0%) chunk=22.54 t/s avg=1.80 t/s 10.572s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 20/50 (40.0%) chunk=21.76 t/s avg=1.88 t/s 10.618s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 21/50 (42.0%) chunk=21.17 t/s avg=1.97 t/s 10.665s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 22/50 (44.0%) chunk=21.02 t/s avg=2.05 t/s 10.713s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 23/50 (46.0%) chunk=21.83 t/s avg=2.14 t/s 10.759s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 24/50 (48.0%) chunk=21.07 t/s avg=2.22 t/s 10.806s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 25/50 (50.0%) chunk=21.29 t/s avg=2.30 t/s 10.853s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 26/50 (52.0%) chunk=21.72 t/s avg=2.39 t/s 10.899s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 27/50 (54.0%) chunk=21.13 t/s avg=2.47 t/s 10.947s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 28/50 (56.0%) chunk=20.97 t/s avg=2.55 t/s 10.994s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 29/50 (58.0%) chunk=20.14 t/s avg=2.63 t/s 11.044s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 30/50 (60.0%) chunk=21.43 t/s avg=2.70 t/s 11.091s
+0925 23:11:29 ds4-server: chat ctx=0..50:50 prefill chunk 31/50 (62.0%) chunk=20.32 t/s avg=2.78 t/s 11.140s
+0925 23:11:30 ds4-server: chat ctx=0..50:50 prefill chunk 32/50 (64.0%) chunk=21.38 t/s avg=2.86 t/s 11.187s
+0925 23:11:30 ds4-server: chat ctx=0..50:50 prefill chunk 33/50 (66.0%) chunk=21.24 t/s avg=2.94 t/s 11.234s
+0925 23:11:30 ds4-server: chat ctx=0..50:50 prefill chunk 34/50 (68.0%) chunk=21.41 t/s avg=3.01 t/s 11.280s
+0925 23:11:30 ds4-server: chat ctx=0..50:50 prefill chunk 35/50 (70.0%) chunk=20.85 t/s avg=3.09 t/s 11.328s
+0925 23:11:30 ds4-server: chat ctx=0..50:50 prefill chunk 36/50 (72.0%) chunk=21.20 t/s avg=3.16 t/s 11.375s
+0925 23:11:30 ds4-server: chat ctx=0..50:50 prefill chunk 37/50 (74.0%) chunk=21.78 t/s avg=3.24 t/s 11.421s
+0925 23:11:30 ds4-server: chat ctx=0..50:50 prefill chunk 38/50 (76.0%) chunk=21.40 t/s avg=3.31 t/s 11.468s
+0925 23:11:30 ds4-server: chat ctx=0..50:50 prefill chunk 39/50 (78.0%) chunk=21.04 t/s avg=3.39 t/s 11.516s
+0925 23:11:30 ds4-server: chat ctx=0..50:50 prefill chunk 40/50 (80.0%) chunk=21.48 t/s avg=3.46 t/s 11.562s
+0925 23:11:30 ds4-server: chat ctx=0..50:50 prefill chunk 41/50 (82.0%) chunk=22.12 t/s avg=3.53 t/s 11.607s
+0925 23:11:30 ds4-server: chat ctx=0..50:50 prefill chunk 42/50 (84.0%) chunk=21.77 t/s avg=3.60 t/s 11.653s
+0925 23:11:30 ds4-server: chat ctx=0..50:50 prefill chunk 43/50 (86.0%) chunk=21.44 t/s avg=3.68 t/s 11.700s
+0925 23:11:30 ds4-server: chat ctx=0..50:50 prefill chunk 44/50 (88.0%) chunk=21.23 t/s avg=3.75 t/s 11.747s
+0925 23:11:30 ds4-server: chat ctx=0..50:50 prefill chunk 45/50 (90.0%) chunk=21.32 t/s avg=3.82 t/s 11.794s
+0925 23:11:30 ds4-server: chat ctx=0..50:50 prefill chunk 46/50 (92.0%) chunk=20.70 t/s avg=3.88 t/s 11.842s
+0925 23:11:30 ds4-server: chat ctx=0..50:50 prefill chunk 47/50 (94.0%) chunk=22.13 t/s avg=3.95 t/s 11.888s
+0925 23:11:30 ds4-server: chat ctx=0..50:50 prefill chunk 48/50 (96.0%) chunk=22.23 t/s avg=4.02 t/s 11.932s
+0925 23:11:30 ds4-server: chat ctx=0..50:50 prefill chunk 49/50 (98.0%) chunk=19.69 t/s avg=4.09 t/s 11.983s
+0925 23:11:30 ds4-server: chat ctx=0..50:50 prefill chunk 50/50 (100.0%) chunk=21.27 t/s avg=4.16 t/s 12.030s
+0925 23:11:30 ds4-server: chat ctx=0..50:50 prompt done 12.032s
+ds4: V4.1 batch step rows=5 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=6 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+0925 23:11:31 ds4-server: chat ctx=0..50:50 prefill chunk 1/50 (2.0%) chunk=0.00 t/s avg=0.08 t/s 12.576s
+0925 23:11:31 ds4-server: chat ctx=0..50:50 prefill chunk 2/50 (4.0%) chunk=23.74 t/s avg=0.16 t/s 12.618s
+0925 23:11:31 ds4-server: chat ctx=0..50:50 prefill chunk 3/50 (6.0%) chunk=23.13 t/s avg=0.24 t/s 12.661s
+0925 23:11:31 ds4-server: chat ctx=0..50:50 prefill chunk 4/50 (8.0%) chunk=23.97 t/s avg=0.31 t/s 12.703s
+0925 23:11:31 ds4-server: chat ctx=0..50:50 prefill chunk 5/50 (10.0%) chunk=24.84 t/s avg=0.39 t/s 12.743s
+0925 23:11:31 ds4-server: chat ctx=0..50:50 prefill chunk 6/50 (12.0%) chunk=21.87 t/s avg=0.47 t/s 12.789s
+0925 23:11:31 ds4-server: chat ctx=0..50:50 prefill chunk 7/50 (14.0%) chunk=20.47 t/s avg=0.55 t/s 12.838s
+0925 23:11:31 ds4-server: chat ctx=0..50:50 prefill chunk 8/50 (16.0%) chunk=20.98 t/s avg=0.62 t/s 12.885s
+0925 23:11:31 ds4-server: chat ctx=0..50:50 prefill chunk 9/50 (18.0%) chunk=21.57 t/s avg=0.70 t/s 12.932s
+0925 23:11:31 ds4-server: chat ctx=0..50:50 prefill chunk 10/50 (20.0%) chunk=21.20 t/s avg=0.77 t/s 12.979s
+0925 23:11:31 ds4-server: chat ctx=0..50:50 prefill chunk 11/50 (22.0%) chunk=21.04 t/s avg=0.84 t/s 13.027s
+0925 23:11:31 ds4-server: chat ctx=0..50:50 prefill chunk 12/50 (24.0%) chunk=21.02 t/s avg=0.92 t/s 13.074s
+0925 23:11:31 ds4-server: chat ctx=0..50:50 prefill chunk 13/50 (26.0%) chunk=22.00 t/s avg=0.99 t/s 13.120s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 14/50 (28.0%) chunk=21.80 t/s avg=1.06 t/s 13.165s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 15/50 (30.0%) chunk=22.00 t/s avg=1.14 t/s 13.211s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 16/50 (32.0%) chunk=21.40 t/s avg=1.21 t/s 13.258s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 17/50 (34.0%) chunk=21.78 t/s avg=1.28 t/s 13.304s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 18/50 (36.0%) chunk=21.93 t/s avg=1.35 t/s 13.349s
+ds4:   decode path so far: 320 single-row steps (45.8 ms each inside the graph over the last 64), 10 K-row verification steps over 37 positions, 4047 batch-fusion sites taken; candidate K 2:2 3:3 4:2 5:2 6:1
+ds4: gate over tokens 257-320: 14.25 command buffers, 0.31 aborts, 240.0 expert ids accounted, 3.11 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 0.37 + commit-to-done 42.68 + repair-load 0.05 + accounting 0.03 + tail 0.00 = 43.13 of a 45.10 ms wall, residual 1.97
+ds4:   of the commit-to-done: GPU running 45.56 ms, GPU not running -2.88 ms
+ds4:   1438.3 gated dispatches a token, 2.3 of them behind an abort; 633.8 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 11.94 segments used, 0.25 dropped, 1.92 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 82.66 attempted, 82.66 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   expert cache over the last 64 tokens: 279.38 hits, 2.20 misses, 0.00 evictions a token; 5308 of 6729 entries live (78.9%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 0.33 genuinely absent
+ds4:   residency a token: 0.33 adds, 0.00 removes, 0.33 commits
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 19/50 (38.0%) chunk=22.39 t/s avg=1.42 t/s 13.394s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 20/50 (40.0%) chunk=22.19 t/s avg=1.49 t/s 13.439s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 21/50 (42.0%) chunk=22.02 t/s avg=1.56 t/s 13.484s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 22/50 (44.0%) chunk=21.79 t/s avg=1.63 t/s 13.530s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 23/50 (46.0%) chunk=22.04 t/s avg=1.69 t/s 13.576s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 24/50 (48.0%) chunk=21.25 t/s avg=1.76 t/s 13.623s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 25/50 (50.0%) chunk=22.81 t/s avg=1.83 t/s 13.666s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 26/50 (52.0%) chunk=22.32 t/s avg=1.90 t/s 13.711s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 27/50 (54.0%) chunk=21.40 t/s avg=1.96 t/s 13.758s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 28/50 (56.0%) chunk=21.54 t/s avg=2.03 t/s 13.804s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 29/50 (58.0%) chunk=21.31 t/s avg=2.09 t/s 13.851s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 30/50 (60.0%) chunk=21.24 t/s avg=2.16 t/s 13.898s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 31/50 (62.0%) chunk=20.19 t/s avg=2.22 t/s 13.948s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 32/50 (64.0%) chunk=20.98 t/s avg=2.29 t/s 13.996s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 33/50 (66.0%) chunk=20.34 t/s avg=2.35 t/s 14.045s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 34/50 (68.0%) chunk=21.26 t/s avg=2.41 t/s 14.092s
+0925 23:11:32 ds4-server: chat ctx=0..50:50 prefill chunk 35/50 (70.0%) chunk=21.66 t/s avg=2.48 t/s 14.138s
+0925 23:11:33 ds4-server: chat ctx=0..50:50 prefill chunk 36/50 (72.0%) chunk=21.12 t/s avg=2.54 t/s 14.185s
+0925 23:11:33 ds4-server: chat ctx=0..50:50 prefill chunk 37/50 (74.0%) chunk=21.66 t/s avg=2.60 t/s 14.232s
+0925 23:11:33 ds4-server: chat ctx=0..50:50 prefill chunk 38/50 (76.0%) chunk=21.58 t/s avg=2.66 t/s 14.278s
+0925 23:11:33 ds4-server: chat ctx=0..50:50 prefill chunk 39/50 (78.0%) chunk=22.65 t/s avg=2.72 t/s 14.322s
+0925 23:11:33 ds4-server: chat ctx=0..50:50 prefill chunk 40/50 (80.0%) chunk=21.75 t/s avg=2.78 t/s 14.368s
+0925 23:11:33 ds4-server: chat ctx=0..50:50 prefill chunk 41/50 (82.0%) chunk=21.49 t/s avg=2.84 t/s 14.415s
+0925 23:11:33 ds4-server: chat ctx=0..50:50 prefill chunk 42/50 (84.0%) chunk=21.27 t/s avg=2.90 t/s 14.462s
+0925 23:11:33 ds4-server: chat ctx=0..50:50 prefill chunk 43/50 (86.0%) chunk=20.40 t/s avg=2.96 t/s 14.511s
+0925 23:11:33 ds4-server: chat ctx=0..50:50 prefill chunk 44/50 (88.0%) chunk=20.13 t/s avg=3.02 t/s 14.560s
+0925 23:11:33 ds4-server: chat ctx=0..50:50 prefill chunk 45/50 (90.0%) chunk=20.80 t/s avg=3.08 t/s 14.608s
+0925 23:11:33 ds4-server: chat ctx=0..50:50 prefill chunk 46/50 (92.0%) chunk=20.95 t/s avg=3.14 t/s 14.656s
+0925 23:11:33 ds4-server: chat ctx=0..50:50 prefill chunk 47/50 (94.0%) chunk=20.59 t/s avg=3.20 t/s 14.705s
+0925 23:11:33 ds4-server: chat ctx=0..50:50 prefill chunk 48/50 (96.0%) chunk=21.13 t/s avg=3.25 t/s 14.752s
+0925 23:11:33 ds4-server: chat ctx=0..50:50 prefill chunk 49/50 (98.0%) chunk=20.91 t/s avg=3.31 t/s 14.800s
+0925 23:11:33 ds4-server: chat ctx=0..50:50 prefill chunk 50/50 (100.0%) chunk=21.05 t/s avg=3.37 t/s 14.847s
+0925 23:11:33 ds4-server: chat ctx=0..50:50 prompt done 14.849s
+ds4: V4.1 batch step rows=6 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=7 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+0925 23:11:34 ds4-server: chat ctx=0..50:50 prefill chunk 1/50 (2.0%) chunk=0.00 t/s avg=0.06 t/s 15.398s
+0925 23:11:34 ds4-server: chat ctx=0..50:50 prefill chunk 2/50 (4.0%) chunk=22.38 t/s avg=0.13 t/s 15.443s
+0925 23:11:34 ds4-server: chat ctx=0..50:50 prefill chunk 3/50 (6.0%) chunk=22.58 t/s avg=0.19 t/s 15.487s
+0925 23:11:34 ds4-server: chat ctx=0..50:50 prefill chunk 4/50 (8.0%) chunk=22.47 t/s avg=0.26 t/s 15.531s
+0925 23:11:34 ds4-server: chat ctx=0..50:50 prefill chunk 5/50 (10.0%) chunk=22.42 t/s avg=0.32 t/s 15.576s
+0925 23:11:34 ds4-server: chat ctx=0..50:50 prefill chunk 6/50 (12.0%) chunk=21.61 t/s avg=0.38 t/s 15.622s
+0925 23:11:34 ds4-server: chat ctx=0..50:50 prefill chunk 7/50 (14.0%) chunk=21.40 t/s avg=0.45 t/s 15.669s
+0925 23:11:34 ds4-server: chat ctx=0..50:50 prefill chunk 8/50 (16.0%) chunk=21.61 t/s avg=0.51 t/s 15.715s
+0925 23:11:34 ds4-server: chat ctx=0..50:50 prefill chunk 9/50 (18.0%) chunk=22.72 t/s avg=0.57 t/s 15.759s
+0925 23:11:34 ds4-server: chat ctx=0..50:50 prefill chunk 10/50 (20.0%) chunk=22.90 t/s avg=0.63 t/s 15.803s
+0925 23:11:34 ds4-server: chat ctx=0..50:50 prefill chunk 11/50 (22.0%) chunk=23.70 t/s avg=0.69 t/s 15.845s
+0925 23:11:34 ds4-server: chat ctx=0..50:50 prefill chunk 12/50 (24.0%) chunk=24.69 t/s avg=0.76 t/s 15.886s
+0925 23:11:34 ds4-server: chat ctx=0..50:50 prefill chunk 13/50 (26.0%) chunk=22.47 t/s avg=0.82 t/s 15.930s
+0925 23:11:34 ds4-server: chat ctx=0..50:50 prefill chunk 14/50 (28.0%) chunk=21.96 t/s avg=0.88 t/s 15.976s
+0925 23:11:34 ds4-server: chat ctx=0..50:50 prefill chunk 15/50 (30.0%) chunk=23.36 t/s avg=0.94 t/s 16.018s
+0925 23:11:34 ds4-server: chat ctx=0..50:50 prefill chunk 16/50 (32.0%) chunk=20.99 t/s avg=1.00 t/s 16.066s
+0925 23:11:34 ds4-server: chat ctx=0..50:50 prefill chunk 17/50 (34.0%) chunk=21.15 t/s avg=1.06 t/s 16.113s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 18/50 (36.0%) chunk=21.13 t/s avg=1.11 t/s 16.161s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 19/50 (38.0%) chunk=22.67 t/s avg=1.17 t/s 16.205s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 20/50 (40.0%) chunk=22.37 t/s avg=1.23 t/s 16.249s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 21/50 (42.0%) chunk=22.28 t/s avg=1.29 t/s 16.294s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 22/50 (44.0%) chunk=22.36 t/s avg=1.35 t/s 16.339s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 23/50 (46.0%) chunk=22.45 t/s avg=1.40 t/s 16.384s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 24/50 (48.0%) chunk=22.52 t/s avg=1.46 t/s 16.428s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 25/50 (50.0%) chunk=21.79 t/s avg=1.52 t/s 16.474s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 26/50 (52.0%) chunk=20.68 t/s avg=1.57 t/s 16.522s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 27/50 (54.0%) chunk=22.29 t/s avg=1.63 t/s 16.567s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 28/50 (56.0%) chunk=22.08 t/s avg=1.69 t/s 16.612s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 29/50 (58.0%) chunk=22.45 t/s avg=1.74 t/s 16.657s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 30/50 (60.0%) chunk=22.05 t/s avg=1.80 t/s 16.702s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 31/50 (62.0%) chunk=21.89 t/s avg=1.85 t/s 16.748s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 32/50 (64.0%) chunk=21.91 t/s avg=1.91 t/s 16.794s
+ds4:   decode path so far: 384 single-row steps (45.9 ms each inside the graph over the last 64), 12 K-row verification steps over 50 positions, 4862 batch-fusion sites taken; candidate K 2:2 3:3 4:2 5:2 6:2 7:1
+ds4: gate over tokens 321-384: 14.42 command buffers, 0.69 aborts, 240.0 expert ids accounted, 6.67 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 0.41 + commit-to-done 42.73 + repair-load 0.12 + accounting 0.03 + tail 0.00 = 43.28 of a 45.24 ms wall, residual 1.95
+ds4:   of the commit-to-done: GPU running 46.31 ms, GPU not running -3.58 ms
+ds4:   1444.7 gated dispatches a token, 0.0 of them behind an abort; 660.6 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 11.73 segments used, 0.66 dropped, 1.90 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 86.34 attempted, 86.34 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   expert cache over the last 64 tokens: 286.95 hits, 2.50 misses, 0.00 evictions a token; 5468 of 6729 entries live (81.3%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 0.70 genuinely absent
+ds4:   residency a token: 0.70 adds, 0.00 removes, 0.70 commits
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 33/50 (66.0%) chunk=20.89 t/s avg=1.96 t/s 16.841s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 34/50 (68.0%) chunk=22.24 t/s avg=2.01 t/s 16.886s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 35/50 (70.0%) chunk=21.76 t/s avg=2.07 t/s 16.932s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 36/50 (72.0%) chunk=20.36 t/s avg=2.12 t/s 16.982s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 37/50 (74.0%) chunk=21.44 t/s avg=2.17 t/s 17.028s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 38/50 (76.0%) chunk=20.38 t/s avg=2.23 t/s 17.077s
+0925 23:11:35 ds4-server: chat ctx=0..50:50 prefill chunk 39/50 (78.0%) chunk=21.17 t/s avg=2.28 t/s 17.124s
+0925 23:11:36 ds4-server: chat ctx=0..50:50 prefill chunk 40/50 (80.0%) chunk=20.75 t/s avg=2.33 t/s 17.173s
+0925 23:11:36 ds4-server: chat ctx=0..50:50 prefill chunk 41/50 (82.0%) chunk=21.21 t/s avg=2.38 t/s 17.220s
+0925 23:11:36 ds4-server: chat ctx=0..50:50 prefill chunk 42/50 (84.0%) chunk=20.49 t/s avg=2.43 t/s 17.269s
+0925 23:11:36 ds4-server: chat ctx=0..50:50 prefill chunk 43/50 (86.0%) chunk=21.08 t/s avg=2.48 t/s 17.316s
+0925 23:11:36 ds4-server: chat ctx=0..50:50 prefill chunk 44/50 (88.0%) chunk=20.19 t/s avg=2.53 t/s 17.366s
+0925 23:11:36 ds4-server: chat ctx=0..50:50 prefill chunk 45/50 (90.0%) chunk=21.25 t/s avg=2.58 t/s 17.413s
+0925 23:11:36 ds4-server: chat ctx=0..50:50 prefill chunk 46/50 (92.0%) chunk=21.11 t/s avg=2.63 t/s 17.460s
+0925 23:11:36 ds4-server: chat ctx=0..50:50 prefill chunk 47/50 (94.0%) chunk=20.45 t/s avg=2.68 t/s 17.509s
+0925 23:11:36 ds4-server: chat ctx=0..50:50 prefill chunk 48/50 (96.0%) chunk=19.94 t/s avg=2.73 t/s 17.559s
+0925 23:11:36 ds4-server: chat ctx=0..50:50 prefill chunk 49/50 (98.0%) chunk=20.83 t/s avg=2.78 t/s 17.607s
+0925 23:11:36 ds4-server: chat ctx=0..50:50 prefill chunk 50/50 (100.0%) chunk=20.27 t/s avg=2.83 t/s 17.656s
+0925 23:11:36 ds4-server: chat ctx=0..50:50 prompt done 17.659s
+ds4: V4.1 batch step rows=7 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: Metal streaming expert explicit pread failed offset=111.68 GiB len=2.90 MiB read=0.00 MiB
+ds4: Metal streaming expert explicit pread failed offset=112.78 GiB len=2.90 MiB read=0.00 MiB
+ds4: Metal streaming expert explicit pread failed offset=114.10 GiB len=3.69 MiB read=0.00 MiB
+ds4: V4.1 batch step rows=8 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 session batch failed at layer 30 (8 rows)
+0925 23:11:45 ds4-server: chat ctx=50..83:33 gen=33 THINKING decoding chunk=2.89 t/s avg=2.89 t/s 11.411s
+0925 23:11:45 ds4-server: chat ctx=50..85:35 gen=35 THINKING decoding chunk=2.46 t/s avg=2.46 t/s 14.228s
+ds4-server: thinking not closed, ignoring incomplete DSML in reasoning
+ds4-server: thinking not closed, ignoring incomplete DSML in reasoning
+0925 23:11:45 ds4-server: chat ctx=50..87:37 gen=37 THINKING decoding chunk=2.17 t/s avg=2.17 t/s 17.039s
+ds4-server: thinking not closed, ignoring incomplete DSML in reasoning
+0925 23:11:45 ds4-server: chat ctx=50..92:42 gen=42 THINKING decoding chunk=1.87 t/s avg=1.87 t/s 22.417s
+ds4-server: thinking not closed, ignoring incomplete DSML in reasoning
+0925 23:11:45 ds4-server: chat ctx=0..50:50 gen=37 THINKING finish=error error="metal batched decode failed" 26.261s
+0925 23:11:45 ds4-server: chat ctx=0..50:50 gen=42 THINKING finish=error error="metal batched decode failed" 26.261s
+0925 23:11:45 ds4-server: chat ctx=50..89:39 gen=39 THINKING decoding chunk=1.96 t/s avg=1.96 t/s 19.865s
+ds4-server: thinking not closed, ignoring incomplete DSML in reasoning
+0925 23:11:45 ds4-server: chat ctx=50..95:45 gen=45 THINKING decoding chunk=1.71 t/s avg=1.71 t/s 26.260s
+ds4-server: thinking not closed, ignoring incomplete DSML in reasoning
+0925 23:11:45 ds4-server: chat ctx=0..50:50 gen=33 THINKING finish=error error="metal batched decode failed" 26.261s
+0925 23:11:45 ds4-server: chat ctx=0..50:50 gen=35 THINKING finish=error error="metal batched decode failed" 26.261s
+0925 23:11:45 ds4-server: chat ctx=50..94:44 gen=44 THINKING decoding chunk=1.79 t/s avg=1.79 t/s 24.516s
+ds4-server: thinking not closed, ignoring incomplete DSML in reasoning
+0925 23:11:45 ds4-server: chat ctx=0..50:50 gen=44 THINKING finish=error error="metal batched decode failed" 26.261s
+0925 23:11:45 ds4-server: chat ctx=50..81:31 gen=31 THINKING decoding chunk=3.60 t/s avg=3.60 t/s 8.602s
+ds4-server: thinking not closed, ignoring incomplete DSML in reasoning
+0925 23:11:45 ds4-server: chat ctx=0..50:50 gen=31 THINKING finish=error error="metal batched decode failed" 26.261s
+0925 23:11:45 ds4-server: chat ctx=0..50:50 gen=45 THINKING finish=error error="metal batched decode failed" 28.991s
+0925 23:11:45 ds4-server: chat ctx=0..50:50 gen=39 THINKING finish=error error="metal batched decode failed" 26.261s
+0925 23:11:47 ds4-server: shutdown requested, draining requests

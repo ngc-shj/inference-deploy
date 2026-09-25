@@ -1,0 +1,1 @@
+{"id":"chatcmpl-a63cf62d8bcccdd9138a5aac","object":"chat.completion","created":1790344789,"model":"ds4","choices":[{"index":0,"message":{"role":"assistant","content":"","reasoning_content":"We need answer."},"finish_reason":"length"}],"usage":{"prompt_tokens":1051,"completion_tokens":4,"total_tokens":1055,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":1051}}}

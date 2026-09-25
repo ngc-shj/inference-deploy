@@ -50,7 +50,7 @@ until grep -q 'listening on' "$LOG"; do
 done
 curl -s --max-time 900 "http://127.0.0.1:$PORT/v1/chat/completions" \
   -H 'content-type: application/json' \
-  -d '{"model":"ds4","messages":[{"role":"user","content":"hi"}],"max_tokens":4,"temperature":0}' \
+  -d "{\"model\":\"ds4\",\"messages\":[{\"role\":\"user\",\"content\":\"${PROMPT:-hi}\"}],\"max_tokens\":4,\"temperature\":0}" \
   > "$S/st-$NAME.json" 2>&1
 sleep 2
 kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null
