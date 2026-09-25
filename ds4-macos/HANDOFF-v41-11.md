@@ -533,6 +533,69 @@ block 経路の成果として印字させないための門である。
 **cleanup は本線ではない。** そして verifier を速くしても、drafter が無い限り
 production の tok/s は 1 も動かない。
 
+## 11. 単一 session が production で 40.11 tok/s（性能一里塚、品質は未達）
+
+`ds4_session_verify_block()` は単一 session の次 K 位置を 1 batch で回し、モデルが
+同意したトークンを commit する production API である。`DS4_V41_ORACLE_BLOCK=8` が
+exact decode 自身の出力を候補（oracle）として渡す。
+
+| | ms/token | tok/s |
+|---|---:|---:|
+| `verify_block(8)`、64 トークン commit | **24.93** | **40.11** |
+| 同じトークンを 1 個ずつ | 51.53 | 19.41 |
+| 変換倍率 | | **2.07** |
+
+**8 並行で出ていた 40 tok/s 相当は、単一 session の連続 8 位置へ変換できる。**
+律速は演算能力ではなく executor だった。
+
+### 品質不変ではない（未達の部分）
+
+- `ds4_session_eval_argmax`（production の生成経路）は `greedy_splitkv` **近似**を
+  取り得て、`ds41_graph_step`（exact、batch が byte 一致する対象）と別の答えを返す。
+  oracle をそちらから取ると 8 のうち 5 しか採択されなかった
+- **投機の基準を現行 production の近似出力に置くか exact に置くかが未決。**
+  前者なら block 側がその演算契約を再現する必要があり、後者なら出力変更として
+  明示し別途品質検証が必要
+- `verify_block` は**全採択のみ commit**し、部分採択は session を invalidate する。
+  実候補では必ず部分採択が起きるので production に出せる形ではない
+
+### 到達までに見つかった欠落（すべて API が拒否して止まった）
+
+1. **ds41 に session レベル rollback が無い。** `ds4_session_rewind` は qwen4/glm の
+   分岐を持つが ds41 は無く、`checkpoint_valid = false` にする
+2. oracle の出所が近似だと exact block と一致しない（上記）
+3. `prefill_rows = 0` を渡して**全 8 行が同一位置**になっていた。batch step は
+   `positions[i] = pos + (i > 0 && i < prefill_rows ? i : 0)`。5/8 採択として露見
+
+### 次の性能目標は oracle 50〜60 tok/s
+
+40.11 は **oracle が 8/8 採択し候補生成費用がゼロ**の値である。実候補では部分採択と
+候補生成が必ず載るので 40 を下回る。**実候補で 40 ではなく、まず oracle を 50〜60 へ
+押し上げて余白を作る。**
+
+### 順序（v41-12 はここから）
+
+1. **block transaction と部分採択。** rewind ではなく、immutable committed prefix と
+   speculative delta の**分離**。既存 session を書き換えて巻き戻す設計にしない。
+   分離すべき状態: 層ごとの K 行 KV delta / SWA ring を 128+K / compressed KV と
+   index visibility / `previous_kv`・`previous_score` / Engram /
+   `selected_comp`・`block_mask` / residual・carry / position・history /
+   logits と publish 状態。accept 数 A が決まったら先頭 A 個だけ commit し残りは捨てる
+2. **合格試験は `A=0..8` 全値**、境界を狙う: position 120〜136（ring 一周）、127/128、
+   1023/1024（batch top-k 切替）、odd/even（previous carry）、partial accept 後の次 1
+   トークン。各ケースで逐次 single と比較するのは、採択位置までの全 logits ／ commit 後の
+   session 状態 ／ その状態から計算した次トークンの全 logits ／ 同じ accept 数の再実行の
+   自己再現性
+3. **演算契約を確定** — exact single 対 exact block、現行 production single 対 block の
+   両方を測る
+4. **production oracle で K を掃引** — K=1/2/4/8、上限を外して 16/32。step wall、
+   wall/committed token、routed・pre・attention の production ablation、
+   contiguous-position counter と fallback 0。壊れた standalone sweep には戻らない
+5. oracle を 50〜60 tok/s へ
+6. prompt lookup / n-gram の採択分布を取得
+7. suffix trie・候補木へ拡張
+8. `wall / 実前進token` で 40 tok/s を再達成
+
 ## やらないこと（追加）
 
 - **`BLOCK_ATTN_K` を性能 primitive として磨くこと。** oracle としてのみ残す

@@ -1,0 +1,76 @@
+ds4: abort gate on for the first 40 layers
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: SSD streaming auto cache budget
+ds4:   metal recommends 107.52 GiB working set
+ds4:   using 84% total for model + cached experts: 90.00 GiB
+ds4:   non-routed weights: 9.37 GiB
+ds4:   routed expert size: 9.49 MiB
+ds4:   expert budget before prefill reserve: 8698 (80.63 GiB)
+ds4: metal SSD streaming cache target 80.63 GiB; effective 80.63 GiB = 7.12 GiB prefill headroom + 73.51 GiB dynamic cache (7930 experts, 9.49 MiB each)
+ds4: Metal SSD static weights locked 9.37 GiB; pageable 0.00 GiB
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.06 GiB (raw 0.01 + compressed 0.05) + buffers 3.27 GiB + resident model 9.37 GiB + expert cache 73.51 GiB + prefill expert reserve 7.12 GiB = 93.33 GiB planned
+ds4: memory detail: ctx=8192 prefill_cap=4096 raw_kv_rows=128 compressed_kv_rows=8193 backend=metal
+0926 01:36:47 ds4-server: context buffers 3411.39 MiB (ctx=8192, backend=metal, prefill_chunk=4096, raw_kv_rows=128, compressed_kv_rows=8193)
+ds4: V4.1 static context buffers 3411.39 MiB (ctx=8192), Engram disk-only
+0926 01:36:47 ds4-server: listening on http://127.0.0.1:8016
+0926 01:36:50 ds4-server: chat ctx=0..31:31 prompt start
+ds4: shared/routed FFN overlap ran, mode 1
+ds4: expert residency set on the queue
+0926 01:36:50 ds4-server: chat ctx=0..31:31 prefill chunk 1/31 (3.2%) chunk=0.00 t/s avg=5.48 t/s 0.183s
+0926 01:36:50 ds4-server: chat ctx=0..31:31 prefill chunk 2/31 (6.5%) chunk=6.24 t/s avg=5.83 t/s 0.343s
+0926 01:36:50 ds4-server: chat ctx=0..31:31 prefill chunk 3/31 (9.7%) chunk=8.87 t/s avg=6.59 t/s 0.456s
+0926 01:36:50 ds4-server: chat ctx=0..31:31 prefill chunk 4/31 (12.9%) chunk=15.14 t/s avg=7.67 t/s 0.522s
+0926 01:36:50 ds4-server: chat ctx=0..31:31 prefill chunk 5/31 (16.1%) chunk=14.64 t/s avg=8.48 t/s 0.590s
+0926 01:36:50 ds4-server: chat ctx=0..31:31 prefill chunk 6/31 (19.4%) chunk=16.63 t/s avg=9.23 t/s 0.650s
+0926 01:36:50 ds4-server: chat ctx=0..31:31 prefill chunk 7/31 (22.6%) chunk=16.55 t/s avg=9.85 t/s 0.710s
+0926 01:36:50 ds4-server: chat ctx=0..31:31 prefill chunk 8/31 (25.8%) chunk=16.24 t/s avg=10.36 t/s 0.772s
+0926 01:36:50 ds4-server: chat ctx=0..31:31 prefill chunk 9/31 (29.0%) chunk=16.38 t/s avg=10.80 t/s 0.833s
+0926 01:36:50 ds4-server: chat ctx=0..31:31 prefill chunk 10/31 (32.3%) chunk=16.55 t/s avg=11.19 t/s 0.893s
+0926 01:36:51 ds4-server: chat ctx=0..31:31 prefill chunk 11/31 (35.5%) chunk=14.64 t/s avg=11.44 t/s 0.962s
+0926 01:36:51 ds4-server: chat ctx=0..31:31 prefill chunk 12/31 (38.7%) chunk=14.45 t/s avg=11.64 t/s 1.031s
+0926 01:36:51 ds4-server: chat ctx=0..31:31 prefill chunk 13/31 (41.9%) chunk=11.99 t/s avg=11.67 t/s 1.114s
+0926 01:36:51 ds4-server: chat ctx=0..31:31 prefill chunk 14/31 (45.2%) chunk=10.84 t/s avg=11.60 t/s 1.207s
+0926 01:36:51 ds4-server: chat ctx=0..31:31 prefill chunk 15/31 (48.4%) chunk=19.57 t/s avg=11.93 t/s 1.258s
+0926 01:36:51 ds4-server: chat ctx=0..31:31 prefill chunk 16/31 (51.6%) chunk=16.84 t/s avg=12.15 t/s 1.317s
+0926 01:36:51 ds4-server: chat ctx=0..31:31 prefill chunk 17/31 (54.8%) chunk=16.81 t/s avg=12.35 t/s 1.377s
+0926 01:36:51 ds4-server: chat ctx=0..31:31 prefill chunk 18/31 (58.1%) chunk=15.75 t/s avg=12.50 t/s 1.440s
+0926 01:36:51 ds4-server: chat ctx=0..31:31 prefill chunk 19/31 (61.3%) chunk=17.21 t/s avg=12.68 t/s 1.498s
+0926 01:36:51 ds4-server: chat ctx=0..31:31 prefill chunk 20/31 (64.5%) chunk=17.92 t/s avg=12.87 t/s 1.554s
+0926 01:36:51 ds4-server: chat ctx=0..31:31 prefill chunk 21/31 (67.7%) chunk=18.27 t/s avg=13.05 t/s 1.609s
+0926 01:36:51 ds4-server: chat ctx=0..31:31 prefill chunk 22/31 (71.0%) chunk=18.05 t/s avg=13.22 t/s 1.664s
+0926 01:36:51 ds4-server: chat ctx=0..31:31 prefill chunk 23/31 (74.2%) chunk=18.66 t/s avg=13.39 t/s 1.718s
+0926 01:36:51 ds4-server: chat ctx=0..31:31 prefill chunk 24/31 (77.4%) chunk=15.49 t/s avg=13.47 t/s 1.782s
+0926 01:36:51 ds4-server: chat ctx=0..31:31 prefill chunk 25/31 (80.6%) chunk=15.90 t/s avg=13.55 t/s 1.845s
+0926 01:36:52 ds4-server: chat ctx=0..31:31 prefill chunk 26/31 (83.9%) chunk=14.03 t/s avg=13.57 t/s 1.916s
+0926 01:36:52 ds4-server: chat ctx=0..31:31 prefill chunk 27/31 (87.1%) chunk=11.34 t/s avg=13.47 t/s 2.005s
+0926 01:36:52 ds4-server: chat ctx=0..31:31 prefill chunk 28/31 (90.3%) chunk=10.36 t/s avg=13.33 t/s 2.101s
+0926 01:36:52 ds4-server: chat ctx=0..31:31 prefill chunk 29/31 (93.5%) chunk=17.21 t/s avg=13.43 t/s 2.159s
+0926 01:36:52 ds4-server: chat ctx=0..31:31 prefill chunk 30/31 (96.8%) chunk=18.14 t/s avg=13.55 t/s 2.214s
+0926 01:36:52 ds4-server: chat ctx=0..31:31 prefill chunk 31/31 (100.0%) chunk=19.51 t/s avg=13.68 t/s 2.266s
+0926 01:36:52 ds4-server: chat ctx=0..31:31 prompt done 2.267s
+ds4: routed experts by K, layer 20, 6 used of 384, ff 2304
+ds4: Metal model range 77.29..78.37 GiB is not covered by mapped model views
+ds4: Metal model range 78.38..79.47 GiB is not covered by mapped model views
+ds4: Metal model range 79.48..80.87 GiB is not covered by mapped model views
+ds4:   K=1 refused (gate_row=1320 down_row=756 in=5120 mid=2304 out=5120 used=6)
+ds4:   distinct K=2:  0.002 ms
+ds4:   distinct K=4:  0.005 ms
+ds4:   distinct K=8:  0.002 ms
+ds4:   distinct fit over K=2..8: marginal row 0.000 ms, fixed 0.001 ms (59% of K=8); K=1 extrapolated 0.001 ms
+ds4: Metal model range 77.29..78.37 GiB is not covered by mapped model views
+ds4: Metal model range 78.38..79.47 GiB is not covered by mapped model views
+ds4: Metal model range 79.48..80.87 GiB is not covered by mapped model views
+ds4:   K=1 refused (gate_row=1320 down_row=756 in=5120 mid=2304 out=5120 used=6)
+ds4:   shared  K=2:  0.002 ms
+ds4:   shared  K=4:  0.002 ms
+ds4:   shared  K=8:  0.002 ms
+ds4:   shared  fit over K=2..8: marginal row 0.000 ms, fixed 0.001 ms (92% of K=8); K=1 extrapolated 0.001 ms
+0926 01:36:52 ds4-server: chat ctx=31..35:4 gen=4 THINKING decoding chunk=7.78 t/s avg=7.78 t/s 0.514s
+ds4-server: thinking not closed, ignoring incomplete DSML in reasoning
+0926 01:36:52 ds4-server: chat ctx=0..31:31 gen=4 THINKING finish=length 2.782s
+0926 01:36:54 ds4-server: shutdown requested, draining requests
