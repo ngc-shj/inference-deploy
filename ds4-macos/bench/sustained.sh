@@ -47,8 +47,9 @@ done
 cd "${DS4_BIN:-$HOME/ghq/github.com/antirez/ds4-v41-mtl4dag}" || exit 1
 while pgrep -x ds4-server >/dev/null; do sleep 2; done
 # The adopted production set: slabs rather than zero-copy experts and the
-# prewarm cap (loader, ce99d26/f74eed1), the package (router 5, fused
-# transitions, HC compound), and the expert-ready continuation (=2, 4889363).
+# prewarm cap (loader, ce99d26/f74eed1) and the package (router 5, fused
+# transitions, HC compound). The expert-ready continuation (=2, 4889363) is
+# not in it: run alone it was 4.5 ms a token slower (see V4.1-TUNING.md).
 env DS4_METAL_V41_DECODE_QUEUE=1 DS4_METAL_IQ2_SELECTED_SHARED_EVENT=1 \
     DS4_METAL_STREAM_SPLIT_MIN_MISSING=1 \
     DS4_METAL_STREAMING_EXPERT_AUTO_PRELOAD_CAP=7930 \
@@ -56,7 +57,7 @@ env DS4_METAL_V41_DECODE_QUEUE=1 DS4_METAL_IQ2_SELECTED_SHARED_EVENT=1 \
     DS4_METAL_V41_EXPERT_RESIDENCY_SET=1 DS4_METAL_V41_FFN_OVERLAP=1 \
     DS4_METAL_V41_ROUTER_FUSE_TRANSFORM=5 DS4_METAL_V41_FUSE_BF16=2 \
     DS4_METAL_V41_HC_COMPOUND=1 \
-    DS4_METAL_V41_GATE_ENCODE_AHEAD=2 \
+    DS4_METAL_V41_GATE_ENCODE_AHEAD=1 \
     "$@" ./ds4-server -m "$MODEL" --ssd-streaming --ctx 8192 \
     ${DS4_EXTRA_ARGS:-} \
     --host 127.0.0.1 --port "$PORT" > "$LOG" 2>&1 &
