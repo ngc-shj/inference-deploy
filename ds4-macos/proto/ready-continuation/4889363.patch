@@ -1,0 +1,1059 @@
+commit 48893639f8c03240da7e0fd58c3b4fdee01367b9
+Author: NOGUCHI Shoji <github.com@jpng.jp>
+Date:   Mon Sep 28 17:36:57 2026 +0900
+
+    Issue an abort's continuation before its expert reads are in
+    
+    An abort used to repair first - read the missing experts, install them -
+    and only then encode and commit the continuation, so the GPU sat idle for
+    the reads and again for the 1.34 ms a token between the repair returning
+    and the continuation starting. With DS4_METAL_V41_GATE_ENCODE_AHEAD=2 the
+    repair runs on a thread of its own and the continuation is committed at
+    once: the shared expert, the routed gate/up of the resident lanes and the
+    down of the slots before the first missing one run while the reads are in
+    flight; the buffer then waits on a shared event, which the host signals
+    once the reads are installed, and the missing lanes' gate/up and the rest
+    of the down follow. Layers with no miss are not touched.
+    
+    The down is split by lane, not by slot output: a new kernel, the masked
+    sum6 body copied rather than shared so the shipping kernel is not
+    recompiled, stores each lane's running sums and the part after the wait
+    loads them, so every lane adds the same values in the same order and ends
+    with the same simd_sum. =3 checks every split down against the one-part
+    kernel: 10506 of 10506 identical over 2048 tokens.
+    
+    Fail-closed: the dispatches behind the wait take their grids from a buffer
+    that is zero until the host copies the real grids in, which it does only
+    when the repair succeeded; a failed repair still signals, so the buffer
+    finishes, and the work behind the wait runs empty. =4 injects a failure:
+    that request returns an error and the six after it match main. Only the
+    encoding thread's dispatches are gated - the queue keepalive once took a
+    slot when this was a global.
+    
+    Counted, all zero over 2048-token and seven-prompt runs: a selected expert
+    evicted while its continuation was in flight, an address zero at release,
+    an address, slab slot or slot generation that moved before the buffer
+    completed, a grid reused in flight, a continuation on an all-resident
+    layer, and a continuation whose routed dispatches differed from what its
+    missing mask says (gate/up 1 + resident?1, down 1 + first-miss>0?1).
+    
+    =5 alternates the two schedules token by token in one process, A-B-B-A
+    and B-A-A-B blocks, each token keeping its own misses. Two cooled
+    2048-token runs, all identical to main, the arms' work alike (5196 against
+    5310 aborts, 57020 against 57124 MiB repaired): ready minus repair-first
+    -2.70 and -2.18 ms a token (64-token-window se 0.70 and 0.47), negative in
+    both block orders each time; 45.11 -> 42.41 and 44.31 -> 42.13 ms a token.
+    
+    Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+
+diff --git a/ds4.c b/ds4.c
+index 23344f1..304c4d6 100644
+--- a/ds4.c
++++ b/ds4.c
+@@ -43729,6 +43729,144 @@ static bool ds41_moe_experts_overlapped(ds41_gpu_graph *g, const ds4_model *m,
+                        (uint64_t)DS4_N_EMBD * sizeof(float));
+ }
+ 
++/* The continuation of an aborted layer, issued before its reads are done.
++ *
++ * `missing` is the validator's mask of slots whose experts are being read.
++ * Everything that does not need them runs first - the shared expert, the
++ * routed gate/up of the resident lanes, and the routed down of the slots
++ * before the first missing one, which stores each lane's running sums instead
++ * of finishing. The buffer then waits on the ready event; after it come the
++ * gate/up of the missing lanes and the rest of the down, which picks the sums
++ * up and finishes with the same simd_sum. Every lane adds the same values in
++ * the same order as ds41_moe_experts_overlapped, so the result is the same
++ * bits; `verify` recomputes the down with the one-part kernel and keeps copies
++ * of both for the host to compare. */
++extern void ds4_gpu_gated_down_part(uint32_t slot_begin, uint32_t slot_end,
++                                    uint32_t load, uint32_t store);
++extern void ds4_gpu_gated_down_whole(void);
++extern uint64_t ds4_gpu_ready_wait_encode(void);
++extern int ds4_gpu_ready_gating_end(unsigned expected);
++extern void ds4_gpu_encode_counts(unsigned long long *dispatches, unsigned long long *validates,
++                                  unsigned long long *m3_commits);
++extern unsigned long long ds4_gpu_thread_dispatches(void);
++static ds4_gpu_tensor *g_ds41_ready_check[2];
++/* Continuations issued ahead of their reads, how many were checked against
++ * the one-part down and how many of those differed, and the host time spent
++ * joining the repair after the commit. */
++static unsigned long long g_ready_used, g_ready_checked, g_ready_differ;
++/* What the ready continuations should have encoded beyond the one-part MoE:
++ * behind the waits, the missing lanes' gate/up and the rest of the down (and
++ * the check's down); ahead of them, the down prefix when the first missing
++ * slot is not slot 0. */
++static unsigned long long g_ready_expect_behind, g_ready_expect_extra;
++/* The routed dispatches each continuation actually encoded, counted around
++ * its own calls and held against what its missing mask says they must be;
++ * and continuations entered with no missing slot (an all-resident layer). */
++static unsigned long long g_ready_routed_seen, g_ready_routed_expect, g_ready_routed_mismatch,
++                          g_ready_all_resident;
++/* =5: per-arm token walls and the per-block differences, by block order. */
++static double g_ready_arm_ms[2], g_ready_blk_sum[2], g_ready_blk_sq[2];
++static unsigned long long g_ready_arm_n[2], g_ready_blk_n[2];
++/* =5 workload by arm, so a wall difference can be told from a work one. */
++static unsigned long long g_ready_arm_aborts[2], g_ready_arm_missing[2], g_ready_arm_resident[2],
++                          g_ready_arm_eligible[2], g_ready_arm_first[2][6], g_ready_arm_bytes[2];
++static double g_ready_arm_rep_ms[2];
++/* =5 standard error from 64-token windows: misses and the cache state carry
++ * from token to token, so neighbouring blocks are not independent. */
++static double g_ready_win_sum, g_ready_win_sq;
++static unsigned long long g_ready_win_n;
++extern int ds4_gpu_ready_wait_supported(void);
++static double g_ready_join_ms;
++
++static bool ds41_moe_experts_ready(ds41_gpu_graph *g, const ds4_model *m,
++                                   const ds4_layer_weights *l, uint32_t il,
++                                   uint32_t missing, bool verify, uint64_t *wait_value) {
++    if ((missing & 0x3fu) == 0) {
++        g_ready_all_resident++;
++        return false;
++    }
++    const uint32_t resident = 0x3fu & ~missing;
++    const uint32_t first = (uint32_t)__builtin_ctz(missing);
++    const unsigned expect_extra = (resident != 0 ? 1u : 0u) + (first > 0 ? 1u : 0u) +
++                                  (verify ? 1u : 0u);
++    const unsigned expect_behind = verify ? 3u : 2u;
++    g_ready_expect_extra += expect_extra;
++    g_ready_expect_behind += expect_behind;
++    /* Routed dispatches this continuation must encode: gate/up once for the
++     * missing lanes and once more for the resident ones if there are any;
++     * the down once to finish, once more for a prefix, once more for the
++     * check. */
++    const unsigned expect_routed = 1u + (resident != 0 ? 1u : 0u) +
++                                   1u + (first > 0 ? 1u : 0u) + (verify ? 1u : 0u);
++    unsigned long long routed_n = 0, rd0 = 0, rd1 = 0;
++#define DS41_READY_COUNT(call) (rd0 = ds4_gpu_thread_dispatches(), ok_c = (call), \
++                                rd1 = ds4_gpu_thread_dispatches(), routed_n += rd1 - rd0, ok_c)
++    bool ok_c;
++    bool late1[2] = { false, false }, late3[2] = { false, false };
++    const bool pre1 = g_ds41_shared1.done && g_ds41_shared1.il == il &&
++                      g_ds41_shared1.pos == g->pos;
++    if (pre1) { late1[0] = g_ds41_shared1.late[0]; late1[1] = g_ds41_shared1.late[1]; }
++    g_ds41_shared1.done = false;
++
++    const bool s1 = !pre1 && ds4_gpu_begin_concurrent_section() != 0;
++    bool ok = (resident == 0 ||
++               DS41_READY_COUNT(ds41_moe_experts_level(g, l, il, 1u, NULL, 0u, NULL, resident, 0u))) &&
++              (pre1 || ds41_moe_shared_stage(g, m, l, 1, late1));
++    if (s1) ds4_gpu_end_concurrent_section();
++    ok = ok && ds41_moe_shared_round(g, l, 1, late1) &&
++               ds41_moe_shared_stage(g, m, l, 2, NULL);
++    const bool s2 = ok && ds4_gpu_begin_concurrent_section() != 0;
++    if (ok && first > 0) {
++        ds4_gpu_gated_down_part(0u, first, 0u, 1u);
++        ok = DS41_READY_COUNT(ds41_moe_experts_level(g, l, il, 2u, NULL, 0u, NULL, 0x3fu, 0u));
++        ds4_gpu_gated_down_whole();
++    }
++    ok = ok && ds41_moe_shared_stage(g, m, l, 3, late3);
++    if (s2) ds4_gpu_end_concurrent_section();
++    ok = ok && ds41_moe_shared_round(g, l, 3, late3);
++
++    /* Beyond the one-part MoE: the resident lanes' gate/up is split from the
++     * missing lanes' only when there are resident lanes, and the down gets a
++     * prefix only when the first missing slot is not slot 0. All six missing
++     * adds nothing but the check's down. */
++    const uint64_t v = ok ? ds4_gpu_ready_wait_encode() : 0;
++    if (!v) ok = false;
++    *wait_value = v;
++
++    ok = ok && DS41_READY_COUNT(ds41_moe_experts_level(g, l, il, 1u, NULL, 0u, NULL, missing, 0u));
++    if (ok) {
++        ds4_gpu_gated_down_part(first, 6u, first > 0 ? 1u : 0u, 0u);
++        ok = DS41_READY_COUNT(ds41_moe_experts_level(g, l, il, 2u, NULL, 0u, NULL, 0x3fu, 0u));
++        ds4_gpu_gated_down_whole();
++    }
++    if (ok && verify) {
++        /* The check's copies are blits, which no grid can switch off; on a
++         * failed repair they copy what the empty dispatches left. */
++        const uint64_t bytes = (uint64_t)DS4_N_EMBD * sizeof(float);
++        for (int k = 0; k < 2 && ok; k++)
++            if (!g_ds41_ready_check[k] &&
++                !(g_ds41_ready_check[k] = ds4_gpu_tensor_alloc(bytes))) ok = false;
++        /* The split result aside, the one-part kernel over the same inputs
++         * into routed, and that aside too: the layer goes on with the
++         * shipping kernel's bits either way. */
++        ok = ok && ds4_gpu_tensor_copy(g_ds41_ready_check[0], 0, g->routed, 0, bytes) &&
++             DS41_READY_COUNT(ds41_moe_experts_level(g, l, il, 2u, NULL, 0u, NULL, 0x3fu, 0u)) &&
++             ds4_gpu_tensor_copy(g_ds41_ready_check[1], 0, g->routed, 0, bytes);
++    }
++    if (v && !ds4_gpu_ready_gating_end(expect_behind)) ok = false;
++#undef DS41_READY_COUNT
++    if (ok) {
++        g_ready_routed_seen += routed_n;
++        g_ready_routed_expect += expect_routed;
++        if (routed_n != expect_routed) g_ready_routed_mismatch++;
++    }
++    return ok &&
++        ds41_sabl_seam(DS41_SABL_ROUTED, &g_ds41_sabl_routed[il], g->routed,
++                       (uint64_t)DS4_N_EMBD * sizeof(float)) &&
++        ds41_sabl_seam(DS41_SABL_SHARED, &g_ds41_sabl_shared[il], g->shared,
++                       (uint64_t)DS4_N_EMBD * sizeof(float));
++}
++
+ static bool ds41_moe_finish(ds41_gpu_graph *g, uint32_t il) {
+     const bool shared_owner = g->tp_world == 2 &&
+         !getenv("DS4_METAL_DISABLE_V41_TP_SHARED_OWNER");
+@@ -45228,6 +45366,69 @@ static int ds4_gate_report_cache(unsigned long long tokens, FILE *route_fp) {
+         }
+         fprintf(stderr, "ds4:   Engram rows written at step start in %llu steps; "
+                 "layer-13 drains %llu\n", g_ds41_engram_split_steps, g_ds41_layer13_drains);
++        {
++            extern void ds4_gpu_encode_counts(unsigned long long *dispatches,
++                                              unsigned long long *validates,
++                                              unsigned long long *m3_commits);
++            unsigned long long all_disp = 0;
++            ds4_gpu_encode_counts(&all_disp, NULL, NULL);
++            fprintf(stderr, "ds4:   dispatches encoded %llu\n", all_disp);
++        }
++        if (g_ready_used) {
++            extern void ds4_gpu_ready_counters(unsigned long long out[6]);
++            extern void ds4_gpu_encode_counts(unsigned long long *dispatches,
++                                              unsigned long long *validates,
++                                              unsigned long long *m3_commits);
++            unsigned long long rc3[6], disp = 0;
++            ds4_gpu_ready_counters(rc3);
++            ds4_gpu_encode_counts(&disp, NULL, NULL);
++            fprintf(stderr, "ds4:   continuations issued ahead of their reads %llu; split downs "
++                    "checked %llu, differing %llu; %.2f ms joining the repair; selected "
++                    "evicted in flight %llu, addresses zero at release %llu, moved before "
++                    "completion %llu\n",
++                    g_ready_used, g_ready_checked, g_ready_differ, g_ready_join_ms,
++                    rc3[0], rc3[1], rc3[2]);
++            fprintf(stderr, "ds4:   ready waits %llu; dispatches behind them %llu (expected "
++                    "%llu); grids reused in flight %llu; routed dispatches %llu (expected "
++                    "%llu from the masks, continuations that differed %llu); extra over "
++                    "one-part expected %llu; ready entered on an all-resident layer %llu; "
++                    "dispatches encoded %llu\n",
++                    rc3[3], rc3[4], g_ready_expect_behind, rc3[5], g_ready_routed_seen,
++                    g_ready_routed_expect, g_ready_routed_mismatch, g_ready_expect_extra,
++                    g_ready_all_resident, disp);
++            for (int o = 0; o < 2 && (g_ready_arm_n[0] || g_ready_arm_n[1]); o++) {
++                const double n = (double)g_ready_blk_n[o];
++                const double mean = n ? g_ready_blk_sum[o] / n : 0.0;
++                const double sd = n > 1 ? sqrt((g_ready_blk_sq[o] - n * mean * mean) / (n - 1)) : 0.0;
++                (void)sd;
++                fprintf(stderr, "ds4:   interleaved %s blocks: ready minus repair-first "
++                        "%+.3f ms a token over %llu four-token blocks\n",
++                        o ? "B-A-A-B" : "A-B-B-A", mean, g_ready_blk_n[o]);
++            }
++            if (g_ready_win_n > 1) {
++                const double n = (double)g_ready_win_n, mean = g_ready_win_sum / n;
++                const double sd = sqrt((g_ready_win_sq - n * mean * mean) / (n - 1));
++                fprintf(stderr, "ds4:   interleaved 64-token windows: ready minus repair-first "
++                        "%+.3f ms a token, se %.3f over %llu windows\n", mean, sd / sqrt(n),
++                        g_ready_win_n);
++            }
++            for (int a = 0; a < 2 && (g_ready_arm_n[0] || g_ready_arm_n[1]); a++)
++                fprintf(stderr, "ds4:   interleaved %s work: %llu aborts, %llu eligible, "
++                        "%llu missing and %llu resident slots, first miss at slot 0-5 "
++                        "%llu/%llu/%llu/%llu/%llu/%llu, %.1f MiB and %.1f ms of repair\n",
++                        a ? "ready       " : "repair-first", g_ready_arm_aborts[a],
++                        g_ready_arm_eligible[a], g_ready_arm_missing[a], g_ready_arm_resident[a],
++                        g_ready_arm_first[a][0], g_ready_arm_first[a][1], g_ready_arm_first[a][2],
++                        g_ready_arm_first[a][3], g_ready_arm_first[a][4], g_ready_arm_first[a][5],
++                        (double)g_ready_arm_bytes[a] / 1048576.0, g_ready_arm_rep_ms[a]);
++            if (g_ready_arm_n[0] || g_ready_arm_n[1])
++                fprintf(stderr, "ds4:   interleaved arms: repair-first %.3f ms a token over "
++                        "%llu, ready %.3f over %llu\n",
++                        g_ready_arm_n[0] ? g_ready_arm_ms[0] / g_ready_arm_n[0] : 0.0,
++                        g_ready_arm_n[0],
++                        g_ready_arm_n[1] ? g_ready_arm_ms[1] / g_ready_arm_n[1] : 0.0,
++                        g_ready_arm_n[1]);
++        }
+         fprintf(stderr,
+                 "ds4:   residency a token: %.2f adds, %.2f removes, %.2f commits\n",
+                 (double)(res_add - last_add) / (double)dt,
+@@ -45397,8 +45598,21 @@ static bool ds41_graph_step_inner(ds41_gpu_graph *g, const ds4_model *m,
+     static int gate_ahead_env = -1;
+     if (gate_ahead_env < 0) {
+         const char *e = getenv("DS4_METAL_V41_GATE_ENCODE_AHEAD");
+-        gate_ahead_env = e && e[0] && atoi(e) != 0;
+-    }
++        gate_ahead_env = e && e[0] ? atoi(e) : 0;
++    }
++    /* =2 also issues an abort's continuation before its reads are done
++     * (ds41_moe_experts_ready); =3 does that and checks each split down
++     * against the one-part kernel; =4 injects a repair failure. =5 is the
++     * paired measurement: the two schedules alternate token by token in one
++     * process, A-B-B-A and B-A-A-B blocks in turn, so the machine's drift is
++     * the same for both and each token keeps its own misses. */
++    const bool ready_interleave = gate_ahead_env == 5;
++    static const int ready_pattern[2][4] = { { 0, 1, 1, 0 }, { 1, 0, 0, 1 } };
++    const int ready_arm = ready_interleave ?
++        ready_pattern[(g_gate_tokens >> 2) & 1ull][g_gate_tokens & 3ull] : -1;
++    const int ready_mode = ready_interleave ? ready_arm :
++                           gate_ahead_env >= 2 ? gate_ahead_env - 1 : 0;
++
+ #define ds41_gate_encode_ahead() (gate_ahead_env != 0)
+     /* One token's wall, cut into parts that do not overlap, inside one run.
+      * Subtracting figures from different runs is how the last residual was
+@@ -45428,6 +45642,11 @@ static bool ds41_graph_step_inner(ds41_gpu_graph *g, const ds4_model *m,
+         ds4_gpu_mtl4_region_begin();
+         uint32_t start = gate_lo;
+         int resume_from_moe = 0;
++        /* An abort whose continuation goes out before its reads are in: the
++         * missing mask, and whether the repair is still running. */
++        uint32_t ready_mask = 0;
++        bool ready_pending = false;
++        uint64_t ready_value = 0;
+         /* Which shape each layer was issued in. A continuation re-runs the
+          * routed stage and nothing else, so it has to re-run the same shape:
+          * deciding again could issue the shared expert twice, or not at all,
+@@ -45657,8 +45876,12 @@ static bool ds41_graph_step_inner(ds41_gpu_graph *g, const ds4_model *m,
+                                 ds4_gpu_gate_encode_validate(g->selected, il,
+                                        DS4_N_EXPERT_USED, DS4_N_EXPERT) != 0);
+                 }
++                const bool ready_here = resuming && ready_mask != 0 && use_overlap;
+                 if (ok) ok = (ds41_sabl_skip(DS41_SABL_MOE) ||
+-                              ((use_overlap ?
++                              ((ready_here ?
++                                  ds41_moe_experts_ready(g, m, gl, il, ready_mask,
++                                                         ready_mode == 2, &ready_value) :
++                                use_overlap ?
+                                   ds41_moe_experts_overlapped(g, m, gl, il, l1_mask) :
+                                   ds41_moe_experts_row(g, m, gl, il)) &&
+                                ds41_sabl_finish(g, il))) &&
+@@ -45708,7 +45931,37 @@ static bool ds41_graph_step_inner(ds41_gpu_graph *g, const ds4_model *m,
+              * every slot behind the aborting layer - including the next
+              * segment's, now that the slot cursor runs on across a token
+              * instead of rewinding between segments. */
+-            if (!ds4_gpu_flush_commands()) { ok = false; break; }
++            const bool flushed = ds4_gpu_flush_commands();
++            if (ready_pending) {
++                /* The continuation is on the GPU and waiting for these reads:
++                 * join the repair, then release it whatever happened - a
++                 * failed repair still has to let the buffer finish. */
++                extern int ds4_gpu_gate_repair_join(unsigned long long *bytes_loaded, double *repair_ms);
++                extern void ds4_gpu_ready_signal(uint64_t v, int ready);
++                const double j0 = now_sec();
++                const unsigned long long jb0 = g_gate_bytes;
++                double rep_ms = 0.0;
++                int rc = ds4_gpu_gate_repair_join(&g_gate_bytes, &rep_ms);
++                if (ready_arm >= 0) {
++                    g_ready_arm_rep_ms[ready_arm] += rep_ms;
++                    g_ready_arm_bytes[ready_arm] += g_gate_bytes - jb0;
++                }
++                /* =4 fails the hundredth one after its repair, to prove the
++                 * work behind the wait is switched off and the session is
++                 * failed rather than answered. */
++                if (ready_mode == 3 && g_ready_used == 100u) {
++                    rc = 0;
++                    fprintf(stderr, "ds4: injected expert-ready repair failure\n");
++                }
++                ds4_gpu_ready_signal(ready_value, rc != 0 && flushed);
++                g_ready_join_ms += (now_sec() - j0) * 1000.0;
++                ds4_gpu_timeline_host_event("R %d %u", token, start);
++                ready_pending = false;
++                ready_mask = 0;
++                ready_value = 0;
++                if (!rc) { ok = false; break; }
++            }
++            if (!flushed) { ok = false; break; }
+             static int trace_rev_written;
+             if (!trace_rev_written) {
+                 trace_rev_written = 1;
+@@ -45795,7 +46048,22 @@ static bool ds41_graph_step_inner(ds41_gpu_graph *g, const ds4_model *m,
+ spec_done:;
+             const double seg_t2b = now_sec();
+             if (ok && !ds4_gpu_wait_committed()) ok = false;
++            {
++                extern void ds4_gpu_ready_window_end(void);
++                ds4_gpu_ready_window_end();
++            }
+             if (!ok) break;
++            if (ready_mode == 2 && g_ds41_ready_check[0] && g_ready_used > g_ready_checked) {
++                const uint64_t bytes = (uint64_t)DS4_N_EMBD * sizeof(float);
++                static float *a, *b;
++                if (!a) a = xmalloc(bytes);
++                if (!b) b = xmalloc(bytes);
++                if (ds4_gpu_tensor_read(g_ds41_ready_check[0], 0, a, bytes) &&
++                    ds4_gpu_tensor_read(g_ds41_ready_check[1], 0, b, bytes)) {
++                    g_ready_checked = g_ready_used;
++                    if (memcmp(a, b, bytes) != 0) g_ready_differ++;
++                }
++            }
+             const double seg_t3 = now_sec();
+             g_gate_encode_ms += (seg_t1 - seg_t0) * 1000.0;
+             /* The speculative encoding is host time spent underneath the GPU,
+@@ -45841,17 +46109,74 @@ spec_done:;
+             const ds4_layer_weights *bl = &w->layer[bad];
+             uint64_t gate_row = 0, down_row = 0;
+             if (!tensor_nbytes(bl->ffn_gate_exps->type, DS4_N_EMBD, &gate_row) ||
+-                !tensor_nbytes(bl->ffn_down_exps->type, DS4_N_FF_EXP, &down_row) ||
+-                !ds4_gpu_gate_repair(m->map, m->size, bad, ids, n_sel, DS4_N_EXPERT,
+-                                     bl->ffn_gate_exps->abs_offset, bl->ffn_up_exps->abs_offset,
+-                                     bl->ffn_down_exps->abs_offset,
+-                                     gate_row * DS4_N_FF_EXP, down_row * DS4_N_EMBD,
+-                                     mask, &g_gate_bytes)) { ok = false; break; }
++                !tensor_nbytes(bl->ffn_down_exps->type, DS4_N_FF_EXP, &down_row)) {
++                ok = false;
++                break;
++            }
++            /* The expert-ready continuation needs the overlapped shape for
++             * this layer, a plain six-lane route and a missing mask; any
++             * other abort is repaired before its continuation, as before. */
++            extern int ds4_gpu_ready_wait_supported(void);
++            const bool ready_ok = ready_mode && ds4_gpu_ready_wait_supported() &&
++                                  bad < 64u && seg_overlap[bad] == 1u &&
++                                  n_sel == 6u && mask != 0 && (mask & ~0x3fu) == 0 &&
++                                  !(((spec_filled >> bad) & 1ull) && ds41_spec_resume());
++            if (ready_arm >= 0) {
++                const int a = ready_arm;
++                const uint32_t miss6 = mask & 0x3fu;
++                g_ready_arm_aborts[a]++;
++                g_ready_arm_missing[a] += (unsigned long long)__builtin_popcount(miss6);
++                g_ready_arm_resident[a] += 6ull - (unsigned long long)__builtin_popcount(miss6);
++                if (miss6) g_ready_arm_first[a][__builtin_ctz(miss6)]++;
++                /* Eligible under the ready rule, whichever arm this token has. */
++                if (ds4_gpu_ready_wait_supported() && bad < 64u && seg_overlap[bad] == 1u &&
++                    n_sel == 6u && mask != 0 && (mask & ~0x3fu) == 0)
++                    g_ready_arm_eligible[a]++;
++            }
++            if (ready_ok) {
++                extern int ds4_gpu_gate_repair_async(const void *model_map, uint64_t model_size,
++                        uint32_t layer, const int32_t *ids, uint32_t n_sel, uint32_t n_total,
++                        uint64_t gate_offset, uint64_t up_offset, uint64_t down_offset,
++                        uint64_t gate_expert_bytes, uint64_t down_expert_bytes,
++                        uint32_t missing_mask);
++                if (!ds4_gpu_gate_repair_async(m->map, m->size, bad, ids, n_sel, DS4_N_EXPERT,
++                                               bl->ffn_gate_exps->abs_offset,
++                                               bl->ffn_up_exps->abs_offset,
++                                               bl->ffn_down_exps->abs_offset,
++                                               gate_row * DS4_N_FF_EXP, down_row * DS4_N_EMBD,
++                                               mask)) { ok = false; break; }
++                ready_mask = mask;
++                ready_pending = true;
++                g_ready_used++;
++            } else {
++                const double r0 = now_sec();
++                const unsigned long long rb0 = g_gate_bytes;
++                if (!ds4_gpu_gate_repair(m->map, m->size, bad, ids, n_sel, DS4_N_EXPERT,
++                                         bl->ffn_gate_exps->abs_offset, bl->ffn_up_exps->abs_offset,
++                                         bl->ffn_down_exps->abs_offset,
++                                         gate_row * DS4_N_FF_EXP, down_row * DS4_N_EMBD,
++                                         mask, &g_gate_bytes)) { ok = false; break; }
++                if (ready_arm >= 0) {
++                    g_ready_arm_rep_ms[ready_arm] += (now_sec() - r0) * 1000.0;
++                    g_ready_arm_bytes[ready_arm] += g_gate_bytes - rb0;
++                }
++                ds4_gpu_timeline_host_event("R %d %u", token, bad);
++            }
+             g_gt_repair_ms += (now_sec() - gt_rep0) * 1000.0;
+-            ds4_gpu_timeline_host_event("R %d %u", token, bad);
+             start = bad;
+             resume_from_moe = 1;
+         }
++        if (ready_pending) {
++            /* Left the loop with a repair still running: nothing waits on
++             * the event unless a continuation was committed, but the worker
++             * must be finished before anything else touches the cache. */
++            extern int ds4_gpu_gate_repair_join(unsigned long long *bytes_loaded, double *repair_ms);
++            extern void ds4_gpu_ready_signal(uint64_t v, int ready);
++            (void)ds4_gpu_gate_repair_join(&g_gate_bytes, NULL);
++            ds4_gpu_ready_signal(ready_value, 0);
++            ready_pending = false;
++            ok = false;
++        }
+         if (!ds4_gpu_mtl4_region_end()) ok = false;
+         if (ok && ds4_gpu_gate_ungatable() != 0 &&
+             getenv("DS4_METAL_V41_ABORT_GATE_NO_THREADS") == NULL) {
+@@ -45974,6 +46299,38 @@ spec_done:;
+     if (gate_n > gate_lo) {
+         g_gt_tail_ms += (now_sec() - gt_tail0) * 1000.0;
+         g_gt_wall_ms += (now_sec() - gt_token0) * 1000.0;
++        if (ready_interleave && ok) {
++            /* One block is four consecutive tokens, two of each arm; its
++             * difference is what the pairing buys. */
++            static double blk[2];
++            const double tok_ms = (now_sec() - gt_token0) * 1000.0;
++            const unsigned long long t = g_gate_tokens - 1ull;
++            blk[ready_arm] += tok_ms;
++            g_ready_arm_ms[ready_arm] += tok_ms;
++            g_ready_arm_n[ready_arm]++;
++            static double win_ms[2];
++            static unsigned long long win_n[2];
++            win_ms[ready_arm] += tok_ms;
++            win_n[ready_arm]++;
++            if ((t & 63ull) == 63ull) {
++                if (win_n[0] && win_n[1]) {
++                    const double d = win_ms[1] / win_n[1] - win_ms[0] / win_n[0];
++                    g_ready_win_sum += d;
++                    g_ready_win_sq += d * d;
++                    g_ready_win_n++;
++                }
++                win_ms[0] = win_ms[1] = 0.0;
++                win_n[0] = win_n[1] = 0;
++            }
++            if ((t & 3ull) == 3ull) {
++                const int order = (int)((t >> 2) & 1ull);
++                const double d = (blk[1] - blk[0]) / 2.0;
++                g_ready_blk_sum[order] += d;
++                g_ready_blk_sq[order] += d * d;
++                g_ready_blk_n[order]++;
++                blk[0] = blk[1] = 0.0;
++            }
++        }
+         /* Every figure below covers the same 64 tokens. The report used to run
+          * before this line, so the cache window held the token whose wall had
+          * not been added yet, and the aborts and command buffers were running
+diff --git a/ds4_metal.m b/ds4_metal.m
+index 32983b8..8bf835e 100644
+--- a/ds4_metal.m
++++ b/ds4_metal.m
+@@ -833,6 +833,19 @@ static void ds4_gpu_timeline_attach(id<MTLCommandBuffer> cb) {
+ static int g_model_fd = -1;
+ /* Where a miss's repair time goes, cumulative ms: readahead advice, slot
+  * preparation (buffer and mlock), the reads, and installing the entries. */
++/* The window from an early repair's start to the completion of the buffer
++ * that waited on it, and what the continuation reads in it: the aborted
++ * layer's six experts. Counted, so the address lifetime is shown rather than
++ * argued: a selected expert evicted inside the window, a table entry that
++ * was zero when the wait was released, or one that changed before the buffer
++ * finished. */
++static struct {
++    int active, released; uint32_t layer; int32_t ids[6]; uint64_t addr[6][5];
++} g_ready_window;
++static unsigned long long g_ready_evict_selected, g_ready_addr_zero, g_ready_addr_moved;
++/* Dispatches behind the waits, and waits encoded while an earlier one's
++ * buffer had not completed (which would have reused its grid). */
++static unsigned long long g_ready_dispatches, g_ready_waits, g_ready_grid_reuse;
+ static double g_rep_ra_ms, g_rep_prep_ms, g_rep_read_ms, g_rep_install_ms;
+ static unsigned long long g_rep_loads;
+ void ds4_gpu_stream_expert_repair_breakdown(double out[5]) {
+@@ -1219,6 +1232,9 @@ static void ds4_gpu_print_device_summary(void) {
+     DS4_METAL_STREAM_EXPERT_HOTNESS_DECAY_TOKENS = 16,
+     DS4_METAL_STREAM_EXPERT_VALIDATE_WORDS = 16,
+ };
++/* Bumped each time a slab slot is given to an expert, so an address that
++ * happens to be the same after a slot was recycled still reads as moved. */
++static uint32_t g_slab_slot_generation[DS4_METAL_STREAM_EXPERT_CACHE_MAX_ENTRIES];
+ 
+ typedef struct {
+     uint32_t layer;
+@@ -16377,6 +16393,61 @@ int ds4_gpu_gate_repair(const void *model_map, uint64_t model_size, uint32_t lay
+     return rc;
+ }
+ 
++/* The repair on a thread of its own, so the continuation can be encoded and
++ * committed while the reads run. Only the pread path may go here: it never
++ * touches the command buffer the caller is encoding. */
++static struct {
++    const void *map; uint64_t size; uint32_t layer; int32_t ids[16]; uint32_t n_sel;
++    uint32_t n_total; uint64_t gate_off, up_off, down_off, gate_bytes, down_bytes;
++    uint32_t mask; unsigned long long bytes; int rc; int running; double ms;
++} g_async_repair;
++static dispatch_semaphore_t g_async_repair_done;
++
++int ds4_gpu_gate_repair_async(const void *model_map, uint64_t model_size, uint32_t layer,
++                              const int32_t *ids, uint32_t n_sel, uint32_t n_total,
++                              uint64_t gate_offset, uint64_t up_offset, uint64_t down_offset,
++                              uint64_t gate_expert_bytes, uint64_t down_expert_bytes,
++                              uint32_t missing_mask) {
++    if (g_async_repair.running || n_sel > 16u) return 0;
++    static dispatch_queue_t q;
++    if (!q) {
++        q = dispatch_queue_create("ds4.gate.repair", DISPATCH_QUEUE_SERIAL);
++        g_async_repair_done = dispatch_semaphore_create(0);
++    }
++    g_async_repair.map = model_map; g_async_repair.size = model_size;
++    g_async_repair.layer = layer; g_async_repair.n_sel = n_sel;
++    memcpy(g_async_repair.ids, ids, n_sel * sizeof(ids[0]));
++    g_async_repair.n_total = n_total; g_async_repair.gate_off = gate_offset;
++    g_async_repair.up_off = up_offset; g_async_repair.down_off = down_offset;
++    g_async_repair.gate_bytes = gate_expert_bytes;
++    g_async_repair.down_bytes = down_expert_bytes;
++    g_async_repair.mask = missing_mask; g_async_repair.bytes = 0;
++    g_async_repair.rc = 0; g_async_repair.running = 1;
++    g_ready_window.active = 1;
++    g_ready_window.layer = layer;
++    for (uint32_t i = 0; i < 6; i++) g_ready_window.ids[i] = i < n_sel ? ids[i] : -1;
++    dispatch_async(q, ^{
++        const double t0 = ds4_gpu_now_ms();
++        g_async_repair.rc = ds4_gpu_gate_repair(g_async_repair.map, g_async_repair.size,
++                g_async_repair.layer, g_async_repair.ids, g_async_repair.n_sel,
++                g_async_repair.n_total, g_async_repair.gate_off, g_async_repair.up_off,
++                g_async_repair.down_off, g_async_repair.gate_bytes,
++                g_async_repair.down_bytes, g_async_repair.mask, &g_async_repair.bytes);
++        g_async_repair.ms = ds4_gpu_now_ms() - t0;
++        dispatch_semaphore_signal(g_async_repair_done);
++    });
++    return 1;
++}
++
++int ds4_gpu_gate_repair_join(unsigned long long *bytes_loaded, double *repair_ms) {
++    if (!g_async_repair.running) return 0;
++    dispatch_semaphore_wait(g_async_repair_done, DISPATCH_TIME_FOREVER);
++    g_async_repair.running = 0;
++    if (bytes_loaded) *bytes_loaded += g_async_repair.bytes;
++    if (repair_ms) *repair_ms = g_async_repair.ms;
++    return g_async_repair.rc;
++}
++
+ static int ds4_gpu_stream_expert_cache_addr_buffers(uint32_t layer, id<MTLBuffer> *gate,
+                                                     id<MTLBuffer> *up, id<MTLBuffer> *down);
+ 
+@@ -17232,6 +17303,10 @@ static void ds4_gpu_stream_expert_cache_clear_entry_internal(
+     ds4_gpu_stream_expert_cache_entry *e =
+         &g_stream_expert_cache[layer][expert];
+     if (!e->valid) return;
++    if (g_ready_window.active && layer == g_ready_window.layer) {
++        for (uint32_t i = 0; i < 6; i++)
++            if (g_ready_window.ids[i] == (int32_t)expert) { g_ready_evict_selected++; break; }
++    }
+     /* DS4_METAL_V41_NO_LEASE_PIN=1 drops the guard, to separate "the loader
+      * cannot find a slot because leases hold them" from anything else. */
+     if (e->pins) {
+@@ -18349,6 +18424,8 @@ static int ds4_gpu_stream_expert_cache_entry_matches(
+                                                    &slab_slot)) {
+         e->slab_backed = 1;
+         e->slab_slot = slab_slot;
++        if (slab_slot < DS4_METAL_STREAM_EXPERT_CACHE_MAX_ENTRIES)
++            g_slab_slot_generation[slab_slot]++;
+     } else {
+         e->slab_backed = 0;
+         e->slab_slot = 0;
+@@ -44820,6 +44897,203 @@ int ds4_gpu_gate_active_for_layer(uint32_t il) {
+            atomic_load_explicit(&g_gate_active, memory_order_relaxed);
+ }
+ 
++/* ---- expert-ready continuation -------------------------------------------
++ *
++ * After an abort the continuation used to be encoded and committed only once
++ * the repair had read every missing expert. Now it goes out at once: the
++ * shared expert, the gate/up of the resident lanes and the down of the slots
++ * before the first missing one run while the reads are in flight; the buffer
++ * then waits on g_ready_event, which the host signals once the reads are
++ * installed, and the rest of the layer follows in slot order.
++ *
++ * The down is split by lane, not by slot output: each lane stores the running
++ * sums the masked kernel would carry into the next slot, and the part after
++ * the wait loads them and goes on, so every lane adds the same values in the
++ * same order as the one-part kernel and the result is the same bits. */
++typedef struct {
++    int      active;
++    uint32_t slot_begin, slot_end, load, store;
++} ds4_gpu_down_part_state;
++static ds4_gpu_down_part_state g_down_part;
++static id<MTLBuffer> g_down_partial;
++static id<MTLSharedEvent> g_ready_event;
++static uint64_t g_ready_value;
++
++void ds4_gpu_gated_down_part(uint32_t slot_begin, uint32_t slot_end,
++                             uint32_t load, uint32_t store) {
++    g_down_part = (ds4_gpu_down_part_state){ 1, slot_begin, slot_end, load, store };
++}
++
++void ds4_gpu_gated_down_whole(void) {
++    g_down_part.active = 0;
++}
++
++/* The value the next wait will ask for; signal it once the reads are in.
++ * Every dispatch encoded from here until ds4_gpu_ready_gating_end takes its
++ * grid from g_ready_grid (ds4_metal_gate.h). */
++uint64_t ds4_gpu_ready_wait_encode(void) {
++    if (!g_batch_cb || !g_device) return 0;
++    if (!g_ready_event) {
++        g_ready_event = [g_device newSharedEvent];
++        if (!g_ready_event) return 0;
++        g_ready_value = g_ready_event.signaledValue;
++    }
++    if (!g_ready_grid) {
++        g_ready_grid = [g_device newBufferWithLength:DS4_READY_GRID_MAX * 3u * sizeof(uint32_t)
++                                             options:MTLResourceStorageModeShared];
++        if (!g_ready_grid) return 0;
++        g_ready_grid.label = @"ds4_ready_grid";
++    }
++    /* One continuation at a time: its grid slots are not rewritten until the
++     * buffer that reads them has completed (ds4_gpu_ready_window_end). */
++    if (g_ready_window.released) {
++        g_ready_grid_reuse++;
++        return 0;
++    }
++    ds4_gpu_close_batch_encoder();
++    const uint64_t v = ++g_ready_value;
++    [g_batch_cb encodeWaitForEvent:g_ready_event value:v];
++    g_ready_waits++;
++    g_ready_grid_n = 0;
++    g_ready_grid_overflow = 0;
++    g_ready_gating = 1;
++    return v;
++}
++
++/* Whether every dispatch behind the wait got a ready grid. */
++int ds4_gpu_ready_gating_end(unsigned expected) {
++    g_ready_gating = 0;
++    g_ready_dispatches += g_ready_grid_n;
++    if (g_ready_grid_n != expected) {
++        /* Name what went behind the wait, once, as return addresses with the
++         * image slide so atos can resolve them. */
++        static int said;
++        if (!said) {
++            said = 1;
++            fprintf(stderr, "ds4: %u dispatches behind a ready wait, expected %u; slide 0x%llx;"
++                    " callers:", g_ready_grid_n, expected,
++                    (unsigned long long)_dyld_get_image_vmaddr_slide(0));
++            for (uint32_t i = 0; i < g_ready_grid_n && i < DS4_READY_GRID_MAX; i++)
++                fprintf(stderr, " %p/%p", g_ready_grid_caller[i][0], g_ready_grid_caller[i][1]);
++            fputc('\n', stderr);
++        }
++    }
++    return g_ready_grid_overflow == 0;
++}
++
++/* Release the wait. `ready` is whether the repair succeeded: only then do
++ * the dispatches behind it get their grids. */
++static int ds4_gpu_stream_expert_cache_addr_buffers(uint32_t layer, id<MTLBuffer> *gate,
++                                                    id<MTLBuffer> *up, id<MTLBuffer> *down);
++static void ds4_gpu_ready_window_read(uint64_t addr[6][5]) {
++    id<MTLBuffer> tg = nil, tu = nil, td = nil;
++    memset(addr, 0, 6 * 5 * sizeof(uint64_t));
++    if (!ds4_gpu_stream_expert_cache_addr_buffers(g_ready_window.layer, &tg, &tu, &td))
++        return;
++    id<MTLBuffer> t[3] = { tg, tu, td };
++    for (uint32_t i = 0; i < 6; i++) {
++        const int32_t id = g_ready_window.ids[i];
++        if (id < 0 || id >= DS4_METAL_STREAM_EXPERT_CACHE_MAX_EXPERT) continue;
++        for (uint32_t k = 0; k < 3; k++)
++            addr[i][k] = ((const uint64_t *)[t[k] contents])[id];
++        const ds4_gpu_stream_expert_cache_entry *e =
++            &g_stream_expert_cache[g_ready_window.layer][id];
++        addr[i][3] = e->valid && e->slab_backed ? (uint64_t)e->slab_slot + 1u : 0u;
++        addr[i][4] = e->valid && e->slab_backed &&
++                     e->slab_slot < DS4_METAL_STREAM_EXPERT_CACHE_MAX_ENTRIES ?
++                     g_slab_slot_generation[e->slab_slot] : 0u;
++    }
++}
++
++void ds4_gpu_ready_window_end(void) {
++    if (!g_ready_window.active) return;
++    if (g_ready_window.released) {
++        uint64_t now[6][5];
++        ds4_gpu_ready_window_read(now);
++        if (memcmp(now, g_ready_window.addr, sizeof(now)) != 0) g_ready_addr_moved++;
++    }
++    g_ready_window.active = 0;
++    g_ready_window.released = 0;
++}
++
++void ds4_gpu_ready_counters(unsigned long long out[6]) {
++    out[0] = g_ready_evict_selected;
++    out[1] = g_ready_addr_zero;
++    out[2] = g_ready_addr_moved;
++    out[3] = g_ready_waits;
++    out[4] = g_ready_dispatches;
++    out[5] = g_ready_grid_reuse;
++}
++
++void ds4_gpu_ready_signal(uint64_t v, int ready) {
++    if (ready && g_ready_window.active) {
++        g_ready_window.released = 1;
++        ds4_gpu_ready_window_read(g_ready_window.addr);
++        for (uint32_t i = 0; i < 6; i++)
++            for (uint32_t k = 0; k < 3; k++)
++                if (!g_ready_window.addr[i][k]) { g_ready_addr_zero++; i = 6; break; }
++    }
++    if (ready && g_ready_grid) {
++        memcpy([g_ready_grid contents], g_ready_grid_shadow,
++               (size_t)g_ready_grid_n * 3u * sizeof(uint32_t));
++    }
++    if (g_ready_event && v) g_ready_event.signaledValue = v;
++}
++
++static int ds4_gpu_encode_mul_mv_addr_q2_sum6_part(
++        id<MTLCommandBuffer>        cb,
++        const ds4_gpu_mul_mv_id_args *args,
++        const ds4_gpu_stream_expert_split_args *split,
++        id<MTLBuffer>               addrs,
++        id<MTLBuffer>               src1,
++        NSUInteger                  src1_off,
++        id<MTLBuffer>               dst,
++        NSUInteger                  dst_off,
++        id<MTLBuffer>               ids,
++        NSUInteger                  ids_off,
++        NSUInteger                  threadgroup_bytes,
++        NSUInteger                  nsg) {
++    id<MTLComputePipelineState> pipeline =
++        ds4_gpu_get_mul_mv_pipeline("kernel_mul_mv_addr_q2_K_sum6_part_f32", (int16_t)nsg);
++    if (!cb || !pipeline || !args || !split || !addrs || !src1 || !dst || !ids ||
++        args->ne00 <= 0 || args->ne01 <= 0 || args->nei0 != 6 || args->nei1 <= 0 ||
++        args->ne02 <= 0 || args->ne02 > 384) {
++        return 0;
++    }
++    const NSUInteger rows_per_group = (NSUInteger)args->nr0 * nsg;
++    const NSUInteger row_groups = ((NSUInteger)args->ne01 + rows_per_group - 1u) / rows_per_group;
++    const NSUInteger partial_bytes =
++        row_groups * (NSUInteger)args->nei1 * nsg * 32u * (NSUInteger)args->nr0 * sizeof(float);
++    if (!g_down_partial || [g_down_partial length] < partial_bytes) {
++        g_down_partial = [g_device newBufferWithLength:partial_bytes
++                                               options:MTLResourceStorageModePrivate];
++        if (!g_down_partial) return 0;
++        g_down_partial.label = @"ds4_gated_down_partial";
++    }
++    const struct {
++        uint32_t slot_begin, slot_end, load, store;
++    } part = { g_down_part.slot_begin, g_down_part.slot_end,
++               g_down_part.load, g_down_part.store };
++
++    id<DS4Encoder> enc = ds4_gpu_compute_encoder(cb);
++    [enc setComputePipelineState:pipeline];
++    [enc setBytes:args  length:sizeof(*args)  atIndex:0];
++    [enc setBytes:split length:sizeof(*split) atIndex:1];
++    [enc setBuffer:addrs offset:0 atIndex:2];
++    [enc setBuffer:src1  offset:src1_off atIndex:3];
++    [enc setBuffer:dst   offset:dst_off  atIndex:4];
++    [enc setBuffer:ids   offset:ids_off  atIndex:5];
++    [enc setBuffer:g_down_partial offset:0 atIndex:6];
++    [enc setBytes:&part length:sizeof(part) atIndex:7];
++    if (threadgroup_bytes != 0) {
++        [enc setThreadgroupMemoryLength:threadgroup_bytes atIndex:0];
++    }
++    ds4_gpu_dispatch(enc, MTLSizeMake(row_groups, (NSUInteger)args->nei1, 1), MTLSizeMake(32, nsg, 1));
++    ds4_gpu_end_compute_encoder(cb, enc);
++    return 1;
++}
++
++
+ /* The routed experts for a layer the gate has already validated.
+  *
+  * The resident path reads a frozen copy of the address table, signals an
+@@ -44944,6 +45218,12 @@ static int ds4_gpu_routed_moe_one_gated(
+                 midbuf, ds4_gpu_tensor_offset(mid), outbuf, ds4_gpu_tensor_offset(out),
+                 selbuf, sel_off,
+                 ds4_gpu_routed_mv_smem(down_type), 2)) return 0;
++    if ((which & 2u) && g_down_part.active) {
++        return ds4_gpu_encode_mul_mv_addr_q2_sum6_part(
++                g_batch_cb, &down_args, &all_lanes, table_down,
++                midbuf, ds4_gpu_tensor_offset(mid), outbuf, ds4_gpu_tensor_offset(out),
++                selbuf, sel_off, ds4_gpu_routed_mv_smem(down_type), 2);
++    }
+     if ((which & 2u) && !ds4_gpu_encode_mul_mv_addr_q2_sum6_masked(
+             g_batch_cb, g_moe_mul_mv_addr_q2_k_sum6_masked_pipeline,
+             &down_args, &all_lanes, NULL, table_down,
+@@ -44953,6 +45233,7 @@ static int ds4_gpu_routed_moe_one_gated(
+     return 1;
+ }
+ 
++
+ /* How many of these ids the GPU can actually reach in this layer's table.
+  *
+  * A zero address is not an error the masked kernel reports: it reads nothing
+@@ -56771,3 +57052,10 @@ int ds4_gpu_dsv41_hc_expand_tail_tensor(
+ void ds4_gpu_stream_expert_seed_hotness(uint32_t layer, uint32_t expert, uint32_t amount) {
+     ds4_gpu_stream_expert_cache_note_route_hotness(layer, expert, amount);
+ }
++
++/* The expert-ready continuation waits on a shared event inside a Metal 3
++ * command buffer; with the Metal 4 region holding the segment there is no such
++ * buffer to wait in, and the abort is repaired first as before. */
++int ds4_gpu_ready_wait_supported(void) {
++    return !ds4_mtl4_on();
++}
+diff --git a/ds4_metal_gate.h b/ds4_metal_gate.h
+index cf9597e..6df1675 100644
+--- a/ds4_metal_gate.h
++++ b/ds4_metal_gate.h
+@@ -356,10 +356,51 @@ void ds4_gpu_encode_counts(unsigned long long *dispatches, unsigned long long *v
+     if (m3_commits) *m3_commits = g_ds4_m3_commits;
+ }
+ 
++/* Dispatches behind an expert-ready wait (ds4_metal.m). Their grids live in
++ * g_ready_grid, zero when encoded; the host copies the real ones in from the
++ * shadow only when the repair succeeded, before it signals the wait. A failed
++ * repair still signals - the buffer must finish - and the work behind the
++ * wait then runs on an empty grid instead of on a half-built address table. */
++enum { DS4_READY_GRID_MAX = 64 };
++static id<MTLBuffer> g_ready_grid;
++static uint32_t g_ready_grid_shadow[DS4_READY_GRID_MAX * 3];
++static uint32_t g_ready_grid_n;
++/* Per thread: only the thread encoding the continuation is behind its wait.
++ * The queue keepalive dispatches from a thread of its own into its own
++ * buffer, and with this global it once took a ready grid slot. */
++static __thread int g_ready_gating;
++static unsigned long long g_ready_grid_overflow;
++static void *g_ready_grid_caller[DS4_READY_GRID_MAX][2];
++
++/* Dispatches encoded by the calling thread, for a count that another
++ * thread's keepalive cannot land in. */
++static __thread unsigned long long g_ds4_thread_dispatches;
++unsigned long long ds4_gpu_thread_dispatches(void) { return g_ds4_thread_dispatches; }
++
+ static void ds4_gpu_dispatch(id<DS4Encoder> enc, MTLSize tg, MTLSize tpt) {
+     NSUInteger off = 0;
+     atomic_fetch_add(&g_ds4_dispatches_encoded, 1u);
++    g_ds4_thread_dispatches++;
+     ds4_uce_order(enc);
++    if (g_ready_gating) {
++        if (g_ready_grid && g_ready_grid_n < DS4_READY_GRID_MAX) {
++            const uint32_t i = g_ready_grid_n++;
++            uint32_t *grid = (uint32_t *)[g_ready_grid contents] + 3u * i;
++            g_ready_grid_shadow[3u * i + 0] = (uint32_t)tg.width;
++            g_ready_grid_shadow[3u * i + 1] = (uint32_t)tg.height;
++            g_ready_grid_shadow[3u * i + 2] = (uint32_t)tg.depth;
++            grid[0] = grid[1] = grid[2] = 0;
++            g_ready_grid_caller[i][0] = __builtin_return_address(0);
++            g_ready_grid_caller[i][1] = __builtin_extract_return_addr(__builtin_return_address(0));
++            [enc dispatchThreadgroupsWithIndirectBuffer:g_ready_grid
++                                   indirectBufferOffset:(NSUInteger)i * 3u * sizeof(uint32_t)
++                                  threadsPerThreadgroup:tpt];
++            return;
++        }
++        /* No room: the caller sees the overflow and fails the continuation
++         * rather than letting an ungated dispatch through. */
++        g_ready_grid_overflow++;
++    }
+     if (g_gate_layers && atomic_load_explicit(&g_gate_active, memory_order_relaxed) &&
+         !atomic_load_explicit(&g_gate_armed, memory_order_relaxed) &&
+         ds4_gate_direct_prefix_on()) {
+diff --git a/metal/moe.metal b/metal/moe.metal
+index 653adf0..cc4436f 100644
+--- a/metal/moe.metal
++++ b/metal/moe.metal
+@@ -7065,6 +7065,146 @@ kernel void kernel_mul_mv_addr_q2_K_sum6_masked_f32(
+     (void)tgpig;
+ }
+ 
++/* The masked sum6 in parts: slots [slot_begin, slot_end) only, each lane
++ * starting from the running sums a previous part stored (load) and either
++ * storing them again (store) or finishing with the same simd_sum. Run as one
++ * part over 0..6 it is the kernel above; split at any slot, the lanes add the
++ * same values in the same order, which is what lets the resident slots run
++ * while a missing expert is still being read. The body is the kernel above,
++ * copied rather than shared, so the shipping kernel is not recompiled. */
++struct ds4_metal_sum6_part_args {
++    uint32_t slot_begin;
++    uint32_t slot_end;
++    uint32_t load;
++    uint32_t store;
++};
++
++kernel void kernel_mul_mv_addr_q2_K_sum6_part_f32(
++        constant ds4_metal_args_mul_mv_id & args,
++        constant ds4_metal_stream_expert_split_args & split,
++        device const uint64_t * addrs,
++        device const char * src1,
++        device       char * dst,
++        device const char * ids,
++        device       float * partial,
++        constant ds4_metal_sum6_part_args & part,
++        threadgroup  char * shmem [[threadgroup(0)]],
++        uint3  tgpig[[threadgroup_position_in_grid]],
++        uint3  gridsz[[threadgroups_per_grid]],
++        ushort tiitg[[thread_index_in_threadgroup]],
++        ushort tiisg[[thread_index_in_simdgroup]],
++        ushort sgitg[[simdgroup_index_in_threadgroup]]) {
++    const short NSG = FC_mul_mv_nsg;
++    const short nr0 = N_R0_Q2_K;
++    const int nb = args.ne00 / QK_K;
++    const int first_row = (tgpig.x * NSG + sgitg) * nr0;
++    const uint token = tgpig.y;
++    const uint gridsz_x = gridsz.x;
++    device const char *token_src1 = src1 + (uint64_t)token * args.nb12;
++    device const int32_t *token_ids =
++        (device const int32_t *)(ids + (uint64_t)token * args.nbi1);
++
++    float sumf[nr0] = {0.f};
++    /* One lane's running sums, where the part before this one left them.
++     * Indexed by the lane's place in the grid so the resume reads exactly
++     * what the same lane stored. */
++    device float *lane_partial = partial +
++        ((((uint64_t)token * gridsz_x + tgpig.x) * NSG + sgitg) * 32u + tiisg) * nr0;
++    if (part.load) {
++        for (short row = 0; row < nr0; row++) sumf[row] = lane_partial[row];
++    }
++
++    const short ix = tiisg / 8;
++    const short it = tiisg % 8;
++    const short iq = it / 4;
++    const short ir = it % 4;
++    const short is = (8 * ir) / 16;
++
++    for (int expert_slot = (int)part.slot_begin; expert_slot < (int)part.slot_end; expert_slot++) {
++        if ((split.active_mask & (1u << (uint)expert_slot)) == 0) {
++            continue;
++        }
++        const int32_t expert = token_ids[expert_slot];
++        if (expert < 0 || expert >= args.ne02 || expert >= 384) {
++            continue;
++        }
++        const uint64_t addr = addrs[(uint)expert];
++        if (addr == 0) {
++            continue;
++        }
++        device const char *src0_cur =
++            reinterpret_cast<device const char *>(addr);
++        device const block_q2_K *x =
++            (device const block_q2_K *)(src0_cur + first_row * args.nb01);
++        device const float *y = (device const float *)(token_src1 + expert_slot * args.nb11);
++        device const float *y4 = y + ix * QK_K + 128 * iq + 8 * ir;
++
++        for (int ib = ix; ib < nb; ib += 4) {
++            float yl[32];
++            float4 sumy = {0.f, 0.f, 0.f, 0.f};
++            for (short i = 0; i < 8; ++i) {
++                yl[i +  0] = y4[i +  0]; sumy[0] += yl[i +  0];
++                yl[i +  8] = y4[i + 32]; sumy[1] += yl[i +  8];
++                yl[i + 16] = y4[i + 64]; sumy[2] += yl[i + 16];
++                yl[i + 24] = y4[i + 96]; sumy[3] += yl[i + 24];
++            }
++
++            device const uint8_t  *sc = (device const uint8_t *)x[ib].scales + 8 * iq + is;
++            device const uint16_t *qs = (device const uint16_t *)x[ib].qs + 16 * iq + 4 * ir;
++            device const half     *dh = &x[ib].d;
++
++            for (short row = 0; row < nr0; row++) {
++                if (first_row + row < args.ne0) {
++                    float4 acc1 = {0.f, 0.f, 0.f, 0.f};
++                    float4 acc2 = {0.f, 0.f, 0.f, 0.f};
++                    for (int i = 0; i < 8; i += 2) {
++                        acc1[0] += yl[i +  0] * (qs[i / 2] & 0x0003);
++                        acc2[0] += yl[i +  1] * (qs[i / 2] & 0x0300);
++                        acc1[1] += yl[i +  8] * (qs[i / 2] & 0x000c);
++                        acc2[1] += yl[i +  9] * (qs[i / 2] & 0x0c00);
++                        acc1[2] += yl[i + 16] * (qs[i / 2] & 0x0030);
++                        acc2[2] += yl[i + 17] * (qs[i / 2] & 0x3000);
++                        acc1[3] += yl[i + 24] * (qs[i / 2] & 0x00c0);
++                        acc2[3] += yl[i + 25] * (qs[i / 2] & 0xc000);
++                    }
++                    float dall = dh[0];
++                    float dmin = dh[1] * 1.f / 16.f;
++                    sumf[row] += dall * ((acc1[0] + 1.f / 256.f * acc2[0]) * (sc[0] & 0xF) * 1.f /  1.f +
++                                         (acc1[1] + 1.f / 256.f * acc2[1]) * (sc[2] & 0xF) * 1.f /  4.f +
++                                         (acc1[2] + 1.f / 256.f * acc2[2]) * (sc[4] & 0xF) * 1.f / 16.f +
++                                         (acc1[3] + 1.f / 256.f * acc2[3]) * (sc[6] & 0xF) * 1.f / 64.f) -
++                                 dmin * (sumy[0] * (sc[0] & 0xF0) + sumy[1] * (sc[2] & 0xF0) +
++                                         sumy[2] * (sc[4] & 0xF0) + sumy[3] * (sc[6] & 0xF0));
++                }
++                qs += args.nb01 / 2;
++                sc += args.nb01;
++                dh += args.nb01 / 2;
++            }
++            y4 += 4 * QK_K;
++        }
++    }
++
++    if (part.store) {
++        for (short row = 0; row < nr0; row++) lane_partial[row] = sumf[row];
++        return;
++    }
++    device float * dst_f32 = (device float *)(dst + (uint64_t)token * args.nb1);
++    for (int row = 0; row < nr0 && first_row + row < args.ne0; row++) {
++        const float sum_all = simd_sum(sumf[row]);
++        if (tiisg == 0) {
++            if (split.accumulate) {
++                dst_f32[first_row + row] += sum_all;
++            } else {
++                dst_f32[first_row + row] = sum_all;
++            }
++        }
++    }
++
++    (void)shmem;
++    (void)tiitg;
++    (void)tgpig;
++}
++
+ static inline float2 ds4_mxfp4_accumulate_rows(
+         device const char *src0,
+         uint64_t row_bytes,

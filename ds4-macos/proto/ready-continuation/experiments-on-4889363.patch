@@ -1,0 +1,104 @@
+diff --git a/ds4.c b/ds4.c
+index 304c4d6..d1cb04c 100644
+--- a/ds4.c
++++ b/ds4.c
+@@ -43767,6 +43767,7 @@ static unsigned long long g_ready_routed_seen, g_ready_routed_expect, g_ready_ro
+ /* =5: per-arm token walls and the per-block differences, by block order. */
+ static double g_ready_arm_ms[2], g_ready_blk_sum[2], g_ready_blk_sq[2];
+ static unsigned long long g_ready_arm_n[2], g_ready_blk_n[2];
++static unsigned g_ready_blk_tokens = 4;
+ /* =5 workload by arm, so a wall difference can be told from a work one. */
+ static unsigned long long g_ready_arm_aborts[2], g_ready_arm_missing[2], g_ready_arm_resident[2],
+                           g_ready_arm_eligible[2], g_ready_arm_first[2][6], g_ready_arm_bytes[2];
+@@ -45400,10 +45401,10 @@ static int ds4_gate_report_cache(unsigned long long tokens, FILE *route_fp) {
+                 const double n = (double)g_ready_blk_n[o];
+                 const double mean = n ? g_ready_blk_sum[o] / n : 0.0;
+                 const double sd = n > 1 ? sqrt((g_ready_blk_sq[o] - n * mean * mean) / (n - 1)) : 0.0;
+-                (void)sd;
+                 fprintf(stderr, "ds4:   interleaved %s blocks: ready minus repair-first "
+-                        "%+.3f ms a token over %llu four-token blocks\n",
+-                        o ? "B-A-A-B" : "A-B-B-A", mean, g_ready_blk_n[o]);
++                        "%+.3f ms a token over %llu blocks of %u tokens (se %.3f)\n",
++                        o ? "B-A-A-B" : "A-B-B-A", mean, g_ready_blk_n[o],
++                        g_ready_blk_tokens, n > 1 ? sd / sqrt(n) : 0.0);
+             }
+             if (g_ready_win_n > 1) {
+                 const double n = (double)g_ready_win_n, mean = g_ready_win_sum / n;
+@@ -45606,11 +45607,21 @@ static bool ds41_graph_step_inner(ds41_gpu_graph *g, const ds4_model *m,
+      * paired measurement: the two schedules alternate token by token in one
+      * process, A-B-B-A and B-A-A-B blocks in turn, so the machine's drift is
+      * the same for both and each token keeps its own misses. */
+-    const bool ready_interleave = gate_ahead_env == 5;
++    /* =7 alternates by 64-token block instead, so whatever one schedule leaves
++     * behind for the tokens after it lands on one token in 64 rather than on
++     * the other arm. =6 issues the continuation as =2 does but joins the
++     * repair before the commit: the same split kernels and worker, with no
++     * wait on the GPU. */
++    const bool ready_interleave = gate_ahead_env == 5 || gate_ahead_env == 7;
++    const unsigned ready_shift = gate_ahead_env == 7 ? 6u : 0u;
+     static const int ready_pattern[2][4] = { { 0, 1, 1, 0 }, { 1, 0, 0, 1 } };
+     const int ready_arm = ready_interleave ?
+-        ready_pattern[(g_gate_tokens >> 2) & 1ull][g_gate_tokens & 3ull] : -1;
++        ready_pattern[(g_gate_tokens >> (ready_shift + 2u)) & 1ull]
++                     [(g_gate_tokens >> ready_shift) & 3ull] : -1;
++    const bool ready_nowait = gate_ahead_env == 6;
++    g_ready_blk_tokens = 4u << ready_shift;
+     const int ready_mode = ready_interleave ? ready_arm :
++                           ready_nowait ? 1 :
+                            gate_ahead_env >= 2 ? gate_ahead_env - 1 : 0;
+ 
+ #define ds41_gate_encode_ahead() (gate_ahead_env != 0)
+@@ -45931,6 +45942,20 @@ static bool ds41_graph_step_inner(ds41_gpu_graph *g, const ds4_model *m,
+              * every slot behind the aborting layer - including the next
+              * segment's, now that the slot cursor runs on across a token
+              * instead of rewinding between segments. */
++            if (ready_pending && ready_nowait) {
++                /* =6: the repair is done before the buffer goes out, so the
++                 * wait it carries is already satisfied when the GPU gets
++                 * there. */
++                extern int ds4_gpu_gate_repair_join(unsigned long long *bytes_loaded,
++                                                    double *repair_ms);
++                extern void ds4_gpu_ready_signal(uint64_t v, int ready);
++                const int rc = ds4_gpu_gate_repair_join(&g_gate_bytes, NULL);
++                ds4_gpu_ready_signal(ready_value, rc != 0);
++                ready_pending = false;
++                ready_mask = 0;
++                ready_value = 0;
++                if (!rc) { ok = false; break; }
++            }
+             const bool flushed = ds4_gpu_flush_commands();
+             if (ready_pending) {
+                 /* The continuation is on the GPU and waiting for these reads:
+@@ -46322,9 +46347,10 @@ spec_done:;
+                 win_ms[0] = win_ms[1] = 0.0;
+                 win_n[0] = win_n[1] = 0;
+             }
+-            if ((t & 3ull) == 3ull) {
+-                const int order = (int)((t >> 2) & 1ull);
+-                const double d = (blk[1] - blk[0]) / 2.0;
++            const unsigned long long span = 1ull << ready_shift;
++            if (((t >> ready_shift) & 3ull) == 3ull && (t & (span - 1ull)) == span - 1ull) {
++                const int order = (int)((t >> (ready_shift + 2u)) & 1ull);
++                const double d = (blk[1] - blk[0]) / (2.0 * (double)span);
+                 g_ready_blk_sum[order] += d;
+                 g_ready_blk_sq[order] += d * d;
+                 g_ready_blk_n[order]++;
+diff --git a/ds4_metal.m b/ds4_metal.m
+index 8bf835e..046f573 100644
+--- a/ds4_metal.m
++++ b/ds4_metal.m
+@@ -16411,7 +16411,13 @@ int ds4_gpu_gate_repair_async(const void *model_map, uint64_t model_size, uint32
+     if (g_async_repair.running || n_sel > 16u) return 0;
+     static dispatch_queue_t q;
+     if (!q) {
+-        q = dispatch_queue_create("ds4.gate.repair", DISPATCH_QUEUE_SERIAL);
++        /* The repair is on the critical path whether or not the GPU waits
++         * for it; a default-QoS queue put it behind other work and on the
++         * efficiency cores, where its slot preparation ran three times
++         * slower than on the decode thread. */
++        q = dispatch_queue_create("ds4.gate.repair",
++                dispatch_queue_attr_make_with_qos_class(DISPATCH_QUEUE_SERIAL,
++                                                        QOS_CLASS_USER_INTERACTIVE, 0));
+         g_async_repair_done = dispatch_semaphore_create(0);
+     }
+     g_async_repair.map = model_map; g_async_repair.size = model_size;
