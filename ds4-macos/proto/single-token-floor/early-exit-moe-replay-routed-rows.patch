@@ -1,0 +1,689 @@
+diff --git a/ds4.c b/ds4.c
+index 23344f1..c9f6bc1 100644
+--- a/ds4.c
++++ b/ds4.c
+@@ -43643,6 +43643,9 @@ static bool ds41_moe_experts_level(ds41_gpu_graph *g, const ds4_layer_weights *l
+  * and runs them again, which gives the same values. */
+ static struct { bool done; uint32_t il, pos; bool late[2]; } g_ds41_shared1;
+ 
++static int g_ds41_moe_rp;
++static ds4_gpu_tensor *g_ds41_rp_mid[64], *g_ds41_rp_routed[64], *g_ds41_rp_shared[64];
++static unsigned long long g_ds41_rp_counts[2];   /* replayed, nothing kept */
+ static bool ds41_moe_experts_overlapped(ds41_gpu_graph *g, const ds4_model *m,
+                                         const ds4_layer_weights *l, uint32_t il,
+                                         uint32_t l1_mask) {
+@@ -43712,16 +43715,55 @@ static bool ds41_moe_experts_overlapped(ds41_gpu_graph *g, const ds4_model *m,
+      * the match wrote. */
+     const bool no_routed = ds41_sabl_skip(DS41_SABL_ROUTED);
+     const bool no_shared = ds41_sabl_skip(DS41_SABL_SHARED);
+-    bool ok = (no_routed || ds41_moe_experts_level(g, l, il, 1u, NULL, 0u, NULL, l1_mask, 0u)) &&
+-              (no_shared || pre1 || ds41_moe_shared_stage(g, m, l, 1, late1));
++    /* MoE replay (abmoe:): 1 keeps each layer's routed mid, routed output and
++     * shared output; 2 leaves the routed gate/up out, 3 the routed down, 4
++     * both, 5 the shared expert, each reading what was kept; 6 runs all and
++     * adds one kept-output copy, the price of the copy the others need. */
++    const int rp = il < 64u && !no_routed && !no_shared && l1_mask == 0x3fu ? g_ds41_moe_rp : 0;
++    const bool rp_have = rp >= 2 && g_ds41_rp_mid[il] && g_ds41_rp_routed[il] && g_ds41_rp_shared[il];
++    const bool skip_gu = rp_have && (rp == 2 || rp == 4);
++    const bool skip_dn = rp_have && (rp == 3 || rp == 4);
++    const bool skip_sh = rp_have && rp == 5;
++    if (rp >= 2) g_ds41_rp_counts[rp_have ? 0 : 1]++;
++    bool ok = (no_routed || skip_gu ||
++               ds41_moe_experts_level(g, l, il, 1u, NULL, 0u, NULL, l1_mask, 0u)) &&
++              (no_shared || pre1 || skip_sh || ds41_moe_shared_stage(g, m, l, 1, late1));
+     if (s1) ds4_gpu_end_concurrent_section();
+-    ok = ok && (no_shared || (ds41_moe_shared_round(g, l, 1, late1) &&
++    ok = ok && (no_shared || skip_sh || (ds41_moe_shared_round(g, l, 1, late1) &&
+                               ds41_moe_shared_stage(g, m, l, 2, NULL)));
++    if (ok && skip_gu && !skip_dn)
++        ok = ds4_gpu_tensor_copy(g->mid, 0, g_ds41_rp_mid[il], 0, ds4_gpu_tensor_bytes(g->mid));
+     const bool s2 = ok && ds4_gpu_begin_concurrent_section() != 0;
+-    ok = ok && (no_routed || ds41_moe_experts_level(g, l, il, 2u, NULL, 0u, NULL, 0x3fu, 0u)) &&
+-               (no_shared || ds41_moe_shared_stage(g, m, l, 3, late3));
++    ok = ok && (no_routed || skip_dn ||
++                ds41_moe_experts_level(g, l, il, 2u, NULL, 0u, NULL, 0x3fu, 0u)) &&
++               (no_shared || skip_sh || ds41_moe_shared_stage(g, m, l, 3, late3));
+     if (s2) ds4_gpu_end_concurrent_section();
+-    ok = ok && (no_shared || ds41_moe_shared_round(g, l, 3, late3));
++    ok = ok && (no_shared || skip_sh || ds41_moe_shared_round(g, l, 3, late3));
++    const uint64_t row = (uint64_t)DS4_N_EMBD * sizeof(float);
++    if (ok && skip_dn) ok = ds4_gpu_tensor_copy(g->routed, 0, g_ds41_rp_routed[il], 0, row);
++    if (ok && skip_sh) ok = ds4_gpu_tensor_copy(g->shared, 0, g_ds41_rp_shared[il], 0, row);
++    if (ok && rp == 1) {
++        const uint64_t mb = ds4_gpu_tensor_bytes(g->mid);
++        if (!g_ds41_rp_mid[il]) g_ds41_rp_mid[il] = ds4_gpu_tensor_alloc(mb);
++        if (!g_ds41_rp_routed[il]) g_ds41_rp_routed[il] = ds4_gpu_tensor_alloc(row);
++        if (!g_ds41_rp_shared[il]) g_ds41_rp_shared[il] = ds4_gpu_tensor_alloc(row);
++        ok = g_ds41_rp_mid[il] && g_ds41_rp_routed[il] && g_ds41_rp_shared[il] &&
++             ds4_gpu_tensor_copy(g_ds41_rp_mid[il], 0, g->mid, 0, mb) &&
++             ds4_gpu_tensor_copy(g_ds41_rp_routed[il], 0, g->routed, 0, row) &&
++             ds4_gpu_tensor_copy(g_ds41_rp_shared[il], 0, g->shared, 0, row);
++    }
++    if (ok && rp == 7 && g_ds41_rp_mid[il] && g_ds41_rp_routed[il]) {
++        /* Check pass: this arm's routed mid and output against the kept
++         * pass's, word by word, in the transition compare's slots 6 and 7. */
++        ok = ds4_gpu_dsv41_words_compare(g->mid, g_ds41_rp_mid[il],
++                                         (uint32_t)(ds4_gpu_tensor_bytes(g->mid) / 4u), 6) &&
++             ds4_gpu_dsv41_words_compare(g->routed, g_ds41_rp_routed[il], DS4_N_EMBD, 7);
++    }
++    if (ok && rp == 6 && rp_have) {
++        static ds4_gpu_tensor *sink;
++        if (!sink) sink = ds4_gpu_tensor_alloc(row);
++        ok = sink && ds4_gpu_tensor_copy(sink, 0, g_ds41_rp_routed[il], 0, row);
++    }
+     return ok &&
+         ds41_sabl_seam(DS41_SABL_ROUTED, &g_ds41_sabl_routed[il], g->routed,
+                        (uint64_t)DS4_N_EMBD * sizeof(float)) &&
+@@ -45242,6 +45284,25 @@ static int ds4_gate_report_cache(unsigned long long tokens, FILE *route_fp) {
+     return 0;
+ }
+ 
++/* DS4_METAL_V41_GATE_TRACE=x:<l1,l2,...> - early exit, measured: after each
++ * listed layer (1-based count of layers done), the head is applied to the
++ * residual as it stands and its argmax kept; at the end of the step each is
++ * compared with the step's own argmax. How often a shallow stack names the
++ * same next token is the most a self-draft from that depth could accept.
++ * The step drains at each probe, so this is a measurement, not a path. */
++static uint32_t g_exit_layers[8], g_exit_n = 0xffffffffu;
++static int g_exit_pred[8];
++static unsigned long long g_exit_same[8], g_exit_steps;
++static void ds41_exit_parse(void) {
++    if (g_exit_n != 0xffffffffu) return;
++    g_exit_n = 0;
++    const char *e = getenv("DS4_METAL_V41_GATE_TRACE");
++    if (!e || strncmp(e, "x:", 2)) return;
++    for (const char *p = e + 2; *p && g_exit_n < 8; ) {
++        g_exit_layers[g_exit_n++] = (uint32_t)strtoul(p, (char **)&p, 10);
++        if (*p == ',') p++; else break;
++    }
++}
+ static bool ds41_graph_step_inner(ds41_gpu_graph *g, const ds4_model *m,
+                                   const ds4_weights *w, int token, float *logits);
+ 
+@@ -45938,6 +45999,15 @@ spec_done:;
+ #ifdef __APPLE__
+         if (ok) ds41_gate_trace(g, il, "out");
+         if (ok) ds41_route_predict_layer(g, m, w, il, (uint32_t)token);
++        ds41_exit_parse();
++        for (uint32_t x = 0; ok && x < g_exit_n; x++) {
++            if (g_exit_layers[x] != il + 1u) continue;
++            static float *xl;
++            if (!xl) xl = xmalloc((size_t)DS4_N_VOCAB * sizeof(float));
++            ok = ds4_gpu_end_commands() && ds41_graph_logits(g, m, w, xl) &&
++                 ds4_gpu_begin_commands();
++            g_exit_pred[x] = ok ? sample_argmax(xl, DS4_N_VOCAB) : -1;
++        }
+ #endif
+         if (v41_prof && il == 20u) v41_cb_layer = ds4_gpu_cb_finished() - v41_cb_before;
+         /* TP gates already submit ordered, bounded command buffers. Drain
+@@ -45970,6 +46040,22 @@ spec_done:;
+     const double gt_tail0 = now_sec();
+ #endif
+     if (ok && logits) ok = ds41_graph_logits(g, m, w, logits);
++#ifdef __APPLE__
++    if (ok && logits && g_exit_n && g_exit_n != 0xffffffffu) {
++        const int final = sample_argmax(logits, DS4_N_VOCAB);
++        g_exit_steps++;
++        for (uint32_t x = 0; x < g_exit_n; x++)
++            if (g_exit_pred[x] == final) g_exit_same[x]++;
++        if (g_exit_steps % 64ull == 0ull) {
++            fprintf(stderr, "ds4: early exit over %llu steps, same argmax as the full stack:",
++                    g_exit_steps);
++            for (uint32_t x = 0; x < g_exit_n; x++)
++                fprintf(stderr, " after %u layers %.1f%%", g_exit_layers[x],
++                        100.0 * (double)g_exit_same[x] / (double)g_exit_steps);
++            fputc('\n', stderr);
++        }
++    }
++#endif
+ #ifdef __APPLE__
+     if (gate_n > gate_lo) {
+         g_gt_tail_ms += (now_sec() - gt_tail0) * 1000.0;
+@@ -90202,11 +90288,202 @@ done:
+     free(lg); free(carry);
+ }
+ 
++/* abmoe:<tokens> - the MoE's counterfactual replay in one process: an untimed
++ * pass keeps each layer's routed mid, routed output and shared output, then
++ * the arms leave one part out and read what was kept, forward on even tokens
++ * and backward on odd ones, each arm's logits compared in full with the kept
++ * pass's. The last arm runs everything plus one copy, the price of the copy
++ * the other arms need. */
++static void ds41_moe_rp_multi(ds4_session *seed, const ds4_model *m, const ds4_weights *w,
++                              long n) {
++    enum { WARM = 4, ARMS = 6 };
++    static const int mode[ARMS] = { 0, 2, 3, 4, 5, 6 };
++    static const char *name[ARMS] = {
++        "control (all run)              ", "routed gate/up left out (+copy)",
++        "routed down left out (+copy)   ", "routed both left out (+copy)   ",
++        "shared expert left out (+copy) ", "control plus one copy          " };
++    ds4_engine *e = seed->engine;
++    ds4_tokens prompt = { .v = seed->checkpoint.v, .len = seed->checkpoint.len,
++                          .cap = seed->checkpoint.cap };
++    ds4_session *s = NULL;
++    float *lg = malloc((size_t)DS4_N_VOCAB * sizeof(float));
++    float *ref = malloc((size_t)DS4_N_VOCAB * sizeof(float));
++    float *carry = malloc((size_t)3u * 2u * 512u * sizeof(float));
++    double ms[ARMS] = {0}, oms[2][ARMS] = {{0}}, ctl[512];
++    long runs[ARMS] = {0}, oruns[2][ARMS] = {{0}}, differ[ARMS] = {0}, ctl_n = 0;
++    unsigned long long cnt[ARMS][2] = {{0}};
++    if (!lg || !ref || !carry || n < 1 ||
++        !ds41_txn_prefill(&s, e, &prompt, seed->ctx_size, "moe replay")) goto done;
++    ds41_gpu_graph *g = &s->ds41_graph;
++    int token = sample_argmax(s->logits, DS4_N_VOCAB);
++    for (long t = 0; t < n; t++) {
++        const uint32_t pos0 = g->pos;
++        const ds4_engram_history hist0 = g->history;
++        if (!ds4_gpu_synchronize()) goto done;
++        for (uint32_t ci = 0; ci < 3; ci++)
++            if (!ds4_gpu_tensor_read(g->previous_kv[ci], 0, carry + (size_t)ci * 1024u, 2048u) ||
++                !ds4_gpu_tensor_read(g->previous_score[ci], 0, carry + (size_t)ci * 1024u + 512u, 2048u))
++                goto done;
++        for (int a = -1; a < ARMS; a++) {
++            const int arm = a < 0 ? 0 : (t & 1) ? ARMS - 1 - a : a;
++            g->pos = pos0; g->history = hist0; g->valid = true;
++            (void)ds4_gpu_synchronize();
++            for (uint32_t ci = 0; ci < 3; ci++) {
++                (void)ds4_gpu_tensor_write(g->previous_kv[ci], 0, carry + (size_t)ci * 1024u, 2048u);
++                (void)ds4_gpu_tensor_write(g->previous_score[ci], 0, carry + (size_t)ci * 1024u + 512u, 2048u);
++            }
++            g_ds41_moe_rp = a < 0 ? 1 : mode[arm];
++            const unsigned long long c0 = g_ds41_rp_counts[0], c1 = g_ds41_rp_counts[1];
++            const double t0 = now_sec();
++            const bool ok = ds41_graph_step(g, m, w, token, lg);
++            const double dt = (now_sec() - t0) * 1e3;
++            if (!ok) goto done;
++            if (a < 0) { memcpy(ref, lg, (size_t)DS4_N_VOCAB * sizeof(float)); continue; }
++            if (memcmp(ref, lg, (size_t)DS4_N_VOCAB * sizeof(float)) != 0) differ[arm]++;
++            if (t >= WARM) {
++                ms[arm] += dt; runs[arm]++;
++                oms[t & 1][arm] += dt; oruns[t & 1][arm]++;
++                cnt[arm][0] += g_ds41_rp_counts[0] - c0;
++                cnt[arm][1] += g_ds41_rp_counts[1] - c1;
++                if (arm == 0 && ctl_n < 512) ctl[ctl_n++] = dt;
++            }
++        }
++        g_ds41_moe_rp = 0;
++        token = sample_argmax(lg, DS4_N_VOCAB);
++    }
++    {
++        double f = 0, l = 0;
++        const long k = ctl_n >= 8 ? 4 : ctl_n / 2;
++        for (long i = 0; i < k; i++) { f += ctl[i]; l += ctl[ctl_n - 1 - i]; }
++        fprintf(stderr, "ds4: MoE replay from position %d over %ld tokens; control first %ld "
++                "steps %.2f ms, last %ld %.2f ms\n", prompt.len, n, k, k ? f / k : 0.0, k,
++                k ? l / k : 0.0);
++    }
++    for (int arm = 0; arm < ARMS; arm++) {
++        const double r = runs[arm] ? (double)runs[arm] : 1.0;
++        const double f0 = oruns[0][0] ? oms[0][0] / oruns[0][0] : 0.0;
++        const double b0 = oruns[1][0] ? oms[1][0] / oruns[1][0] : 0.0;
++        const double fa = oruns[0][arm] ? oms[0][arm] / oruns[0][arm] : 0.0;
++        const double ba = oruns[1][arm] ? oms[1][arm] / oruns[1][arm] : 0.0;
++        fprintf(stderr, "ds4:   %s %.2f ms a step (minus control %+.2f: forward %+.2f, "
++                "backward %+.2f); a step %.1f layers replayed, %.1f with nothing kept; "
++                "logits differed %ld of %ld\n", name[arm], ms[arm] / r,
++                ms[arm] / r - (runs[0] ? ms[0] / runs[0] : 0.0), fa - f0, ba - b0,
++                cnt[arm][0] / r, cnt[arm][1] / r, differ[arm], n);
++    }
++done:
++    g_ds41_moe_rp = 0;
++    if (s) ds4_session_free(s);
++    free(lg); free(ref); free(carry);
++}
++
++/* abrows:<tokens> - the routed gate/up and down with 4, 8 or 16 rows to a
++ * simdgroup, in one process. Per token an untimed pass keeps each layer's
++ * routed mid and output with the shipping kernels; one untimed check pass per
++ * arm compares its mid and output with those word by word on the GPU; then
++ * the arms are timed forward on even tokens and backward on odd ones, logits
++ * compared in full with the kept pass's. */
++extern void ds4_gpu_set_routed_rows(uint32_t gate_up, uint32_t down);
++extern void ds4_gpu_dsv41_compare_counts(uint32_t out[16]);
++static void ds41_routed_rows_ab(ds4_session *seed, const ds4_model *m, const ds4_weights *w,
++                                long n) {
++    enum { WARM = 4, ARMS = 6 };
++    static const uint32_t gu[ARMS] = { 0, 8, 16, 0, 8, 16 };
++    static const uint32_t dn[ARMS] = { 0, 0, 0, 8, 8, 16 };
++    ds4_engine *e = seed->engine;
++    ds4_tokens prompt = { .v = seed->checkpoint.v, .len = seed->checkpoint.len,
++                          .cap = seed->checkpoint.cap };
++    ds4_session *s = NULL;
++    float *lg = malloc((size_t)DS4_N_VOCAB * sizeof(float));
++    float *ref = malloc((size_t)DS4_N_VOCAB * sizeof(float));
++    float *carry = malloc((size_t)3u * 2u * 512u * sizeof(float));
++    double ms[ARMS] = {0}, oms[2][ARMS] = {{0}}, ctl[512];
++    long runs[ARMS] = {0}, oruns[2][ARMS] = {{0}}, differ[ARMS] = {0}, ctl_n = 0;
++    unsigned long long wdiff[ARMS][2] = {{0}}, checks[ARMS] = {0};
++    if (!lg || !ref || !carry || n < 1 ||
++        !ds41_txn_prefill(&s, e, &prompt, seed->ctx_size, "routed rows")) goto done;
++    ds41_gpu_graph *g = &s->ds41_graph;
++    int token = sample_argmax(s->logits, DS4_N_VOCAB);
++    for (long t = 0; t < n; t++) {
++        const uint32_t pos0 = g->pos;
++        const ds4_engram_history hist0 = g->history;
++        if (!ds4_gpu_synchronize()) goto done;
++        for (uint32_t ci = 0; ci < 3; ci++)
++            if (!ds4_gpu_tensor_read(g->previous_kv[ci], 0, carry + (size_t)ci * 1024u, 2048u) ||
++                !ds4_gpu_tensor_read(g->previous_score[ci], 0, carry + (size_t)ci * 1024u + 512u, 2048u))
++                goto done;
++        /* -ARMS keeps, -ARMS+1..-1 check arms 1..ARMS-1, then the timed arms */
++        for (int a = -ARMS; a < ARMS; a++) {
++            const bool keep = a == -ARMS, check = a > -ARMS && a < 0;
++            const int arm = keep ? 0 : check ? a + ARMS : (t & 1) ? ARMS - 1 - a : a;
++            g->pos = pos0; g->history = hist0; g->valid = true;
++            (void)ds4_gpu_synchronize();
++            for (uint32_t ci = 0; ci < 3; ci++) {
++                (void)ds4_gpu_tensor_write(g->previous_kv[ci], 0, carry + (size_t)ci * 1024u, 2048u);
++                (void)ds4_gpu_tensor_write(g->previous_score[ci], 0, carry + (size_t)ci * 1024u + 512u, 2048u);
++            }
++            g_ds41_moe_rp = keep ? 1 : check ? 7 : 0;
++            ds4_gpu_set_routed_rows(gu[arm], dn[arm]);
++            uint32_t c0[16], c1[16];
++            ds4_gpu_dsv41_compare_counts(c0);
++            const double t0 = now_sec();
++            const bool ok = ds41_graph_step(g, m, w, token, lg);
++            const double dt = (now_sec() - t0) * 1e3;
++            if (!ok) goto done;
++            if (keep) { memcpy(ref, lg, (size_t)DS4_N_VOCAB * sizeof(float)); continue; }
++            if (memcmp(ref, lg, (size_t)DS4_N_VOCAB * sizeof(float)) != 0) differ[arm]++;
++            if (check) {
++                ds4_gpu_dsv41_compare_counts(c1);
++                wdiff[arm][0] += c1[6] - c0[6];
++                wdiff[arm][1] += c1[7] - c0[7];
++                checks[arm]++;
++                continue;
++            }
++            if (t >= WARM) {
++                ms[arm] += dt; runs[arm]++;
++                oms[t & 1][arm] += dt; oruns[t & 1][arm]++;
++                if (arm == 0 && ctl_n < 512) ctl[ctl_n++] = dt;
++            }
++        }
++        g_ds41_moe_rp = 0;
++        ds4_gpu_set_routed_rows(0, 0);
++        token = sample_argmax(lg, DS4_N_VOCAB);
++    }
++    {
++        double f = 0, l = 0;
++        const long k = ctl_n >= 8 ? 4 : ctl_n / 2;
++        for (long i = 0; i < k; i++) { f += ctl[i]; l += ctl[ctl_n - 1 - i]; }
++        fprintf(stderr, "ds4: routed rows from position %d over %ld tokens; control first %ld "
++                "steps %.2f ms, last %ld %.2f ms\n", prompt.len, n, k, k ? f / k : 0.0, k,
++                k ? l / k : 0.0);
++    }
++    for (int arm = 0; arm < ARMS; arm++) {
++        const double r = runs[arm] ? (double)runs[arm] : 1.0;
++        const double f0 = oruns[0][0] ? oms[0][0] / oruns[0][0] : 0.0;
++        const double b0 = oruns[1][0] ? oms[1][0] / oruns[1][0] : 0.0;
++        const double fa = oruns[0][arm] ? oms[0][arm] / oruns[0][arm] : 0.0;
++        const double ba = oruns[1][arm] ? oms[1][arm] / oruns[1][arm] : 0.0;
++        fprintf(stderr, "ds4:   gate/up %2u rows, down %2u rows: %.2f ms a step (minus control "
++                "%+.2f: forward %+.2f, backward %+.2f); logits differed %ld of %ld; check "
++                "passes %llu, mid words differing %llu, output words differing %llu\n",
++                gu[arm] ? gu[arm] : 4u, dn[arm] ? dn[arm] : 4u, ms[arm] / r,
++                ms[arm] / r - (runs[0] ? ms[0] / runs[0] : 0.0), fa - f0, ba - b0,
++                differ[arm], arm ? 2 * n : n, checks[arm], wdiff[arm][0], wdiff[arm][1]);
++    }
++done:
++    g_ds41_moe_rp = 0;
++    ds4_gpu_set_routed_rows(0, 0);
++    if (s) ds4_session_free(s);
++    free(lg); free(ref); free(carry);
++}
++
+ static void ds41_oracle_block_bench(ds4_session *s, const ds4_model *m,
+                                     const ds4_weights *w) {
+     const char *env = getenv("DS4_V41_ORACLE_BLOCK");
+     if (env && !strncmp(env, "abrouter:", 9)) { ds41_router_ab(s, m, w, atol(env + 9), false); return; }
+     if (env && !strncmp(env, "abpkg:", 6)) { ds41_router_ab(s, m, w, atol(env + 6), true); return; }
++    if (env && !strncmp(env, "abmoe:", 6)) { ds41_moe_rp_multi(s, m, w, atol(env + 6)); return; }
++    if (env && !strncmp(env, "abrows:", 7)) { ds41_routed_rows_ab(s, m, w, atol(env + 7)); return; }
+     if (env && !strncmp(env, "abenc:", 6)) {
+         g_ds41_ab_encoder = 1;
+         ds41_router_ab(s, m, w, atol(env + 6), true);
+diff --git a/ds4_metal.m b/ds4_metal.m
+index 32983b8..84193f7 100644
+--- a/ds4_metal.m
++++ b/ds4_metal.m
+@@ -44833,6 +44833,12 @@ int ds4_gpu_gate_active_for_layer(uint32_t il) {
+  * So: two masked passes over the live table and nothing else. No service
+  * thread, no shared event, no repair pass, no snapshot.
+  */
++static uint32_t g_routed_nr_gu, g_routed_nr_dn;
++void ds4_gpu_set_routed_rows(uint32_t gate_up, uint32_t down) {
++    g_routed_nr_gu = gate_up;
++    g_routed_nr_dn = down;
++}
++
+ static int ds4_gpu_routed_moe_one_gated(
+         ds4_gpu_tensor *out, ds4_gpu_tensor *gate, ds4_gpu_tensor *up,
+         ds4_gpu_tensor *mid, uint32_t gate_type, uint32_t down_type,
+@@ -44880,9 +44886,26 @@ static int ds4_gpu_routed_moe_one_gated(
+     const NSUInteger wbuf_off =
+         spec ? 0u : ds4_gpu_tensor_offset((ds4_gpu_tensor *)weights);
+     if (!xbuf || !gatebuf || !upbuf || !midbuf || !outbuf || !selbuf || !wbuf) return 0;
+-    const uint32_t gate_nr0 = ds4_gpu_routed_mv_nr0(gate_type);
+-    const uint32_t down_nr0 = ds4_gpu_routed_mv_nr0(down_type);
++    /* Rows to a simdgroup (ds4_gpu_set_routed_rows): 8 or 16 instead of 4,
++     * through the _r8/_r16 kernels, which do each row's arithmetic the four-
++     * row kernels' way. */
++    const uint32_t gate_nr0 = g_routed_nr_gu ? g_routed_nr_gu : ds4_gpu_routed_mv_nr0(gate_type);
++    const uint32_t down_nr0 = g_routed_nr_dn ? g_routed_nr_dn : ds4_gpu_routed_mv_nr0(down_type);
+     if (!gate_nr0 || !down_nr0) return 0;
++    id<MTLComputePipelineState> gu_pipe = g_moe_mul_mv_addr_iq2_xxs_pair_swiglu_masked_pipeline;
++    id<MTLComputePipelineState> dn_pipe = g_moe_mul_mv_addr_q2_k_sum6_masked_pipeline;
++    if (g_routed_nr_gu == 8u || g_routed_nr_gu == 16u) {
++        gu_pipe = ds4_gpu_get_mul_mv_pipeline(g_routed_nr_gu == 8u ?
++            "kernel_mul_mv_addr_iq2_xxs_pair_swiglu_masked_r8_f32" :
++            "kernel_mul_mv_addr_iq2_xxs_pair_swiglu_masked_r16_f32", 2);
++        if (!gu_pipe) return 0;
++    }
++    if (g_routed_nr_dn == 8u || g_routed_nr_dn == 16u) {
++        dn_pipe = ds4_gpu_get_mul_mv_pipeline(g_routed_nr_dn == 8u ?
++            "kernel_mul_mv_addr_q2_K_sum6_masked_r8_f32" :
++            "kernel_mul_mv_addr_q2_K_sum6_masked_r16_f32", 2);
++        if (!dn_pipe) return 0;
++    }
+     ds4_gpu_mul_mv_id_args gate_args =
+         ds4_gpu_make_mul_mv_id_args(expert_in_dim, expert_mid_dim, n_total_expert,
+                                     gate_row_bytes, gate_expert_bytes, 1, n_expert, 1, gate_nr0);
+@@ -44922,14 +44945,14 @@ static int ds4_gpu_routed_moe_one_gated(
+     if ((which & 1u) && !spec)
+     for (int sh = 0; sh < shadow_gate; sh++)
+         if (!ds4_gpu_encode_mul_mv_addr_iq2_pair_swiglu_masked(
+-                g_batch_cb, g_moe_mul_mv_addr_iq2_xxs_pair_swiglu_masked_pipeline,
++                g_batch_cb, gu_pipe,
+                 &gate_args, &act_args, &all_lanes, NULL, table_gate, table_up,
+                 xbuf, ds4_gpu_tensor_offset(x), gatebuf, ds4_gpu_tensor_offset(gate),
+                 upbuf, ds4_gpu_tensor_offset(up), midbuf, ds4_gpu_tensor_offset(mid),
+                 selbuf, sel_off, wbuf, wbuf_off,
+                 ds4_gpu_routed_mv_smem(gate_type), 2, false)) return 0;
+     if ((which & 1u) && !ds4_gpu_encode_mul_mv_addr_iq2_pair_swiglu_masked(
+-            g_batch_cb, g_moe_mul_mv_addr_iq2_xxs_pair_swiglu_masked_pipeline,
++            g_batch_cb, gu_pipe,
+             &gate_args, &act_args, &all_lanes, NULL, table_gate, table_up,
+             xbuf, ds4_gpu_tensor_offset(x), gatebuf, ds4_gpu_tensor_offset(gate),
+             upbuf, ds4_gpu_tensor_offset(up), midbuf, ds4_gpu_tensor_offset(mid),
+@@ -44939,13 +44962,13 @@ static int ds4_gpu_routed_moe_one_gated(
+     if (which & 2u)
+     for (int sh = 0; sh < shadow_down; sh++)
+         if (!ds4_gpu_encode_mul_mv_addr_q2_sum6_masked(
+-                g_batch_cb, g_moe_mul_mv_addr_q2_k_sum6_masked_pipeline,
++                g_batch_cb, dn_pipe,
+                 &down_args, &all_lanes, NULL, table_down,
+                 midbuf, ds4_gpu_tensor_offset(mid), outbuf, ds4_gpu_tensor_offset(out),
+                 selbuf, sel_off,
+                 ds4_gpu_routed_mv_smem(down_type), 2)) return 0;
+     if ((which & 2u) && !ds4_gpu_encode_mul_mv_addr_q2_sum6_masked(
+-            g_batch_cb, g_moe_mul_mv_addr_q2_k_sum6_masked_pipeline,
++            g_batch_cb, dn_pipe,
+             &down_args, &all_lanes, NULL, table_down,
+             midbuf, ds4_gpu_tensor_offset(mid), outbuf, ds4_gpu_tensor_offset(out),
+             selbuf, sel_off,
+diff --git a/metal/moe.metal b/metal/moe.metal
+index 653adf0..7354a7f 100644
+--- a/metal/moe.metal
++++ b/metal/moe.metal
+@@ -7065,6 +7065,261 @@ kernel void kernel_mul_mv_addr_q2_K_sum6_masked_f32(
+     (void)tgpig;
+ }
+ 
++// The routed gate/up pair and the masked down with more rows to a simdgroup.
++// A row's arithmetic is the four-row kernels': the same blocks in the same
++// order into the same per-lane sums, the same simd_sum. What changes is how
++// many rows share one load of the activations and of the IQ2 grid tables, and
++// how many threadgroups a layer launches. The shipping kernels stay as they
++// are; these are separate names.
++template<short NR>
++kernel void kernel_mul_mv_addr_iq2_xxs_pair_swiglu_masked_rn(
++        constant ds4_metal_args_mul_mv_id & args,
++        constant ds4_metal_dsv4_moe_swiglu_weight_args & act,
++        constant ds4_metal_stream_expert_split_args & split,
++        device const uint64_t * gate_addrs,
++        device const uint64_t * up_addrs,
++        device const char * src1,
++        device       char * dst_gate,
++        device       char * dst_up,
++        device       char * dst_mid,
++        device const char * ids,
++        device const char * weights,
++        device const uint32_t * lane_mask,
++        device atomic_uint * spec_counts,
++        threadgroup  char * shmem [[threadgroup(0)]],
++        uint3  tgpig[[threadgroup_position_in_grid]],
++        ushort tiitg[[thread_index_in_threadgroup]],
++        ushort tiisg[[thread_index_in_simdgroup]],
++        ushort sgitg[[simdgroup_index_in_threadgroup]]) {
++    const int iid1 = tgpig.z / args.nei0;
++    const int idx  = tgpig.z % args.nei0;
++    /* Which lanes to compute is usually settled on the host, but a pass that
++     * only fills in what a speculation did not match cannot be: the match is
++     * decided on the GPU, while this dispatch is already encoded. All ones
++     * says every lane runs and the buffer says which of them already have
++     * their gate and up rows - those skip the GEMV and go straight to the
++     * activation, which is the whole point of cutting the seam there: the
++     * expression below runs for every lane, wherever its inputs came from. */
++    const bool after_spec = split.active_mask == 0xffffffffu;
++    const uint32_t mask = after_spec ? 0x3fu : split.active_mask;
++    if ((mask & (1u << (uint)idx)) == 0) {
++        return;
++    }
++    const bool reused = after_spec && ((lane_mask[act.mask_slot] >> (uint)idx) & 1u) != 0u;
++
++    tgpig.z = 0;
++
++    const int64_t i12 = iid1;
++    device char *dst_gate_cur = dst_gate + (idx * args.ne0 + i12 * args.ne1 * args.ne0) * sizeof(float);
++    device char *dst_up_cur   = dst_up   + (idx * args.ne0 + i12 * args.ne1 * args.ne0) * sizeof(float);
++
++    /* A reused lane's gate and up rows were written by the match from a
++     * speculation that ran this same GEMV over this same expert and input,
++     * so everything below reads them exactly as if this dispatch had - and
++     * nothing above is needed. Reading the address table would be worse than
++     * wasteful here: a continuation runs after gate_repair, which may have
++     * evicted an expert this lane no longer needs, and an early return on a
++     * null address would leave mid unwritten. */
++    if (!reused) {
++        const int32_t i02 = ((device const int32_t *)(ids + iid1 * args.nbi1))[idx];
++        if (i02 < 0 || i02 >= args.ne02 || i02 >= 384) {
++            return;
++        }
++        const uint64_t gate_addr = gate_addrs[(uint)i02];
++        const uint64_t up_addr = up_addrs[(uint)i02];
++        if (gate_addr == 0 || up_addr == 0) {
++            return;
++        }
++
++        const int64_t i11 = idx % args.ne11;
++        device const char *src0_gate_cur =
++            reinterpret_cast<device const char *>(gate_addr);
++        device const char *src0_up_cur =
++            reinterpret_cast<device const char *>(up_addr);
++        device const char *src1_cur = src1 + i11 * args.nb11 + i12 * args.nb12;
++
++        ds4_metal_args_mul_mv args0 = {
++            args.ne00, args.ne01, 1,
++            args.nb00, args.nb01, args.nb02, args.nb02,
++            args.ne10, 1, 1,
++            args.nb10, args.nb11, args.nb12, args.nb12,
++            args.ne0, 1, args.nr0, 1, 1,
++        };
++
++        kernel_mul_mv_iq2_xxs_pair_f32_impl<NR>(
++                args0,
++                src0_gate_cur,
++                src0_up_cur,
++                src1_cur,
++                dst_gate_cur,
++                dst_up_cur,
++                shmem,
++                tgpig,
++                tiisg,
++                sgitg);
++    } else if (tgpig.x == 0 && sgitg == 0 && tiisg == 0) {
++        /* A GEMV this dispatch did not have to do, counted where it was
++         * actually avoided. A lane the match copied is not yet a lane saved:
++         * if the layer aborts, the pass that would have consumed it is
++         * switched off and the continuation recomputes it. */
++        atomic_fetch_add_explicit(spec_counts + 7, 1u, memory_order_relaxed);
++    }
++
++    const short NSG = FC_mul_mv_nsg;
++    const int first_row = (tgpig.x * NSG + sgitg) * NR;
++    device float *gate_f32 = (device float *)dst_gate_cur;
++    device float *up_f32 = (device float *)dst_up_cur;
++    const uint64_t pair_row = (uint64_t)i12 * (uint64_t)args.nei0 + (uint64_t)idx;
++    device float *mid_f32 = (device float *)(dst_mid + pair_row * act.mid_row_stride);
++    const float c = act.clamp_value;
++    /* A speculation is encoded beside the router that writes route_weights:
++     * it may not read them, and it is not even bound to them. What it writes
++     * to mid is thrown away - what it is run for is gate and up - so it
++     * multiplies by one. The expression itself is untouched, and has to be:
++     * the whole chain from the division to the weight is one rounding under
++     * fast math, and splitting it is what cost this a byte comparison. */
++    float route_weight = 1.0f;
++    if (!act.defer_weight) {
++        device const float *route_w =
++            (device const float *)(weights + pair_row * act.weight_stride);
++        route_weight = route_w[0];
++    }
++
++    if (tiisg == 0) {
++        for (int row = 0; row < NR && first_row + row < args.ne0; ++row) {
++            const uint out_row = first_row + row;
++            float g = gate_f32[out_row];
++            float u = up_f32[out_row];
++            if (c > 1.0e-6f) {
++                g = min(g, c);
++                u = clamp(u, -c, c);
++            }
++            const float silu = g / (1.0f + exp(-g));
++            mid_f32[out_row] = silu * u * route_weight;
++        }
++    }
++
++    (void)tiitg;
++}
++
++template<short NR>
++kernel void kernel_mul_mv_addr_q2_K_sum6_masked_rn(
++        constant ds4_metal_args_mul_mv_id & args,
++        constant ds4_metal_stream_expert_split_args & split,
++        device const uint64_t * addrs,
++        device const char * src1,
++        device       char * dst,
++        device const char * ids,
++        threadgroup  char * shmem [[threadgroup(0)]],
++        uint3  tgpig[[threadgroup_position_in_grid]],
++        ushort tiitg[[thread_index_in_threadgroup]],
++        ushort tiisg[[thread_index_in_simdgroup]],
++        ushort sgitg[[simdgroup_index_in_threadgroup]]) {
++    const short NSG = FC_mul_mv_nsg;
++    const short nr0 = NR;
++    const int nb = args.ne00 / QK_K;
++    const int first_row = (tgpig.x * NSG + sgitg) * nr0;
++    const uint token = tgpig.y;
++    device const char *token_src1 = src1 + (uint64_t)token * args.nb12;
++    device const int32_t *token_ids =
++        (device const int32_t *)(ids + (uint64_t)token * args.nbi1);
++
++    float sumf[nr0] = {0.f};
++
++    const short ix = tiisg / 8;
++    const short it = tiisg % 8;
++    const short iq = it / 4;
++    const short ir = it % 4;
++    const short is = (8 * ir) / 16;
++
++    for (int expert_slot = 0; expert_slot < 6; expert_slot++) {
++        if ((split.active_mask & (1u << (uint)expert_slot)) == 0) {
++            continue;
++        }
++        const int32_t expert = token_ids[expert_slot];
++        if (expert < 0 || expert >= args.ne02 || expert >= 384) {
++            continue;
++        }
++        const uint64_t addr = addrs[(uint)expert];
++        if (addr == 0) {
++            continue;
++        }
++        device const char *src0_cur =
++            reinterpret_cast<device const char *>(addr);
++        device const block_q2_K *x =
++            (device const block_q2_K *)(src0_cur + first_row * args.nb01);
++        device const float *y = (device const float *)(token_src1 + expert_slot * args.nb11);
++        device const float *y4 = y + ix * QK_K + 128 * iq + 8 * ir;
++
++        for (int ib = ix; ib < nb; ib += 4) {
++            float yl[32];
++            float4 sumy = {0.f, 0.f, 0.f, 0.f};
++            for (short i = 0; i < 8; ++i) {
++                yl[i +  0] = y4[i +  0]; sumy[0] += yl[i +  0];
++                yl[i +  8] = y4[i + 32]; sumy[1] += yl[i +  8];
++                yl[i + 16] = y4[i + 64]; sumy[2] += yl[i + 16];
++                yl[i + 24] = y4[i + 96]; sumy[3] += yl[i + 24];
++            }
++
++            device const uint8_t  *sc = (device const uint8_t *)x[ib].scales + 8 * iq + is;
++            device const uint16_t *qs = (device const uint16_t *)x[ib].qs + 16 * iq + 4 * ir;
++            device const half     *dh = &x[ib].d;
++
++            for (short row = 0; row < nr0; row++) {
++                if (first_row + row < args.ne0) {
++                    float4 acc1 = {0.f, 0.f, 0.f, 0.f};
++                    float4 acc2 = {0.f, 0.f, 0.f, 0.f};
++                    for (int i = 0; i < 8; i += 2) {
++                        acc1[0] += yl[i +  0] * (qs[i / 2] & 0x0003);
++                        acc2[0] += yl[i +  1] * (qs[i / 2] & 0x0300);
++                        acc1[1] += yl[i +  8] * (qs[i / 2] & 0x000c);
++                        acc2[1] += yl[i +  9] * (qs[i / 2] & 0x0c00);
++                        acc1[2] += yl[i + 16] * (qs[i / 2] & 0x0030);
++                        acc2[2] += yl[i + 17] * (qs[i / 2] & 0x3000);
++                        acc1[3] += yl[i + 24] * (qs[i / 2] & 0x00c0);
++                        acc2[3] += yl[i + 25] * (qs[i / 2] & 0xc000);
++                    }
++                    float dall = dh[0];
++                    float dmin = dh[1] * 1.f / 16.f;
++                    sumf[row] += dall * ((acc1[0] + 1.f / 256.f * acc2[0]) * (sc[0] & 0xF) * 1.f /  1.f +
++                                         (acc1[1] + 1.f / 256.f * acc2[1]) * (sc[2] & 0xF) * 1.f /  4.f +
++                                         (acc1[2] + 1.f / 256.f * acc2[2]) * (sc[4] & 0xF) * 1.f / 16.f +
++                                         (acc1[3] + 1.f / 256.f * acc2[3]) * (sc[6] & 0xF) * 1.f / 64.f) -
++                                 dmin * (sumy[0] * (sc[0] & 0xF0) + sumy[1] * (sc[2] & 0xF0) +
++                                         sumy[2] * (sc[4] & 0xF0) + sumy[3] * (sc[6] & 0xF0));
++                }
++                qs += args.nb01 / 2;
++                sc += args.nb01;
++                dh += args.nb01 / 2;
++            }
++            y4 += 4 * QK_K;
++        }
++    }
++
++    device float * dst_f32 = (device float *)(dst + (uint64_t)token * args.nb1);
++    for (int row = 0; row < nr0 && first_row + row < args.ne0; row++) {
++        const float sum_all = simd_sum(sumf[row]);
++        if (tiisg == 0) {
++            if (split.accumulate) {
++                dst_f32[first_row + row] += sum_all;
++            } else {
++                dst_f32[first_row + row] = sum_all;
++            }
++        }
++    }
++
++    (void)shmem;
++    (void)tiitg;
++    (void)tgpig;
++}
++
++typedef decltype(kernel_mul_mv_addr_iq2_xxs_pair_swiglu_masked_rn<8>) ds4_iq2_pair_rn_t;
++typedef decltype(kernel_mul_mv_addr_q2_K_sum6_masked_rn<8>) ds4_q2_sum6_rn_t;
++template [[host_name("kernel_mul_mv_addr_iq2_xxs_pair_swiglu_masked_r8_f32")]] kernel ds4_iq2_pair_rn_t kernel_mul_mv_addr_iq2_xxs_pair_swiglu_masked_rn<8>;
++template [[host_name("kernel_mul_mv_addr_iq2_xxs_pair_swiglu_masked_r16_f32")]] kernel ds4_iq2_pair_rn_t kernel_mul_mv_addr_iq2_xxs_pair_swiglu_masked_rn<16>;
++template [[host_name("kernel_mul_mv_addr_q2_K_sum6_masked_r8_f32")]] kernel ds4_q2_sum6_rn_t kernel_mul_mv_addr_q2_K_sum6_masked_rn<8>;
++template [[host_name("kernel_mul_mv_addr_q2_K_sum6_masked_r16_f32")]] kernel ds4_q2_sum6_rn_t kernel_mul_mv_addr_q2_K_sum6_masked_rn<16>;
++
+ static inline float2 ds4_mxfp4_accumulate_rows(
+         device const char *src0,
+         uint64_t row_bytes,
