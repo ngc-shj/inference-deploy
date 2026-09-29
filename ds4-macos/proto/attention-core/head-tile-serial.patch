@@ -1,0 +1,608 @@
+diff --git a/ds4.c b/ds4.c
+index 23344f1..d950ed1 100644
+--- a/ds4.c
++++ b/ds4.c
+@@ -90090,6 +90090,14 @@ done:
+  * the layer as a dataflow graph (ds41_dag_on). */
+ static int g_ds41_ab_encoder;
+ static int g_ds41_ab_hc;
++/* abattn2:/abattn4:<tokens> - the production flags on both arms, the decode
++ * attention with one head a threadgroup against 2 or 4. */
++static int g_ds41_ab_attn;
++/* abenv:<VAR>:<tokens> - the production flags on both arms, VAR unset
++ * against VAR=1; only for variables read on every call, not cached. */
++static const char *g_ds41_ab_env;
++extern void ds4_gpu_set_attn_head_tile(uint32_t heads);
++extern void ds4_gpu_attn_counts(unsigned long long *calls, unsigned long long *keys);
+ 
+ static void ds41_router_ab(ds4_session *seed, const ds4_model *m, const ds4_weights *w, long n,
+                            bool pkg) {
+@@ -90103,6 +90111,7 @@ static void ds41_router_ab(ds4_session *seed, const ds4_model *m, const ds4_weig
+     double ms[2] = {0}, oms[2][2] = {{0}};   /* oms[order][arm] */
+     long runs[2] = {0}, oruns[2][2] = {{0}}, bad = 0;
+     unsigned long long disp[2] = {0}, fused[2] = {0}, generic[2] = {0};
++    unsigned long long attn_calls[2] = {0}, attn_keys[2] = {0};
+     if (!lg || !carry || n < 1 || !ds41_txn_prefill(&s, e, &prompt, seed->ctx_size, "router ab")) goto done;
+     ds41_gpu_graph *g = &s->ds41_graph;
+     int token = sample_argmax(s->logits, DS4_N_VOCAB);
+@@ -90127,7 +90136,12 @@ static void ds41_router_ab(ds4_session *seed, const ds4_model *m, const ds4_weig
+                 (void)ds4_gpu_tensor_write(g->previous_kv[ci], 0, carry + (size_t)ci * 1024u, 2048u);
+                 (void)ds4_gpu_tensor_write(g->previous_score[ci], 0, carry + (size_t)ci * 1024u + 512u, 2048u);
+             }
+-            g_router_finalize_override = arm ? (pkg ? 5 : 2) : 1;
++            g_router_finalize_override = g_ds41_ab_attn || g_ds41_ab_env ? -1 :
++                                         arm ? (pkg ? 5 : 2) : 1;
++            if (g_ds41_ab_attn) ds4_gpu_set_attn_head_tile(arm ? (uint32_t)g_ds41_ab_attn : 0u);
++            if (g_ds41_ab_env) {
++                if (arm) setenv(g_ds41_ab_env, "1", 1); else unsetenv(g_ds41_ab_env);
++            }
+             /* The package: route_and_schedule with the router projection (5),
+              * the fused transitions with the HC compound operator, no DAG. */
+             if (pkg) {
+@@ -90147,7 +90161,8 @@ static void ds41_router_ab(ds4_session *seed, const ds4_model *m, const ds4_weig
+                 g_ds41_dag_override = 0;
+                 g_ds41_hc_compound_override = arm;
+             }
+-            unsigned long long d0, d1, rc0[7], rc1[7];
++            unsigned long long d0, d1, rc0[7], rc1[7], ac0 = 0, ak0 = 0, ac1 = 0, ak1 = 0;
++            ds4_gpu_attn_counts(&ac0, &ak0);
+             ds4_gpu_encode_counts(&d0, NULL, NULL);
+             ds4_gpu_router_finalize_counts(rc0);
+             const double t0 = now_sec();
+@@ -90155,6 +90170,11 @@ static void ds41_router_ab(ds4_session *seed, const ds4_model *m, const ds4_weig
+             const double dt = (now_sec() - t0) * 1e3;
+             ds4_gpu_encode_counts(&d1, NULL, NULL);
+             ds4_gpu_router_finalize_counts(rc1);
++            ds4_gpu_attn_counts(&ac1, &ak1);
++            if (g_ds41_ab_attn && t >= WARM && a >= 0) {
++                attn_calls[arm] += ac1 - ac0;
++                attn_keys[arm] += ak1 - ak0;
++            }
+             const uint64_t h = ds41_logits_hash(lg);
+             if (a <= 0) want = h;
+             if (!ok || h != want) bad++;
+@@ -90169,10 +90189,19 @@ static void ds41_router_ab(ds4_session *seed, const ds4_model *m, const ds4_weig
+         if (pkg) { g_ds41_hc_compound_override = -1; g_ds41_dag_override = -1; }
+         if (g_ds41_ab_encoder) g_ds41_dag_override = -1;
+         if (g_ds41_ab_hc) g_ds41_hc_compound_override = -1;
++        if (g_ds41_ab_attn) ds4_gpu_set_attn_head_tile(0u);
++        if (g_ds41_ab_env) unsetenv(g_ds41_ab_env);
+         token = sample_argmax(lg, DS4_N_VOCAB);
+     }
+-    const char *names[2] = { g_ds41_ab_hc ? "two-pass" : g_ds41_ab_encoder ? "chain   " : pkg ? "separate" : "generic",
+-                             g_ds41_ab_hc ? "compound" : g_ds41_ab_encoder ? "dataflow" : pkg ? "package " : "fused  " };
++    if (g_ds41_ab_attn)
++        for (int arm = 0; arm < 2; arm++)
++            fprintf(stderr, "ds4: attention A/B %s: %.1f attention calls and %.1f keys a "
++                    "step (%.1f keys a call)\n", arm ? "head tile" : "one head ",
++                    runs[arm] ? (double)attn_calls[arm] / runs[arm] : 0.0,
++                    runs[arm] ? (double)attn_keys[arm] / runs[arm] : 0.0,
++                    attn_calls[arm] ? (double)attn_keys[arm] / attn_calls[arm] : 0.0);
++    const char *names[2] = { g_ds41_ab_attn ? "one-head" : g_ds41_ab_hc ? "two-pass" : g_ds41_ab_encoder ? "chain   " : pkg ? "separate" : "generic",
++                             g_ds41_ab_attn ? "head-tile" : g_ds41_ab_hc ? "compound" : g_ds41_ab_encoder ? "dataflow" : pkg ? "package " : "fused  " };
+     for (int arm = 0; arm < 2; arm++) {
+         const double k = runs[arm] ? (double)runs[arm] : 1.0;
+         fprintf(stderr, "ds4: %s %s: %.2f ms a step over %ld steps; a step %.1f dispatches, "
+@@ -90207,6 +90236,26 @@ static void ds41_oracle_block_bench(ds4_session *s, const ds4_model *m,
+     const char *env = getenv("DS4_V41_ORACLE_BLOCK");
+     if (env && !strncmp(env, "abrouter:", 9)) { ds41_router_ab(s, m, w, atol(env + 9), false); return; }
+     if (env && !strncmp(env, "abpkg:", 6)) { ds41_router_ab(s, m, w, atol(env + 6), true); return; }
++    if (env && !strncmp(env, "abenv:", 6)) {
++        static char var[128];
++        const char *colon = strchr(env + 6, ':');
++        if (colon && (size_t)(colon - (env + 6)) < sizeof(var)) {
++            memcpy(var, env + 6, (size_t)(colon - (env + 6)));
++            var[colon - (env + 6)] = '\0';
++            unsetenv(var);
++            g_ds41_ab_env = var;
++            fprintf(stderr, "ds4: env A/B on %s\n", var);
++            ds41_router_ab(s, m, w, atol(colon + 1), false);
++            g_ds41_ab_env = NULL;
++        }
++        return;
++    }
++    if (env && (!strncmp(env, "abattn2:", 8) || !strncmp(env, "abattn4:", 8))) {
++        g_ds41_ab_attn = env[6] - '0';
++        ds41_router_ab(s, m, w, atol(env + 8), false);
++        g_ds41_ab_attn = 0;
++        return;
++    }
+     if (env && !strncmp(env, "abenc:", 6)) {
+         g_ds41_ab_encoder = 1;
+         ds41_router_ab(s, m, w, atol(env + 6), true);
+diff --git a/ds4_metal.m b/ds4_metal.m
+index 32983b8..2cf6ece 100644
+--- a/ds4_metal.m
++++ b/ds4_metal.m
+@@ -32426,6 +32426,14 @@ static int ds4_gpu_encode_flash_attention_prefill_raw_heads(
+     DS4_FLASH_PHASE_REDUCE,
+ };
+ 
++static uint32_t g_attn_head_tile;
++static unsigned long long g_attn_calls, g_attn_keys;
++void ds4_gpu_set_attn_head_tile(uint32_t heads) { g_attn_head_tile = heads; }
++void ds4_gpu_attn_counts(unsigned long long *calls, unsigned long long *keys) {
++    if (calls) *calls = g_attn_calls;
++    if (keys) *keys = g_attn_keys;
++}
++
+ static int ds4_gpu_encode_flash_attention_gathered_heads(
+         id<MTLCommandBuffer>   cb,
+         ds4_gpu_tensor      *heads,
+@@ -32624,12 +32632,21 @@ static int ds4_gpu_encode_flash_attention_gathered_heads(
+ 
+     id<MTLComputePipelineState> vec_pipeline = nil;
+     id<MTLComputePipelineState> reduce_pipeline = nil;
++    /* Heads to a threadgroup (ds4_gpu_set_attn_head_tile): the same scan
++     * with each shared K/V chunk fetched once for that many heads. */
++    const uint32_t head_tile =
++        (g_attn_head_tile == 2u || g_attn_head_tile == 4u) &&
++        n_head % g_attn_head_tile == 0u ? g_attn_head_tile : 1u;
+     if (!use_packed) {
+         vec_pipeline = ds4_gpu_get_flash_attn_vec_pipeline(
+-            "kernel_flash_attn_ext_vec_f16_dk512_dv512",
++            head_tile == 4u ? "kernel_flash_attn_ext_vec_ht4_f16_dk512_dv512" :
++            head_tile == 2u ? "kernel_flash_attn_ext_vec_ht2_f16_dk512_dv512" :
++                              "kernel_flash_attn_ext_vec_f16_dk512_dv512",
+             true, true, false, false, has_kvpad, use_shared_kvpad,
+             (int32_t)head_dim, (int32_t)head_dim,
+             (int32_t)nsg, (int32_t)nwg);
++        g_attn_calls++;
++        g_attn_keys += n_keys;
+         reduce_pipeline =
+             ds4_gpu_get_flash_attn_reduce_pipeline((int32_t)head_dim,
+                                                      (int32_t)nwg);
+@@ -32796,8 +32813,19 @@ static int ds4_gpu_encode_flash_attention_gathered_heads(
+         [enc setBuffer:sinks_buf offset:sinks_offset atIndex:5];
+         [enc setBuffer:g_flash_attn_pad_buffer offset:pad_off atIndex:6];
+         [enc setBuffer:g_flash_attn_tmp_buffer offset:tmp_off atIndex:7];
+-        [enc setThreadgroupMemoryLength:shared_bytes atIndex:0];
+-        ds4_gpu_dispatch(enc, MTLSizeMake(1, n_head, nwg), MTLSizeMake(32, nsg, 1));
++        if (head_tile > 1u) {
++            /* q rows for the tile, scores per simdgroup, output rows per head
++             * and simdgroup, and a (S, M) pair per head and simdgroup. */
++            const NSUInteger pk = ds4_gpu_align_up_ns(head_dim, 128u);
++            const NSUInteger halves = head_tile * pk + nsg * 4u * ncpsg +
++                                      head_tile * nsg * 2u * pk + head_tile * nsg * 4u;
++            [enc setThreadgroupMemoryLength:ds4_gpu_align_up_ns(halves * 2u, 16u) atIndex:0];
++            ds4_gpu_dispatch(enc, MTLSizeMake(1, n_head / head_tile, nwg),
++                             MTLSizeMake(32, nsg, 1));
++        } else {
++            [enc setThreadgroupMemoryLength:shared_bytes atIndex:0];
++            ds4_gpu_dispatch(enc, MTLSizeMake(1, n_head, nwg), MTLSizeMake(32, nsg, 1));
++        }
+         ds4_gpu_end_compute_encoder(cb, enc);
+     }
+     if (!do_reduce) return 1;
+diff --git a/metal/flash_attn.metal b/metal/flash_attn.metal
+index acc6b49..ace3289 100644
+--- a/metal/flash_attn.metal
++++ b/metal/flash_attn.metal
+@@ -1390,6 +1390,427 @@ typedef decltype(kernel_flash_attn_ext_vec<FA_TYPES, half4, 1, dequantize_f16_t4
+ // Host-visible decode FlashAttention variant for DS4's 512-wide F16 K/V rows.
+ template [[host_name("kernel_flash_attn_ext_vec_f16_dk512_dv512")]]  kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES,     half4,  1, dequantize_f16_t4, half4,  1, dequantize_f16_t4, 512, 512, 1>;
+ 
++// The decode FlashAttention above with HT query heads to a threadgroup
++// instead of one. Every head reads the same shared K/V rows, so with one head
++// a threadgroup each key chunk is fetched from L2 once per head; here it is
++// fetched once per HT heads and the other heads find it in the threadgroup's
++// cache. Inside a chunk the heads are taken one after another, each with its
++// own running max, sum and output rows, and every head's arithmetic is the
++// kernel above's in the same order: the same keys, the same FMAs, the same
++// reductions. Nothing is reduced across heads.
++template<
++    typename q4_t,
++    typename k4_t,
++    typename v4_t,
++    typename qk_t,
++    typename s_t,
++    typename s4_t,
++    typename o4_t,
++    typename kd4_t,
++    short nl_k,
++    void (*deq_k_t4)(device const kd4_t *, short, thread k4_t &),
++    typename vd4_t,
++    short nl_v,
++    void (*deq_v_t4)(device const vd4_t *, short, thread v4_t &),
++    short DK,
++    short DV,
++    short HT,
++    short NE = 4,
++    short C  = OP_FLASH_ATTN_EXT_VEC_NCPSG>
++kernel void kernel_flash_attn_ext_vec_ht(
++        constant ds4_metal_args_flash_attn_ext_vec & args,
++        device const char * q,
++        device const char * k,
++        device const char * v,
++        device const char * mask,
++        device const char * sinks,
++        device const char * pad,
++        device       char * dst,
++        threadgroup  half * shmem_f16 [[threadgroup(0)]],
++        uint3   tgpig[[threadgroup_position_in_grid]],
++        ushort  tiisg[[thread_index_in_simdgroup]],
++        ushort  sgitg[[simdgroup_index_in_threadgroup]]) {
++    static_assert(DK % 32 == 0, "DK must be divisible by 32");
++    static_assert(DV % 32 == 0, "DV must be divisible by 32");
++
++#define NWG  (FC_flash_attn_ext_vec_nwg)
++#define NSG  (FC_flash_attn_ext_vec_nsg)
++#define NS10 (FC_flash_attn_ext_vec_ns10)
++#define NS20 (FC_flash_attn_ext_vec_ns20)
++
++    const short iwg = tgpig[2]%NWG;
++
++    const ushort iq3 = tgpig[2]/NWG;
++    const ushort ih0 = tgpig[1]*HT;
++    const ushort iq1 = tgpig[0];
++
++    constexpr short DK4 = DK/4;
++    constexpr short DV4 = DV/4;
++    constexpr short PK  = PAD2(DK, 128);
++    constexpr short PK4 = PK/4;
++    constexpr short PV  = PAD2(DV, 128);
++    constexpr short PV4 = PV/4;
++    constexpr short NW  = N_SIMDWIDTH;
++    constexpr short NL  = NW/NE;
++    constexpr short SH  = 4*C;
++
++    static_assert(DK4 % NL == 0, "DK4 must be divisible by NL");
++    static_assert(DV4 % NL == 0, "DV4 must be divisible by NL");
++
++    /* HT query rows, then each simdgroup's scores and mask, then each head's
++     * output rows per simdgroup, then each head's (S, M) per simdgroup. */
++    threadgroup q4_t  * sq4 = (threadgroup q4_t  *) (shmem_f16);
++    threadgroup s_t   * ss  = (threadgroup s_t   *) (shmem_f16 + HT*PK + sgitg*SH);
++    threadgroup s4_t  * ss4 = (threadgroup s4_t  *) (shmem_f16 + HT*PK + sgitg*SH);
++    threadgroup half  * sm  = (threadgroup half  *) (shmem_f16 + HT*PK + sgitg*SH + 2*C);
++    threadgroup o4_t  * so4b = (threadgroup o4_t *) (shmem_f16 + HT*PK + NSG*SH);
++    threadgroup float * shm = (threadgroup float *) (shmem_f16 + HT*PK + NSG*SH + HT*NSG*2*PV);
++
++    device const char * kbase;
++    device const char * vbase;
++    {
++        const short ikv2 = ih0/(args.ne02/args.ne_12_2);
++        const short ikv3 = iq3/(args.ne03/args.ne_12_3);
++
++        kbase = k + ikv2*args.nb12 + ikv3*args.nb13;
++        vbase = v + ikv2*args.nb22 + ikv3*args.nb23;
++    }
++
++    if (iq1 < args.ne01) {
++        for (short h = 0; h < HT; ++h) {
++            device const float4 * q4 = (device const float4 *)
++                (q + iq1*args.nb01 + (ih0 + h)*args.nb02 + iq3*args.nb03);
++            for (short i = tiisg; i < PK4; i += NW) {
++                if (i < DK4) {
++                    sq4[h*PK4 + i] = (q4_t) q4[i];
++                } else {
++                    sq4[h*PK4 + i] = (q4_t) 0.0f;
++                }
++            }
++        }
++    }
++
++    for (short h = 0; h < HT; ++h) {
++        threadgroup o4_t * so4 = so4b + (h*NSG + sgitg)*PV4 + tiisg;
++        for (short i = 0; i < DV4/NL; ++i) {
++            so4[i*NL] = (o4_t) 0.0f;
++        }
++    }
++
++    for (short i = tiisg; i < SH/4; i += NW) {
++        ss4[i] = (s4_t) 0.0f;
++    }
++
++    threadgroup_barrier(mem_flags::mem_threadgroup);
++
++    {
++        float S[HT];
++        float M[HT];
++        for (short h = 0; h < HT; ++h) {
++            S[h] = 0.0f;
++            M[h] = -FLT_MAX/2;
++        }
++
++        const short tx = tiisg%NL;
++        const short ty = tiisg/NL;
++
++        device const char * kk = kbase;
++        device const char * vv = vbase;
++        device const char * mk = mask;
++
++        device const half * pm = (device const half *) (mask + iq1*args.nb31 + (ih0%args.ne32)*args.nb32 + (iq3%args.ne33)*args.nb33);
++
++        for (int ic0 = iwg*NSG + sgitg; ; ic0 += NWG*NSG) {
++            int ic = ic0*C;
++            if (ic >= args.ne11) {
++                break;
++            }
++
++            if (FC_flash_attn_ext_vec_has_kvpad && ic + C > args.ne11) {
++                kk   = pad;
++                if (FC_flash_attn_ext_vec_shared_kvpad) {
++                    vv = kk;
++                    mk = kk + args.nb11*C*args.ne_12_2*args.ne_12_3 +
++                        args.nb21*C*args.ne_12_2*args.ne_12_3;
++                } else {
++                    vv = kk + args.nb11*C*args.ne_12_2*args.ne_12_3;
++                    mk = vv + args.nb21*C*args.ne_12_2*args.ne_12_3;
++                }
++
++                const short ikv2 = ih0/(args.ne02/args.ne_12_2);
++                const short ikv3 = iq3/(args.ne03/args.ne_12_3);
++
++                kk += (ikv2 + ikv3*args.ne_12_2)*args.nb11*C;
++                vv += (ikv2 + ikv3*args.ne_12_2)*args.nb21*C;
++
++                if (!FC_flash_attn_ext_vec_has_mask) {
++                    if (ic + tiisg >= args.ne11) {
++                        sm[tiisg] = -MAXHALF;
++                    }
++                } else {
++                    pm = (device const half *) (mk) +
++                        iq1*C +
++                        (ih0%args.ne32)*(C*args.ne31) +
++                        (iq3%args.ne33)*(C*args.ne31*args.ne32);
++                }
++
++                ic = 0;
++            }
++
++            if (FC_flash_attn_ext_vec_has_mask) {
++                sm[tiisg] = pm[ic + tiisg];
++            }
++
++            if (simd_max(sm[tiisg]) <= -MAXHALF) {
++                continue;
++            }
++
++            for (short h = 0; h < HT; ++h) {
++                threadgroup o4_t * so4 = so4b + (h*NSG + sgitg)*PV4 + tiisg;
++                {
++                    device      const k4_t * pk4 = (device const k4_t *) (kk + ic*args.nb11);
++                    threadgroup const q4_t * pq4 = sq4 + h*PK4;
++
++                    pk4 += ty*NS10/4 + tx;
++                    pq4 += tx;
++
++                    qk_t mqk[C/NE] = { [ 0 ... C/NE - 1] = 0.0f };
++
++                    FOR_UNROLL (short cc = 0; cc < C/NE; ++cc) {
++                        FOR_UNROLL (short ii = 0; ii < DK4/NL; ++ii) {
++                            mqk[cc] += dot((float4) pk4[cc*NE*NS10/4 +  ii*NL], (float4) pq4[ii*NL]);
++                        }
++
++                        if (NE == 1) {
++                            mqk[cc] = simd_sum(mqk[cc]);
++                        } else {
++                            if (NE <= 1) {
++                                mqk[cc] += simd_shuffle_down(mqk[cc], 16);
++                            }
++                            if (NE <= 2) {
++                                mqk[cc] += simd_shuffle_down(mqk[cc],  8);
++                            }
++                            if (NE <= 4) {
++                                mqk[cc] += simd_shuffle_down(mqk[cc],  4);
++                            }
++                            if (NE <= 8) {
++                                mqk[cc] += simd_shuffle_down(mqk[cc],  2);
++                            }
++                            if (NE <= 16) {
++                                mqk[cc] += simd_shuffle_down(mqk[cc],  1);
++                            }
++
++                            mqk[cc] = simd_shuffle(mqk[cc], NL*ty);
++                        }
++                    }
++
++                    if (FC_flash_attn_ext_vec_has_mask &&
++                       !FC_flash_attn_ext_vec_has_scap &&
++                       !FC_flash_attn_ext_vec_has_bias) {
++                        ss[NE*tx + ty] = fma(mqk[tx], args.scale, (qk_t) sm[NE*tx + ty]);
++                    } else {
++                        mqk[tx] *= args.scale;
++
++                        if (FC_flash_attn_ext_vec_has_scap) {
++                            mqk[tx] = args.logit_softcap*precise::tanh(mqk[tx]);
++                        }
++
++                        mqk[tx] += (qk_t) sm[NE*tx + ty];
++
++                        ss[NE*tx + ty] = mqk[tx];
++                    }
++                }
++
++                simdgroup_barrier(mem_flags::mem_threadgroup);
++
++                {
++                    const float m = M[h];
++                    const float s = ss[tiisg];
++
++                    M[h] = simd_max(max(M[h], s));
++
++                    const float ms = exp(m - M[h]);
++                    const float vs = exp(s - M[h]);
++
++                    S[h] = S[h]*ms + simd_sum(vs);
++
++                    ss[tiisg] = vs;
++
++                    if ((DV4/NL % NW == 0) || ty == 0) {
++                        FOR_UNROLL (short ii = 0; ii < DV4/NL; ++ii) {
++                            so4[ii*NL] *= ms;
++                        }
++                    }
++                }
++
++                simdgroup_barrier(mem_flags::mem_threadgroup);
++
++                {
++                    o4_t lo[DV4/NL];
++                    FOR_UNROLL (short ii = 0; ii < DV4/NL; ++ii) {
++                        lo[ii] = 0.0f;
++                    }
++
++                    device const v4_t * pv4 = (device const v4_t *) (vv + ic*args.nb21);
++
++                    pv4 += ty*NS20/4 + tx;
++
++                    const auto sst = ss + ty;
++
++                    FOR_UNROLL (short cc = 0; cc < C/NE; ++cc) {
++                        FOR_UNROLL (short ii = 0; ii < DV4/NL; ++ii) {
++                            lo[ii] += o4_t(float4(pv4[cc*NE*NS20/4 + ii*NL])*float4(sst[cc*NE]));
++                        }
++                    }
++
++                    FOR_UNROLL (short ii = 0; ii < DV4/NL; ++ii) {
++                        if (NE > 1) {
++                            lo[ii][0] += simd_shuffle_down(lo[ii][0], 16);
++                            lo[ii][1] += simd_shuffle_down(lo[ii][1], 16);
++                            lo[ii][2] += simd_shuffle_down(lo[ii][2], 16);
++                            lo[ii][3] += simd_shuffle_down(lo[ii][3], 16);
++                        }
++
++                        if (NE > 2) {
++                            lo[ii][0] += simd_shuffle_down(lo[ii][0],  8);
++                            lo[ii][1] += simd_shuffle_down(lo[ii][1],  8);
++                            lo[ii][2] += simd_shuffle_down(lo[ii][2],  8);
++                            lo[ii][3] += simd_shuffle_down(lo[ii][3],  8);
++                        }
++
++                        if (NE > 4) {
++                            lo[ii][0] += simd_shuffle_down(lo[ii][0],  4);
++                            lo[ii][1] += simd_shuffle_down(lo[ii][1],  4);
++                            lo[ii][2] += simd_shuffle_down(lo[ii][2],  4);
++                            lo[ii][3] += simd_shuffle_down(lo[ii][3],  4);
++                        }
++
++                        if (NE > 8) {
++                            lo[ii][0] += simd_shuffle_down(lo[ii][0],  2);
++                            lo[ii][1] += simd_shuffle_down(lo[ii][1],  2);
++                            lo[ii][2] += simd_shuffle_down(lo[ii][2],  2);
++                            lo[ii][3] += simd_shuffle_down(lo[ii][3],  2);
++                        }
++
++                        if (NE > 16) {
++                            lo[ii][0] += simd_shuffle_down(lo[ii][0],  1);
++                            lo[ii][1] += simd_shuffle_down(lo[ii][1],  1);
++                            lo[ii][2] += simd_shuffle_down(lo[ii][2],  1);
++                            lo[ii][3] += simd_shuffle_down(lo[ii][3],  1);
++                        }
++                    }
++
++                    if ((DV4/NL % NW == 0) || ty == 0) {
++                        FOR_UNROLL (short ii = 0; ii < DV4/NL; ++ii) {
++                            so4[ii*NL] += lo[ii];
++                        }
++                    }
++                }
++
++                /* The next head overwrites the scores this one just read. */
++                simdgroup_barrier(mem_flags::mem_threadgroup);
++            }
++        }
++
++        for (short h = 0; h < HT; ++h) {
++            threadgroup o4_t * so4 = so4b + (h*NSG + sgitg)*PV4 + tiisg;
++            if (FC_flash_attn_ext_vec_has_sinks && sgitg == 0 && iwg == 0) {
++                const float m = M[h];
++                const float s = tiisg == 0 ? ((device const float *) sinks)[ih0 + h] : -FLT_MAX/2;
++
++                M[h] = simd_max(max(M[h], s));
++
++                const float ms = exp(m - M[h]);
++                const float vs = exp(s - M[h]);
++
++                S[h] = S[h]*ms + simd_sum(vs);
++
++                if ((DV4/NL % NW == 0) || ty == 0) {
++                    FOR_UNROLL (short ii = 0; ii < DV4/NL; ++ii) {
++                        so4[ii*NL] *= ms;
++                    }
++                }
++            }
++
++            if (tiisg == 0) {
++                shm[(h*NSG + sgitg)*2 + 0] = S[h];
++                shm[(h*NSG + sgitg)*2 + 1] = M[h];
++            }
++        }
++    }
++
++    threadgroup_barrier(mem_flags::mem_threadgroup);
++
++    for (short h = 0; h < HT; ++h) {
++        threadgroup o4_t  * so4 = so4b + (h*NSG + sgitg)*PV4;
++        threadgroup float * hsm = shm + (h*NSG + sgitg)*2;
++        for (short r = NSG/2; r > 0; r >>= 1) {
++            if (sgitg < r) {
++                const float S0 = hsm[    0];
++                const float S1 = hsm[r*2 + 0];
++
++                const float M0 = hsm[    1];
++                const float M1 = hsm[r*2 + 1];
++
++                const float Mx = max(M0, M1);
++
++                const float ms0 = exp(M0 - Mx);
++                const float ms1 = exp(M1 - Mx);
++
++                const float Sx = S0*ms0 + S1*ms1;
++
++                if (tiisg == 0) {
++                    hsm[0] = Sx;
++                    hsm[1] = Mx;
++                }
++
++                for (short i = tiisg; i < DV4; i += NW) {
++                    so4[i] = so4[i]*ms0 + so4[i + r*PV4]*ms1;
++                }
++            }
++
++            threadgroup_barrier(mem_flags::mem_threadgroup);
++        }
++
++        if (sgitg == 0) {
++            const int64_t nrows = args.ne3*args.ne2*args.ne1;
++            const int64_t rid   = iq3*args.ne2*args.ne1 + (ih0 + h) + iq1*args.ne1;
++
++            device float4 * dst4 = (device float4 *) dst;
++            device float  * dst1 = (device float  *) dst + nrows*DV*NWG;
++
++            const float Sd = NWG == 1 ? (hsm[0] == 0.0f ? 0.0f : 1.0f/hsm[0]) : 1.0f;
++
++            for (short i = tiisg; i < DV4; i += NW) {
++                dst4[rid*DV4*NWG + NWG*i + iwg] = (float4) so4[i]*Sd;
++            }
++
++            if (NWG > 1) {
++                if (tiisg == 0) {
++                    dst1[rid*(2*NWG) + 2*iwg + 0] = hsm[0];
++                    dst1[rid*(2*NWG) + 2*iwg + 1] = hsm[1];
++                }
++            }
++        }
++    }
++
++#undef NWG
++#undef NSG
++#undef NS10
++#undef NS20
++}
++
++template [[host_name("kernel_flash_attn_ext_vec_ht2_f16_dk512_dv512")]] kernel void
++kernel_flash_attn_ext_vec_ht<FA_TYPES, half4, 1, dequantize_f16_t4, half4, 1, dequantize_f16_t4, 512, 512, 2, 1>(
++        constant ds4_metal_args_flash_attn_ext_vec &, device const char *, device const char *,
++        device const char *, device const char *, device const char *, device const char *,
++        device char *, threadgroup half *, uint3, ushort, ushort);
++template [[host_name("kernel_flash_attn_ext_vec_ht4_f16_dk512_dv512")]] kernel void
++kernel_flash_attn_ext_vec_ht<FA_TYPES, half4, 1, dequantize_f16_t4, half4, 1, dequantize_f16_t4, 512, 512, 4, 1>(
++        constant ds4_metal_args_flash_attn_ext_vec &, device const char *, device const char *,
++        device const char *, device const char *, device const char *, device const char *,
++        device char *, threadgroup half *, uint3, ushort, ushort);
++
+ #undef FA_TYPES
+ #undef FA_TYPES_F32
+ 

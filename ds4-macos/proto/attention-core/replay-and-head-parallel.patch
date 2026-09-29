@@ -1,0 +1,1047 @@
+diff --git a/ds4.c b/ds4.c
+index 23344f1..2341f2c 100644
+--- a/ds4.c
++++ b/ds4.c
+@@ -43020,6 +43020,10 @@ static bool ds41_kv_store(ds41_gpu_graph *g, uint32_t il, uint32_t pos) {
+ 
+ static bool ds41_attention(ds41_gpu_graph *g, const ds4_model *m,
+                            const ds4_layer_weights *l, uint32_t il, bool projected) {
++    {
++        extern void ds4_gpu_attn_cf_layer(uint32_t il);
++        ds4_gpu_attn_cf_layer(il);
++    }
+     const uint32_t pos = g->pos, ratio = ds4_layer_compress_ratio(il);
+     const uint32_t owner = il < 8 ? 0u : il < 14 ? 1u : il < 20 ? 2u : 3u;
+     const uint32_t n_comp = ratio ? (pos + 1u) / ratio : 0u;
+@@ -90090,6 +90094,16 @@ done:
+  * the layer as a dataflow graph (ds41_dag_on). */
+ static int g_ds41_ab_encoder;
+ static int g_ds41_ab_hc;
++/* abenv:<VAR>:<tokens> - the production flags on both arms, VAR unset
++ * against VAR=1; only for variables read on every call, not cached. */
++static const char *g_ds41_ab_env;
++/* abcf:stage:/abcf:compute:<tokens> - the counterfactual replay of the decode
++ * attention: the untimed pass keeps each call's staged K/V and its output, and
++ * the second arm leaves that group out and reads what was kept. */
++static int g_ds41_ab_cf;
++extern void ds4_gpu_attn_cf_mode(int mode);
++extern void ds4_gpu_attn_cf_step_begin(void);
++extern void ds4_gpu_attn_counts(unsigned long long out[4]);
+ 
+ static void ds41_router_ab(ds4_session *seed, const ds4_model *m, const ds4_weights *w, long n,
+                            bool pkg) {
+@@ -90103,6 +90117,13 @@ static void ds41_router_ab(ds4_session *seed, const ds4_model *m, const ds4_weig
+     double ms[2] = {0}, oms[2][2] = {{0}};   /* oms[order][arm] */
+     long runs[2] = {0}, oruns[2][2] = {{0}}, bad = 0;
+     unsigned long long disp[2] = {0}, fused[2] = {0}, generic[2] = {0};
++    unsigned long long cf_counts[2][4] = {{0}};
++    /* The whole arm's step times in order, for the canonical control at the
++     * start and end of the run; and the untimed pass's logits, which every
++     * timed arm is compared against in full, not only by hash. */
++    double ctl_ms[512];
++    long ctl_n = 0, full_differ = 0, full_compared = 0;
++    float *ref_lg = malloc((size_t)DS4_N_VOCAB * sizeof(float));
+     if (!lg || !carry || n < 1 || !ds41_txn_prefill(&s, e, &prompt, seed->ctx_size, "router ab")) goto done;
+     ds41_gpu_graph *g = &s->ds41_graph;
+     int token = sample_argmax(s->logits, DS4_N_VOCAB);
+@@ -90127,7 +90148,16 @@ static void ds41_router_ab(ds4_session *seed, const ds4_model *m, const ds4_weig
+                 (void)ds4_gpu_tensor_write(g->previous_kv[ci], 0, carry + (size_t)ci * 1024u, 2048u);
+                 (void)ds4_gpu_tensor_write(g->previous_score[ci], 0, carry + (size_t)ci * 1024u + 512u, 2048u);
+             }
+-            g_router_finalize_override = arm ? (pkg ? 5 : 2) : 1;
++            g_router_finalize_override = g_ds41_ab_env || g_ds41_ab_cf ? -1 :
++                                         arm ? (pkg ? 5 : 2) : 1;
++            if (g_ds41_ab_env) {
++                if (arm) setenv(g_ds41_ab_env, "1", 1); else unsetenv(g_ds41_ab_env);
++            }
++            if (g_ds41_ab_cf) {
++                /* The untimed pass keeps; the timed arms run whole or skip. */
++                ds4_gpu_attn_cf_mode(a < 0 ? 1 : arm ? g_ds41_ab_cf : 0);
++                ds4_gpu_attn_cf_step_begin();
++            }
+             /* The package: route_and_schedule with the router projection (5),
+              * the fused transitions with the HC compound operator, no DAG. */
+             if (pkg) {
+@@ -90147,7 +90177,8 @@ static void ds41_router_ab(ds4_session *seed, const ds4_model *m, const ds4_weig
+                 g_ds41_dag_override = 0;
+                 g_ds41_hc_compound_override = arm;
+             }
+-            unsigned long long d0, d1, rc0[7], rc1[7];
++            unsigned long long d0, d1, rc0[7], rc1[7], ac0[4] = {0}, ac1[4] = {0};
++            if (g_ds41_ab_cf) ds4_gpu_attn_counts(ac0);
+             ds4_gpu_encode_counts(&d0, NULL, NULL);
+             ds4_gpu_router_finalize_counts(rc0);
+             const double t0 = now_sec();
+@@ -90155,9 +90186,22 @@ static void ds41_router_ab(ds4_session *seed, const ds4_model *m, const ds4_weig
+             const double dt = (now_sec() - t0) * 1e3;
+             ds4_gpu_encode_counts(&d1, NULL, NULL);
+             ds4_gpu_router_finalize_counts(rc1);
++            if (g_ds41_ab_cf) {
++                ds4_gpu_attn_counts(ac1);
++                if (t >= WARM && a >= 0)
++                    for (int c = 0; c < 4; c++) cf_counts[arm][c] += ac1[c] - ac0[c];
++            }
+             const uint64_t h = ds41_logits_hash(lg);
+             if (a <= 0) want = h;
+             if (!ok || h != want) bad++;
++            if (ref_lg) {
++                if (a < 0) memcpy(ref_lg, lg, (size_t)DS4_N_VOCAB * sizeof(float));
++                else {
++                    full_compared++;
++                    if (memcmp(ref_lg, lg, (size_t)DS4_N_VOCAB * sizeof(float)) != 0) full_differ++;
++                }
++            }
++            if (t >= WARM && a >= 0 && arm == 0 && ctl_n < 512) ctl_ms[ctl_n++] = dt;
+             if (t >= WARM && a >= 0) {
+                 ms[arm] += dt; runs[arm]++;
+                 oms[t & 1][arm] += dt; oruns[t & 1][arm]++;
+@@ -90169,8 +90213,26 @@ static void ds41_router_ab(ds4_session *seed, const ds4_model *m, const ds4_weig
+         if (pkg) { g_ds41_hc_compound_override = -1; g_ds41_dag_override = -1; }
+         if (g_ds41_ab_encoder) g_ds41_dag_override = -1;
+         if (g_ds41_ab_hc) g_ds41_hc_compound_override = -1;
++        if (g_ds41_ab_env) unsetenv(g_ds41_ab_env);
++        if (g_ds41_ab_cf) ds4_gpu_attn_cf_mode(0);
+         token = sample_argmax(lg, DS4_N_VOCAB);
+     }
++    if (g_ds41_ab_cf || g_ds41_ab_env) {
++        double f = 0, l = 0;
++        const long k = ctl_n >= 8 ? 4 : ctl_n / 2;
++        for (long i = 0; i < k; i++) { f += ctl_ms[i]; l += ctl_ms[ctl_n - 1 - i]; }
++        fprintf(stderr, "ds4: control: whole arm first %ld steps %.2f ms, last %ld %.2f ms; "
++                "full logits compared %ld times, %ld differed\n",
++                k, k ? f / k : 0.0, k, k ? l / k : 0.0, full_compared, full_differ);
++    }
++    if (g_ds41_ab_cf)
++        for (int arm = 0; arm < 2; arm++)
++            fprintf(stderr, "ds4: attention replay %s: a step %.1f calls, %.1f keys, %.1f "
++                    "calls replayed from the kept pass, %.1f missing their kept copy\n",
++                    arm ? "skip " : "whole", runs[arm] ? (double)cf_counts[arm][0] / runs[arm] : 0.0,
++                    runs[arm] ? (double)cf_counts[arm][1] / runs[arm] : 0.0,
++                    runs[arm] ? (double)cf_counts[arm][2] / runs[arm] : 0.0,
++                    runs[arm] ? (double)cf_counts[arm][3] / runs[arm] : 0.0);
+     const char *names[2] = { g_ds41_ab_hc ? "two-pass" : g_ds41_ab_encoder ? "chain   " : pkg ? "separate" : "generic",
+                              g_ds41_ab_hc ? "compound" : g_ds41_ab_encoder ? "dataflow" : pkg ? "package " : "fused  " };
+     for (int arm = 0; arm < 2; arm++) {
+@@ -90199,7 +90261,206 @@ done:
+     if (g_ds41_ab_encoder) g_ds41_dag_override = -1;
+     if (g_ds41_ab_hc) g_ds41_hc_compound_override = -1;
+     if (s) ds4_session_free(s);
+-    free(lg); free(carry);
++    free(lg); free(carry); free(ref_lg);
++}
++
++/* abcf:multi:<tokens> - the decode attention's counterfactual replay, every
++ * arm in one process against one kept pass per token. The untimed pass keeps
++ * each layer's staged K/V, mask and pad, its vec partials and its output; the
++ * arms then leave out one group each and read what was kept. The order runs
++ * forward on even tokens and backward on odd ones, so every arm is measured in
++ * both positions, and each arm's logits are compared with the kept pass's in
++ * full. Arms 3 and 4 copy the kept output in with one blit a call, which the
++ * last arm prices on its own. */
++static void ds41_attn_cf_multi(ds4_session *seed, const ds4_model *m, const ds4_weights *w,
++                               long n) {
++    enum { WARM = 4, ARMS = 6 };
++    static const int mode[ARMS] = { 0, 2, 5, 6, 3, 4 };
++    static const char *name[ARMS] = {
++        "control (all run)          ", "staging and pad left out   ", "vec left out               ",
++        "reduce left out (+1 blit)  ", "vec and reduce out (+1 blit)", "control plus the blit      " };
++    ds4_engine *e = seed->engine;
++    ds4_tokens prompt = { .v = seed->checkpoint.v, .len = seed->checkpoint.len,
++                          .cap = seed->checkpoint.cap };
++    ds4_session *s = NULL;
++    float *lg = malloc((size_t)DS4_N_VOCAB * sizeof(float));
++    float *ref = malloc((size_t)DS4_N_VOCAB * sizeof(float));
++    float *carry = malloc((size_t)3u * 2u * 512u * sizeof(float));
++    double ms[ARMS] = {0}, oms[2][ARMS] = {{0}}, ctl[512];
++    long runs[ARMS] = {0}, oruns[2][ARMS] = {{0}}, differ[ARMS] = {0}, ctl_n = 0;
++    unsigned long long cnt[ARMS][4] = {{0}};
++    if (!lg || !ref || !carry || n < 1 ||
++        !ds41_txn_prefill(&s, e, &prompt, seed->ctx_size, "attention replay")) goto done;
++    ds41_gpu_graph *g = &s->ds41_graph;
++    int token = sample_argmax(s->logits, DS4_N_VOCAB);
++    for (long t = 0; t < n; t++) {
++        const uint32_t pos0 = g->pos;
++        const ds4_engram_history hist0 = g->history;
++        if (!ds4_gpu_synchronize()) goto done;
++        for (uint32_t ci = 0; ci < 3; ci++)
++            if (!ds4_gpu_tensor_read(g->previous_kv[ci], 0, carry + (size_t)ci * 1024u, 2048u) ||
++                !ds4_gpu_tensor_read(g->previous_score[ci], 0, carry + (size_t)ci * 1024u + 512u, 2048u))
++                goto done;
++        for (int a = -1; a < ARMS; a++) {
++            const int arm = a < 0 ? 0 : (t & 1) ? ARMS - 1 - a : a;
++            g->pos = pos0; g->history = hist0; g->valid = true;
++            (void)ds4_gpu_synchronize();
++            for (uint32_t ci = 0; ci < 3; ci++) {
++                (void)ds4_gpu_tensor_write(g->previous_kv[ci], 0, carry + (size_t)ci * 1024u, 2048u);
++                (void)ds4_gpu_tensor_write(g->previous_score[ci], 0, carry + (size_t)ci * 1024u + 512u, 2048u);
++            }
++            ds4_gpu_attn_cf_mode(a < 0 ? 1 : mode[arm]);
++            unsigned long long c0[4], c1[4];
++            ds4_gpu_attn_counts(c0);
++            const double t0 = now_sec();
++            const bool ok = ds41_graph_step(g, m, w, token, lg);
++            const double dt = (now_sec() - t0) * 1e3;
++            ds4_gpu_attn_counts(c1);
++            if (!ok) goto done;
++            if (a < 0) {
++                memcpy(ref, lg, (size_t)DS4_N_VOCAB * sizeof(float));
++                continue;
++            }
++            if (memcmp(ref, lg, (size_t)DS4_N_VOCAB * sizeof(float)) != 0) differ[arm]++;
++            if (t >= WARM) {
++                ms[arm] += dt; runs[arm]++;
++                oms[t & 1][arm] += dt; oruns[t & 1][arm]++;
++                for (int c = 0; c < 4; c++) cnt[arm][c] += c1[c] - c0[c];
++                if (arm == 0 && ctl_n < 512) ctl[ctl_n++] = dt;
++            }
++        }
++        ds4_gpu_attn_cf_mode(0);
++        token = sample_argmax(lg, DS4_N_VOCAB);
++    }
++    {
++        double f = 0, l = 0;
++        const long k = ctl_n >= 8 ? 4 : ctl_n / 2;
++        for (long i = 0; i < k; i++) { f += ctl[i]; l += ctl[ctl_n - 1 - i]; }
++        fprintf(stderr, "ds4: attention replay from position %d over %ld tokens; control first "
++                "%ld steps %.2f ms, last %ld %.2f ms\n", prompt.len, n, k, k ? f / k : 0.0,
++                k, k ? l / k : 0.0);
++    }
++    for (int arm = 0; arm < ARMS; arm++) {
++        const double r = runs[arm] ? (double)runs[arm] : 1.0;
++        const double fwd = oruns[0][arm] ? oms[0][arm] / oruns[0][arm] : 0.0;
++        const double bwd = oruns[1][arm] ? oms[1][arm] / oruns[1][arm] : 0.0;
++        const double fwd0 = oruns[0][0] ? oms[0][0] / oruns[0][0] : 0.0;
++        const double bwd0 = oruns[1][0] ? oms[1][0] / oruns[1][0] : 0.0;
++        fprintf(stderr, "ds4:   %s %.2f ms a step (minus control %+.2f: forward %+.2f, "
++                "backward %+.2f); a step %.1f calls, %.1f replayed, %.1f missing; logits "
++                "differed %ld of %ld\n", name[arm], ms[arm] / r,
++                ms[arm] / r - (runs[0] ? ms[0] / runs[0] : 0.0), fwd - fwd0, bwd - bwd0,
++                cnt[arm][0] / r, cnt[arm][2] / r, cnt[arm][3] / r, differ[arm],
++                n);
++    }
++done:
++    ds4_gpu_attn_cf_mode(0);
++    if (s) ds4_session_free(s);
++    free(lg); free(ref); free(carry);
++}
++
++/* abhp:<tokens> - the decode attention's vec with 1, 2, 4 and 8 heads to a
++ * threadgroup (one simdgroup a head), in one process. Per token: an untimed
++ * pass with one head keeps every layer's vec partials; one untimed check pass
++ * for each tile copies its partials aside and they are compared with the kept
++ * ones in full; then the four arms are timed, forward on even tokens and
++ * backward on odd ones, each arm's logits compared in full with the kept
++ * pass's, and the threadgroups each arm launched counted. */
++extern void ds4_gpu_set_attn_head_par(uint32_t heads);
++extern unsigned long long ds4_gpu_attn_vec_tgs(void);
++extern void ds4_gpu_attn_check(unsigned long long out[3]);
++/* abhp:perf:<tokens> is the same with nothing but the arms: no keeping, no
++ * check passes, no copies - the untimed pass only warms the cache. */
++static void ds41_attn_hp_ab(ds4_session *seed, const ds4_model *m, const ds4_weights *w, long n,
++                            bool perf) {
++    enum { WARM = 4, ARMS = 4 };
++    static const uint32_t tile[ARMS] = { 1, 2, 4, 8 };
++    ds4_engine *e = seed->engine;
++    ds4_tokens prompt = { .v = seed->checkpoint.v, .len = seed->checkpoint.len,
++                          .cap = seed->checkpoint.cap };
++    ds4_session *s = NULL;
++    float *lg = malloc((size_t)DS4_N_VOCAB * sizeof(float));
++    float *ref = malloc((size_t)DS4_N_VOCAB * sizeof(float));
++    float *carry = malloc((size_t)3u * 2u * 512u * sizeof(float));
++    double ms[ARMS] = {0}, oms[2][ARMS] = {{0}}, ctl[512];
++    long runs[ARMS] = {0}, oruns[2][ARMS] = {{0}}, differ[ARMS] = {0}, ctl_n = 0;
++    unsigned long long tgs[ARMS] = {0}, chk[ARMS][3] = {{0}};
++    if (!lg || !ref || !carry || n < 1 ||
++        !ds41_txn_prefill(&s, e, &prompt, seed->ctx_size, "head tile")) goto done;
++    ds41_gpu_graph *g = &s->ds41_graph;
++    int token = sample_argmax(s->logits, DS4_N_VOCAB);
++    for (long t = 0; t < n; t++) {
++        const uint32_t pos0 = g->pos;
++        const ds4_engram_history hist0 = g->history;
++        if (!ds4_gpu_synchronize()) goto done;
++        for (uint32_t ci = 0; ci < 3; ci++)
++            if (!ds4_gpu_tensor_read(g->previous_kv[ci], 0, carry + (size_t)ci * 1024u, 2048u) ||
++                !ds4_gpu_tensor_read(g->previous_score[ci], 0, carry + (size_t)ci * 1024u + 512u, 2048u))
++                goto done;
++        /* -1 keeps, -2..-4 check tiles 2, 4, 8, then the four timed arms */
++        for (int a = perf ? -1 : -4; a < ARMS; a++) {
++            const bool keep = perf ? a == -1 : a == -4, check = !perf && a > -4 && a < 0;
++            const int arm = keep ? 0 : check ? -a : (t & 1) ? ARMS - 1 - a : a;
++            g->pos = pos0; g->history = hist0; g->valid = true;
++            (void)ds4_gpu_synchronize();
++            for (uint32_t ci = 0; ci < 3; ci++) {
++                (void)ds4_gpu_tensor_write(g->previous_kv[ci], 0, carry + (size_t)ci * 1024u, 2048u);
++                (void)ds4_gpu_tensor_write(g->previous_score[ci], 0, carry + (size_t)ci * 1024u + 512u, 2048u);
++            }
++            ds4_gpu_attn_cf_mode(perf ? 0 : keep ? 1 : check ? 7 : 0);
++            ds4_gpu_set_attn_head_par(tile[arm]);
++            const unsigned long long tg0 = ds4_gpu_attn_vec_tgs();
++            const double t0 = now_sec();
++            const bool ok = ds41_graph_step(g, m, w, token, lg);
++            const double dt = (now_sec() - t0) * 1e3;
++            const unsigned long long tg1 = ds4_gpu_attn_vec_tgs();
++            if (!ok) goto done;
++            if (keep) { memcpy(ref, lg, (size_t)DS4_N_VOCAB * sizeof(float)); continue; }
++            if (memcmp(ref, lg, (size_t)DS4_N_VOCAB * sizeof(float)) != 0) differ[arm]++;
++            if (check) {
++                unsigned long long c[3];
++                (void)ds4_gpu_synchronize();
++                ds4_gpu_attn_check(c);
++                for (int k = 0; k < 3; k++) chk[arm][k] += c[k];
++                continue;
++            }
++            if (t >= WARM) {
++                ms[arm] += dt; runs[arm]++;
++                oms[t & 1][arm] += dt; oruns[t & 1][arm]++;
++                tgs[arm] += tg1 - tg0;
++                if (arm == 0 && ctl_n < 512) ctl[ctl_n++] = dt;
++            }
++        }
++        ds4_gpu_attn_cf_mode(0);
++        ds4_gpu_set_attn_head_par(0);
++        token = sample_argmax(lg, DS4_N_VOCAB);
++    }
++    {
++        double f = 0, l = 0;
++        const long k = ctl_n >= 8 ? 4 : ctl_n / 2;
++        for (long i = 0; i < k; i++) { f += ctl[i]; l += ctl[ctl_n - 1 - i]; }
++        fprintf(stderr, "ds4: head tile from position %d over %ld tokens; control first %ld "
++                "steps %.2f ms, last %ld %.2f ms\n", prompt.len, n, k, k ? f / k : 0.0, k,
++                k ? l / k : 0.0);
++    }
++    for (int arm = 0; arm < ARMS; arm++) {
++        const double r = runs[arm] ? (double)runs[arm] : 1.0;
++        const double f0 = oruns[0][0] ? oms[0][0] / oruns[0][0] : 0.0;
++        const double b0 = oruns[1][0] ? oms[1][0] / oruns[1][0] : 0.0;
++        const double fa = oruns[0][arm] ? oms[0][arm] / oruns[0][arm] : 0.0;
++        const double ba = oruns[1][arm] ? oms[1][arm] / oruns[1][arm] : 0.0;
++        fprintf(stderr, "ds4:   %u head(s) a threadgroup: %.2f ms a step (minus one head %+.2f: "
++                "forward %+.2f, backward %+.2f); %.0f vec threadgroups a step; logits differed "
++                "%ld of %ld; vec partials: %llu layer-compares, %llu differed, %.1f MiB\n",
++                tile[arm], ms[arm] / r, ms[arm] / r - (runs[0] ? ms[0] / runs[0] : 0.0),
++                fa - f0, ba - b0, tgs[arm] / r, differ[arm], arm ? 2 * n : n,
++                chk[arm][0], chk[arm][1], chk[arm][2] / 1048576.0);
++    }
++done:
++    ds4_gpu_attn_cf_mode(0);
++    ds4_gpu_set_attn_head_par(0);
++    if (s) ds4_session_free(s);
++    free(lg); free(ref); free(carry);
+ }
+ 
+ static void ds41_oracle_block_bench(ds4_session *s, const ds4_model *m,
+@@ -90207,6 +90468,36 @@ static void ds41_oracle_block_bench(ds4_session *s, const ds4_model *m,
+     const char *env = getenv("DS4_V41_ORACLE_BLOCK");
+     if (env && !strncmp(env, "abrouter:", 9)) { ds41_router_ab(s, m, w, atol(env + 9), false); return; }
+     if (env && !strncmp(env, "abpkg:", 6)) { ds41_router_ab(s, m, w, atol(env + 6), true); return; }
++    if (env && !strncmp(env, "abenv:", 6)) {
++        static char var[128];
++        const char *colon = strchr(env + 6, ':');
++        if (colon && (size_t)(colon - (env + 6)) < sizeof(var)) {
++            memcpy(var, env + 6, (size_t)(colon - (env + 6)));
++            var[colon - (env + 6)] = '\0';
++            unsetenv(var);
++            g_ds41_ab_env = var;
++            fprintf(stderr, "ds4: env A/B on %s\n", var);
++            ds41_router_ab(s, m, w, atol(colon + 1), false);
++            g_ds41_ab_env = NULL;
++        }
++        return;
++    }
++    if (env && !strncmp(env, "abcf:multi:", 11)) { ds41_attn_cf_multi(s, m, w, atol(env + 11)); return; }
++    if (env && !strncmp(env, "abhp:perf:", 10)) { ds41_attn_hp_ab(s, m, w, atol(env + 10), true); return; }
++    if (env && !strncmp(env, "abhp:", 5)) { ds41_attn_hp_ab(s, m, w, atol(env + 5), false); return; }
++    if (env && (!strncmp(env, "abcf:stage:", 11) || !strncmp(env, "abcf:compute:", 13) ||
++                !strncmp(env, "abcf:blit:", 10))) {
++        const bool stage = !strncmp(env, "abcf:stage:", 11);
++        const bool blit = !strncmp(env, "abcf:blit:", 10);
++        g_ds41_ab_cf = stage ? 2 : blit ? 4 : 3;
++        fprintf(stderr, "ds4: attention replay A/B, %s\n",
++                stage ? "staging group (K/V stage and pad) left out" :
++                blit ? "everything run, plus the compute arm's output copy to scratch" :
++                       "compute group (vec and reduce) left out");
++        ds41_router_ab(s, m, w, atol(env + (stage ? 11 : blit ? 10 : 13)), false);
++        g_ds41_ab_cf = 0;
++        return;
++    }
+     if (env && !strncmp(env, "abenc:", 6)) {
+         g_ds41_ab_encoder = 1;
+         ds41_router_ab(s, m, w, atol(env + 6), true);
+diff --git a/ds4_metal.m b/ds4_metal.m
+index 32983b8..07a7307 100644
+--- a/ds4_metal.m
++++ b/ds4_metal.m
+@@ -32426,6 +32426,69 @@ static int ds4_gpu_encode_flash_attention_prefill_raw_heads(
+     DS4_FLASH_PHASE_REDUCE,
+ };
+ 
++/* Counterfactual replay of the decode attention (ds4.c abcf:). Mode 1 keeps,
++ * per layer, the staged K/V, the mask, the tail pad and the attention's
++ * output; mode 2 leaves the staging group (K/V stage and pad) out and points
++ * the attention at the kept copies; mode 3 leaves the compute group (vec and
++ * reduce) out and copies the kept output in. Nothing else changes: no extra
++ * command buffers, flushes or readbacks. Keyed by layer, not by call, so a
++ * layer the keeping pass ran twice around an abort keeps its last run. */
++enum { DS4_ATTN_CF_LAYERS = 64 };
++static int g_attn_cf_mode;
++static uint32_t g_attn_cf_layer;
++static id<MTLBuffer> g_attn_cf_kv[DS4_ATTN_CF_LAYERS], g_attn_cf_mask[DS4_ATTN_CF_LAYERS],
++                     g_attn_cf_pad[DS4_ATTN_CF_LAYERS], g_attn_cf_out[DS4_ATTN_CF_LAYERS],
++                     g_attn_cf_tmp[DS4_ATTN_CF_LAYERS];
++static uint32_t g_attn_cf_keys[DS4_ATTN_CF_LAYERS];
++/* calls, keys, calls replayed, calls that had nothing kept to replay */
++static unsigned long long g_attn_cf_counts[4];
++void ds4_gpu_attn_cf_mode(int mode) { g_attn_cf_mode = mode; }
++/* Heads to a threadgroup, one simdgroup each (kernel_flash_attn_ext_vec_hp),
++ * and the threadgroups the vec dispatches actually launched. Mode 7 copies
++ * each layer's vec partials aside for ds4_gpu_attn_check to compare with the
++ * kept ones. */
++static uint32_t g_attn_head_par;
++static unsigned long long g_attn_vec_tgs;
++static id<MTLBuffer> g_attn_chk[DS4_ATTN_CF_LAYERS];
++static NSUInteger g_attn_chk_bytes[DS4_ATTN_CF_LAYERS], g_attn_keep_tmp_bytes[DS4_ATTN_CF_LAYERS];
++void ds4_gpu_set_attn_head_par(uint32_t heads) { g_attn_head_par = heads; }
++unsigned long long ds4_gpu_attn_vec_tgs(void) { return g_attn_vec_tgs; }
++/* After a completed check pass: layers compared, layers whose partials
++ * differ from the kept pass's, bytes compared. */
++void ds4_gpu_attn_check(unsigned long long out[3]) {
++    out[0] = out[1] = out[2] = 0;
++    for (uint32_t l = 0; l < DS4_ATTN_CF_LAYERS; l++) {
++        if (!g_attn_chk[l] || !g_attn_cf_tmp[l] || !g_attn_chk_bytes[l]) continue;
++        const NSUInteger n = g_attn_chk_bytes[l];
++        if (n != g_attn_keep_tmp_bytes[l]) { out[0]++; out[1]++; continue; }
++        out[0]++;
++        out[2] += n;
++        if (memcmp([g_attn_chk[l] contents], [g_attn_cf_tmp[l] contents], n) != 0) out[1]++;
++        g_attn_chk_bytes[l] = 0;
++    }
++}
++void ds4_gpu_attn_cf_step_begin(void) { }
++void ds4_gpu_attn_cf_layer(uint32_t il) { g_attn_cf_layer = il; }
++void ds4_gpu_attn_counts(unsigned long long out[4]) {
++    for (int i = 0; i < 4; i++) out[i] = g_attn_cf_counts[i];
++}
++static int ds4_gpu_attn_cf_copy(id<MTLCommandBuffer> cb, id<MTLBuffer> src, NSUInteger src_off,
++                                id<MTLBuffer> dst, NSUInteger dst_off, NSUInteger bytes) {
++    if (!src || !dst || bytes == 0) return 1;
++    ds4_gpu_close_batch_encoder();
++    id<MTLBlitCommandEncoder> blit = ds4_gpu_blit_encoder(cb, "attn_cf", 1u);
++    if (!blit) return 0;
++    [blit copyFromBuffer:src sourceOffset:src_off toBuffer:dst destinationOffset:dst_off size:bytes];
++    [blit endEncoding];
++    return 1;
++}
++static id<MTLBuffer> ds4_gpu_attn_cf_buffer(id<MTLBuffer> __strong *slot, NSUInteger bytes) {
++    if (bytes == 0) bytes = 16;
++    if (!*slot || [*slot length] < bytes)
++        *slot = [g_device newBufferWithLength:bytes options:MTLResourceStorageModeShared];
++    return *slot;
++}
++
+ static int ds4_gpu_encode_flash_attention_gathered_heads(
+         id<MTLCommandBuffer>   cb,
+         ds4_gpu_tensor      *heads,
+@@ -32624,9 +32687,15 @@ static int ds4_gpu_encode_flash_attention_gathered_heads(
+ 
+     id<MTLComputePipelineState> vec_pipeline = nil;
+     id<MTLComputePipelineState> reduce_pipeline = nil;
++    const uint32_t head_par =
++        (g_attn_head_par == 2u || g_attn_head_par == 4u || g_attn_head_par == 8u) &&
++        nsg == 1u ? g_attn_head_par : 1u;
+     if (!use_packed) {
+         vec_pipeline = ds4_gpu_get_flash_attn_vec_pipeline(
+-            "kernel_flash_attn_ext_vec_f16_dk512_dv512",
++            head_par == 8u ? "kernel_flash_attn_ext_vec_hp8_f16_dk512_dv512" :
++            head_par == 4u ? "kernel_flash_attn_ext_vec_hp4_f16_dk512_dv512" :
++            head_par == 2u ? "kernel_flash_attn_ext_vec_hp2_f16_dk512_dv512" :
++                             "kernel_flash_attn_ext_vec_f16_dk512_dv512",
+             true, true, false, false, has_kvpad, use_shared_kvpad,
+             (int32_t)head_dim, (int32_t)head_dim,
+             (int32_t)nsg, (int32_t)nwg);
+@@ -32637,6 +32706,24 @@ static int ds4_gpu_encode_flash_attention_gathered_heads(
+     }
+ 
+     const bool all = phase == DS4_FLASH_PHASE_ALL;
++    const uint32_t cf_l = g_attn_cf_layer;
++    const bool cf_on = g_attn_cf_mode != 0 && all && !use_packed && cf_l < DS4_ATTN_CF_LAYERS;
++    const bool cf_have = cf_on && g_attn_cf_kv[cf_l] && g_attn_cf_keys[cf_l] == n_keys;
++    const bool cf_skip_stage = cf_on && g_attn_cf_mode == 2 && cf_have;
++    /* 3 leaves vec and reduce out, 5 only vec (the reduce reads the kept
++     * partials), 6 only the reduce (its output is copied in). */
++    const bool cf_skip_compute = cf_on && g_attn_cf_mode == 3 && cf_have;
++    const bool cf_skip_vec = cf_on && g_attn_cf_mode == 5 && cf_have;
++    const bool cf_skip_reduce = cf_on && g_attn_cf_mode == 6 && cf_have;
++    /* Mode 4 runs everything and adds the compute arm's copy, into a scratch
++     * nothing reads: the price of the copy the compute arm cannot avoid. */
++    const bool cf_blit_only = cf_on && g_attn_cf_mode == 4 && cf_have;
++    if (cf_on) {
++        g_attn_cf_counts[0]++;
++        g_attn_cf_counts[1] += n_keys;
++        if (g_attn_cf_mode >= 2) g_attn_cf_counts[cf_have ? 2 : 3]++;
++    }
++    const NSUInteger out_bytes = (NSUInteger)n_head * head_dim * sizeof(float);
+     /* Staging the KV and padding its tail are two dispatches with a dependency
+      * between them, so they are two levels, not one. */
+     const bool do_mask = all || phase == DS4_FLASH_PHASE_MASK;
+@@ -32662,7 +32749,7 @@ static int ds4_gpu_encode_flash_attention_gathered_heads(
+     }
+ 
+     bool pad_fused = false;
+-    if (do_stage && !ds4_gpu_encode_flash_kv_stage_f16(
++    if (do_stage && !cf_skip_stage && !ds4_gpu_encode_flash_kv_stage_f16(
+             cb,
+             rawbuf,
+             ds4_gpu_tensor_offset(raw_kv),
+@@ -32688,12 +32775,12 @@ static int ds4_gpu_encode_flash_attention_gathered_heads(
+     }
+ 
+     id<MTLComputePipelineState> pad_pipeline = nil;
+-    if (do_pad && has_kvpad && !pad_fused) {
++    if (do_pad && has_kvpad && !pad_fused && !cf_skip_stage) {
+         pad_pipeline = ds4_gpu_get_flash_attn_pad_pipeline(true, (int32_t)ncpsg);
+         if (!pad_pipeline) return 0;
+     }
+ 
+-    if (do_pad && has_kvpad && !pad_fused) {
++    if (do_pad && has_kvpad && !pad_fused && !cf_skip_stage) {
+         ds4_gpu_flash_attn_pad_args pad_args = {
+             .ne11 = (int32_t)n_keys,
+             .ne_12_2 = 1,
+@@ -32723,6 +32810,24 @@ static int ds4_gpu_encode_flash_attention_gathered_heads(
+         ds4_gpu_end_compute_encoder(cb, enc);
+     }
+ 
++    if (cf_on && g_attn_cf_mode == 1) {
++        /* What the staging group left for the attention: the K/V rows, the
++         * mask and the tail pad. */
++        if (!ds4_gpu_attn_cf_copy(cb, g_flash_attn_kv_buffer, kv_off,
++                ds4_gpu_attn_cf_buffer(&g_attn_cf_kv[cf_l], kv_bytes), 0, kv_bytes) ||
++            !ds4_gpu_attn_cf_copy(cb, flash_mask_buffer, mask_off,
++                ds4_gpu_attn_cf_buffer(&g_attn_cf_mask[cf_l], mask_bytes), 0, mask_bytes) ||
++            !ds4_gpu_attn_cf_copy(cb, g_flash_attn_pad_buffer, pad_off,
++                ds4_gpu_attn_cf_buffer(&g_attn_cf_pad[cf_l], pad_bytes), 0, pad_bytes)) return 0;
++        g_attn_cf_keys[cf_l] = n_keys;
++    }
++    id<MTLBuffer> att_kv = cf_skip_stage ? g_attn_cf_kv[cf_l] : g_flash_attn_kv_buffer;
++    const NSUInteger att_kv_off = cf_skip_stage ? 0u : kv_off;
++    id<MTLBuffer> att_mask = cf_skip_stage ? g_attn_cf_mask[cf_l] : flash_mask_buffer;
++    const NSUInteger att_mask_off = cf_skip_stage ? 0u : mask_off;
++    id<MTLBuffer> att_pad = cf_skip_stage ? g_attn_cf_pad[cf_l] : g_flash_attn_pad_buffer;
++    const NSUInteger att_pad_off = cf_skip_stage ? 0u : pad_off;
++
+     ds4_gpu_flash_attn_vec_args vec_args = {
+         .ne01 = 1,
+         .ne02 = (int32_t)n_head,
+@@ -32785,22 +32890,54 @@ static int ds4_gpu_encode_flash_attention_gathered_heads(
+         return 1;
+     }
+ 
+-    if (do_attend) {
++    if (cf_skip_compute) {
++        /* The compute group left out: its output, as the keeping pass made
++         * it, and the RoPE flag the reduce would have consumed. */
++        const int fuse_rope = g_decode_attn_rope_fuse;
++        g_decode_attn_rope_fuse = 0;
++        if (fuse_rope) g_decode_attn_rope_fuse_used = 1;
++        return ds4_gpu_attn_cf_copy(cb, g_attn_cf_out[cf_l], 0, headsbuf,
++                                    ds4_gpu_tensor_offset(heads), out_bytes);
++    }
++    if (do_attend && !cf_skip_vec) {
+         id<DS4Encoder> enc = ds4_gpu_compute_encoder(cb);
+         [enc setComputePipelineState:vec_pipeline];
+         [enc setBytes:&vec_args length:sizeof(vec_args) atIndex:0];
+         [enc setBuffer:qbuf offset:ds4_gpu_tensor_offset(q) atIndex:1];
+-        [enc setBuffer:g_flash_attn_kv_buffer offset:kv_off atIndex:2];
+-        [enc setBuffer:g_flash_attn_kv_buffer offset:kv_off atIndex:3];
+-        [enc setBuffer:flash_mask_buffer offset:mask_off atIndex:4];
++        [enc setBuffer:att_kv offset:att_kv_off atIndex:2];
++        [enc setBuffer:att_kv offset:att_kv_off atIndex:3];
++        [enc setBuffer:att_mask offset:att_mask_off atIndex:4];
+         [enc setBuffer:sinks_buf offset:sinks_offset atIndex:5];
+-        [enc setBuffer:g_flash_attn_pad_buffer offset:pad_off atIndex:6];
++        [enc setBuffer:att_pad offset:att_pad_off atIndex:6];
+         [enc setBuffer:g_flash_attn_tmp_buffer offset:tmp_off atIndex:7];
+-        [enc setThreadgroupMemoryLength:shared_bytes atIndex:0];
+-        ds4_gpu_dispatch(enc, MTLSizeMake(1, n_head, nwg), MTLSizeMake(32, nsg, 1));
++        if (head_par > 1u) {
++            /* Each simdgroup's own query, scores, mask and output rows. */
++            const NSUInteger pk = ds4_gpu_align_up_ns(head_dim, 128u);
++            const NSUInteger halves = head_par * (pk + 4u * ncpsg + 2u * pk);
++            [enc setThreadgroupMemoryLength:ds4_gpu_align_up_ns(halves * 2u, 16u) atIndex:0];
++            const NSUInteger tiles = (n_head + head_par - 1u) / head_par;
++            g_attn_vec_tgs += (unsigned long long)tiles * nwg;
++            ds4_gpu_dispatch(enc, MTLSizeMake(1, tiles, nwg), MTLSizeMake(32, head_par, 1));
++        } else {
++            [enc setThreadgroupMemoryLength:shared_bytes atIndex:0];
++            g_attn_vec_tgs += (unsigned long long)n_head * nwg;
++            ds4_gpu_dispatch(enc, MTLSizeMake(1, n_head, nwg), MTLSizeMake(32, nsg, 1));
++        }
+         ds4_gpu_end_compute_encoder(cb, enc);
++        if (cf_on && g_attn_cf_mode == 7) {
++            g_attn_chk_bytes[cf_l] = tmp_bytes;
++            if (!ds4_gpu_attn_cf_copy(cb, g_flash_attn_tmp_buffer, tmp_off,
++                    ds4_gpu_attn_cf_buffer(&g_attn_chk[cf_l], tmp_bytes), 0, tmp_bytes)) return 0;
++        }
+     }
+     if (!do_reduce) return 1;
++    if (cf_skip_reduce) {
++        const int fuse_rope = g_decode_attn_rope_fuse;
++        g_decode_attn_rope_fuse = 0;
++        if (fuse_rope) g_decode_attn_rope_fuse_used = 1;
++        return ds4_gpu_attn_cf_copy(cb, g_attn_cf_out[cf_l], 0, headsbuf,
++                                    ds4_gpu_tensor_offset(heads), out_bytes);
++    }
+ 
+     ds4_gpu_flash_attn_reduce_args reduce_args = {
+         .nrows = (int32_t)nrows,
+@@ -32819,7 +32956,8 @@ static int ds4_gpu_encode_flash_attention_gathered_heads(
+     id<DS4Encoder> enc = ds4_gpu_compute_encoder(cb);
+     [enc setComputePipelineState:reduce_pso];
+     [enc setBytes:&reduce_args length:sizeof(reduce_args) atIndex:0];
+-    [enc setBuffer:g_flash_attn_tmp_buffer offset:tmp_off atIndex:1];
++    [enc setBuffer:cf_skip_vec ? g_attn_cf_tmp[cf_l] : g_flash_attn_tmp_buffer
++            offset:cf_skip_vec ? 0u : tmp_off atIndex:1];
+     [enc setBuffer:headsbuf offset:ds4_gpu_tensor_offset(heads) atIndex:2];
+     if (fuse_rope) {
+         [enc setBytes:&g_decode_attn_rope_args
+@@ -32828,6 +32966,17 @@ static int ds4_gpu_encode_flash_attention_gathered_heads(
+     ds4_gpu_dispatch(enc, MTLSizeMake(nrows, 1, 1), MTLSizeMake(32u * nwg, 1, 1));
+     ds4_gpu_end_compute_encoder(cb, enc);
+ 
++    if (cf_on && g_attn_cf_mode == 1 &&
++        (!ds4_gpu_attn_cf_copy(cb, headsbuf, ds4_gpu_tensor_offset(heads),
++            ds4_gpu_attn_cf_buffer(&g_attn_cf_out[cf_l], out_bytes), 0, out_bytes) ||
++         !ds4_gpu_attn_cf_copy(cb, g_flash_attn_tmp_buffer, tmp_off,
++            ds4_gpu_attn_cf_buffer(&g_attn_cf_tmp[cf_l], tmp_bytes), 0, tmp_bytes))) return 0;
++    if (cf_on && g_attn_cf_mode == 1) g_attn_keep_tmp_bytes[cf_l] = tmp_bytes;
++    if (cf_blit_only) {
++        static id<MTLBuffer> sink;
++        if (!ds4_gpu_attn_cf_copy(cb, g_attn_cf_out[cf_l], 0,
++                ds4_gpu_attn_cf_buffer(&sink, out_bytes), 0, out_bytes)) return 0;
++    }
+     return 1;
+ }
+ 
+diff --git a/metal/flash_attn.metal b/metal/flash_attn.metal
+index acc6b49..93edae7 100644
+--- a/metal/flash_attn.metal
++++ b/metal/flash_attn.metal
+@@ -1390,6 +1390,418 @@ typedef decltype(kernel_flash_attn_ext_vec<FA_TYPES, half4, 1, dequantize_f16_t4
+ // Host-visible decode FlashAttention variant for DS4's 512-wide F16 K/V rows.
+ template [[host_name("kernel_flash_attn_ext_vec_f16_dk512_dv512")]]  kernel flash_attn_ext_vec_t kernel_flash_attn_ext_vec<FA_TYPES,     half4,  1, dequantize_f16_t4, half4,  1, dequantize_f16_t4, 512, 512, 1>;
+ 
++// The decode FlashAttention above with HP heads to a threadgroup, one
++// simdgroup each, side by side. Each simdgroup is the one-simdgroup kernel for
++// its head and split - the same keys in the same order, the same arithmetic,
++// the same partial written to the same place - so the tile changes only how
++// many threadgroups there are and which heads share a core's cache. For NSG 1
++// only; the host checks.
++template<
++    typename q4_t,
++    typename k4_t,
++    typename v4_t,
++    typename qk_t,
++    typename s_t,
++    typename s4_t,
++    typename o4_t,
++    typename kd4_t,
++    short nl_k,
++    void (*deq_k_t4)(device const kd4_t *, short, thread k4_t &),
++    typename vd4_t,
++    short nl_v,
++    void (*deq_v_t4)(device const vd4_t *, short, thread v4_t &),
++    short DK,
++    short DV,
++    short NE = 4,
++    short HP = 2,
++    short Q  = OP_FLASH_ATTN_EXT_VEC_NQPSG,
++    short C  = OP_FLASH_ATTN_EXT_VEC_NCPSG>
++kernel void kernel_flash_attn_ext_vec_hp(
++        constant ds4_metal_args_flash_attn_ext_vec & args,
++        device const char * q,
++        device const char * k,
++        device const char * v,
++        device const char * mask,
++        device const char * sinks,
++        device const char * pad,
++        device       char * dst,
++        threadgroup  half * shmem_f16 [[threadgroup(0)]],
++        uint3   tgpig[[threadgroup_position_in_grid]],
++        ushort  tiisg[[thread_index_in_simdgroup]],
++        ushort  sgitg[[simdgroup_index_in_threadgroup]]) {
++    static_assert(DK % 32 == 0, "DK must be divisible by 32");
++    static_assert(DV % 32 == 0, "DV must be divisible by 32");
++
++#define NWG  (FC_flash_attn_ext_vec_nwg)
++#define NSG  1
++#define NS10 (FC_flash_attn_ext_vec_ns10)
++#define NS20 (FC_flash_attn_ext_vec_ns20)
++
++    const short iwg = tgpig[2]%NWG;
++
++    const ushort iq3 = tgpig[2]/NWG;
++    /* One simdgroup a head: the heads of a tile run side by side, each as
++     * the one-simdgroup kernel runs it (NSG is 1 here). */
++    const ushort iq2 = tgpig[1]*HP + sgitg;
++    const bool head_ok = iq2 < args.ne02;
++    const ushort iq1 = tgpig[0];
++
++    constexpr short DK4 = DK/4;
++    constexpr short DV4 = DV/4;
++    constexpr short PK  = PAD2(DK, 128);
++    constexpr short PK4 = PK/4;
++    constexpr short PV  = PAD2(DV, 128);
++    constexpr short PV4 = PV/4;
++    constexpr short NW  = N_SIMDWIDTH;
++    constexpr short NL  = NW/NE;
++    constexpr short SH  = 4*C;
++
++    static_assert(DK4 % NL == 0, "DK4 must be divisible by NL");
++    static_assert(DV4 % NL == 0, "DV4 must be divisible by NL");
++
++    /* Each head's own region - query, scores and mask, output rows - with
++     * nothing shared between the simdgroups of a tile. */
++    threadgroup half  * sh0 = shmem_f16 + sgitg*(PK + SH + 2*PV);
++    threadgroup q4_t  * sq4 = (threadgroup q4_t  *) (sh0);
++    threadgroup s_t   * ss  = (threadgroup s_t   *) (sh0 + PK);
++    threadgroup s4_t  * ss4 = (threadgroup s4_t  *) (sh0 + PK);
++    threadgroup half  * sm  = (threadgroup half  *) (sh0 + PK + 2*C);
++    threadgroup o4_t  * so4 = (threadgroup o4_t  *) (sh0 + PK + SH);
++
++    so4 += tiisg;
++
++    {
++        q += iq1*args.nb01 + iq2*args.nb02 + iq3*args.nb03;
++
++        const short ikv2 = iq2/(args.ne02/args.ne_12_2);
++        const short ikv3 = iq3/(args.ne03/args.ne_12_3);
++
++        k += ikv2*args.nb12 + ikv3*args.nb13;
++        v += ikv2*args.nb22 + ikv3*args.nb23;
++    }
++
++    device const float4 * q4 = (device const float4 *) ((device const char *) q);
++
++    if (head_ok && iq1 < args.ne01) {
++        for (short i = tiisg; i < PK4; i += NW) {
++            if (i < DK4) {
++                sq4[i] = (q4_t) q4[i];
++            } else {
++                sq4[i] = (q4_t) 0.0f;
++            }
++        }
++    }
++
++    for (short i = 0; i < DV4/NL; ++i) {
++        so4[i*NL] = (o4_t) 0.0f;
++    }
++
++    for (short i = tiisg; i < SH/4; i += NW) {
++        ss4[i] = (s4_t) 0.0f;
++    }
++
++    threadgroup_barrier(mem_flags::mem_threadgroup);
++
++    {
++        float S = 0.0f;
++        float M = -FLT_MAX/2;
++
++        const short tx = tiisg%NL;
++        const short ty = tiisg/NL;
++
++        device const half * pm = (device const half *) (mask + iq1*args.nb31 + (iq2%args.ne32)*args.nb32 + (iq3%args.ne33)*args.nb33);
++
++        float slope = 1.0f;
++
++        if (FC_flash_attn_ext_vec_has_bias) {
++            const short h = iq2;
++
++            const float base = h < args.n_head_log2 ? args.m0 : args.m1;
++            const short exph = h < args.n_head_log2 ? h + 1 : 2*(h - args.n_head_log2) + 1;
++
++            slope = pow(base, exph);
++        }
++
++        for (int ic0 = iwg; head_ok; ic0 += NWG) {
++            int ic = ic0*C;
++            if (ic >= args.ne11) {
++                break;
++            }
++
++            if (FC_flash_attn_ext_vec_has_kvpad && ic + C > args.ne11) {
++                k    = pad;
++                if (FC_flash_attn_ext_vec_shared_kvpad) {
++                    v = k;
++                    mask = k + args.nb11*C*args.ne_12_2*args.ne_12_3 +
++                        args.nb21*C*args.ne_12_2*args.ne_12_3;
++                } else {
++                    v = k + args.nb11*C*args.ne_12_2*args.ne_12_3;
++                    mask = v + args.nb21*C*args.ne_12_2*args.ne_12_3;
++                }
++
++                const short ikv2 = iq2/(args.ne02/args.ne_12_2);
++                const short ikv3 = iq3/(args.ne03/args.ne_12_3);
++
++                k += (ikv2 + ikv3*args.ne_12_2)*args.nb11*C;
++                v += (ikv2 + ikv3*args.ne_12_2)*args.nb21*C;
++
++                if (!FC_flash_attn_ext_vec_has_mask) {
++                    if (ic + tiisg >= args.ne11) {
++                        sm[tiisg] = -MAXHALF;
++                    }
++                } else {
++                    pm = (device const half *) (mask) +
++                        iq1*C +
++                        (iq2%args.ne32)*(C*args.ne31) +
++                        (iq3%args.ne33)*(C*args.ne31*args.ne32);
++                }
++
++                ic = 0;
++            }
++
++            if (FC_flash_attn_ext_vec_has_mask) {
++                sm[tiisg] = pm[ic + tiisg];
++            }
++
++            if (simd_max(sm[tiisg]) <= -MAXHALF) {
++                continue;
++            }
++
++            {
++                device      const k4_t * pk4 = (device const k4_t *) (k + ic*args.nb11);
++                threadgroup const q4_t * pq4 = sq4;
++
++                pk4 += ty*NS10/4 + tx;
++                pq4 += tx;
++
++                qk_t mqk[C/NE] = { [ 0 ... C/NE - 1] = 0.0f };
++
++                FOR_UNROLL (short cc = 0; cc < C/NE; ++cc) {
++                    if (is_same<kd4_t, k4_t>::value) {
++                        FOR_UNROLL (short ii = 0; ii < DK4/NL; ++ii) {
++                            mqk[cc] += dot((float4) pk4[cc*NE*NS10/4 +  ii*NL], (float4) pq4[ii*NL]);
++                        }
++                    } else {
++                        device const kd4_t * pk = (device const kd4_t *) (k + ((ic + NE*cc + ty)*args.nb11));
++
++                        k4_t mk;
++
++                        FOR_UNROLL (short ii = 0; ii < DK4/NL; ++ii) {
++                            const short i = ii*NL + tx;
++
++                            deq_k_t4(pk + i/nl_k, i%nl_k, mk);
++
++                            mqk[cc] += dot((float4) mk, (float4) sq4[i]);
++                        }
++                    }
++
++                    if (NE == 1) {
++                        mqk[cc] = simd_sum(mqk[cc]);
++                    } else {
++                        if (NE <= 1) {
++                            mqk[cc] += simd_shuffle_down(mqk[cc], 16);
++                        }
++                        if (NE <= 2) {
++                            mqk[cc] += simd_shuffle_down(mqk[cc],  8);
++                        }
++                        if (NE <= 4) {
++                            mqk[cc] += simd_shuffle_down(mqk[cc],  4);
++                        }
++                        if (NE <= 8) {
++                            mqk[cc] += simd_shuffle_down(mqk[cc],  2);
++                        }
++                        if (NE <= 16) {
++                            mqk[cc] += simd_shuffle_down(mqk[cc],  1);
++                        }
++
++                        mqk[cc] = simd_shuffle(mqk[cc], NL*ty);
++                    }
++                }
++
++                if (FC_flash_attn_ext_vec_has_mask &&
++                   !FC_flash_attn_ext_vec_has_scap &&
++                   !FC_flash_attn_ext_vec_has_bias) {
++                    ss[NE*tx + ty] = fma(mqk[tx], args.scale, (qk_t) sm[NE*tx + ty]);
++                } else {
++                    mqk[tx] *= args.scale;
++
++                    if (FC_flash_attn_ext_vec_has_scap) {
++                        mqk[tx] = args.logit_softcap*precise::tanh(mqk[tx]);
++                    }
++
++                    if (FC_flash_attn_ext_vec_has_bias) {
++                        mqk[tx] += (qk_t) sm[NE*tx + ty]*slope;
++                    } else {
++                        mqk[tx] += (qk_t) sm[NE*tx + ty];
++                    }
++
++                    ss[NE*tx + ty] = mqk[tx];
++                }
++            }
++
++            simdgroup_barrier(mem_flags::mem_threadgroup);
++
++            {
++                const float m = M;
++                const float s = ss[tiisg];
++
++                M = simd_max(max(M, s));
++
++                const float ms = exp(m - M);
++                const float vs = exp(s - M);
++
++                S = S*ms + simd_sum(vs);
++
++                ss[tiisg] = vs;
++
++                if ((DV4/NL % NW == 0) || ty == 0) {
++                    FOR_UNROLL (short ii = 0; ii < DV4/NL; ++ii) {
++                        so4[ii*NL] *= ms;
++                    }
++                }
++            }
++
++            simdgroup_barrier(mem_flags::mem_threadgroup);
++
++            {
++                o4_t lo[DV4/NL];
++                FOR_UNROLL (short ii = 0; ii < DV4/NL; ++ii) {
++                    lo[ii] = 0.0f;
++                }
++
++                if (is_same<vd4_t, v4_t>::value) {
++                    device const v4_t * pv4 = (device const v4_t *) (v + ic*args.nb21);
++
++                    pv4 += ty*NS20/4 + tx;
++
++                    const auto sst = ss + ty;
++
++                    FOR_UNROLL (short cc = 0; cc < C/NE; ++cc) {
++                        FOR_UNROLL (short ii = 0; ii < DV4/NL; ++ii) {
++                            lo[ii] += o4_t(float4(pv4[cc*NE*NS20/4 + ii*NL])*float4(sst[cc*NE]));
++                        }
++                    }
++                } else {
++                    FOR_UNROLL (short cc = 0; cc < C/NE; ++cc) {
++                        device const vd4_t * pv4 = (device const vd4_t *) (v + ((ic + NE*cc + ty)*args.nb21));
++
++                        FOR_UNROLL (short ii = 0; ii < DV4/NL; ++ii) {
++                            const short i = ii*NL + tx;
++
++                            v4_t mv;
++                            deq_v_t4(pv4 + i/nl_v, i%nl_v, mv);
++
++                            lo[ii] += o4_t(float4(mv)*float4(ss[NE*cc + ty]));
++                        }
++                    }
++                }
++
++                FOR_UNROLL (short ii = 0; ii < DV4/NL; ++ii) {
++                    if (NE > 1) {
++                        lo[ii][0] += simd_shuffle_down(lo[ii][0], 16);
++                        lo[ii][1] += simd_shuffle_down(lo[ii][1], 16);
++                        lo[ii][2] += simd_shuffle_down(lo[ii][2], 16);
++                        lo[ii][3] += simd_shuffle_down(lo[ii][3], 16);
++                    }
++
++                    if (NE > 2) {
++                        lo[ii][0] += simd_shuffle_down(lo[ii][0],  8);
++                        lo[ii][1] += simd_shuffle_down(lo[ii][1],  8);
++                        lo[ii][2] += simd_shuffle_down(lo[ii][2],  8);
++                        lo[ii][3] += simd_shuffle_down(lo[ii][3],  8);
++                    }
++
++                    if (NE > 4) {
++                        lo[ii][0] += simd_shuffle_down(lo[ii][0],  4);
++                        lo[ii][1] += simd_shuffle_down(lo[ii][1],  4);
++                        lo[ii][2] += simd_shuffle_down(lo[ii][2],  4);
++                        lo[ii][3] += simd_shuffle_down(lo[ii][3],  4);
++                    }
++
++                    if (NE > 8) {
++                        lo[ii][0] += simd_shuffle_down(lo[ii][0],  2);
++                        lo[ii][1] += simd_shuffle_down(lo[ii][1],  2);
++                        lo[ii][2] += simd_shuffle_down(lo[ii][2],  2);
++                        lo[ii][3] += simd_shuffle_down(lo[ii][3],  2);
++                    }
++
++                    if (NE > 16) {
++                        lo[ii][0] += simd_shuffle_down(lo[ii][0],  1);
++                        lo[ii][1] += simd_shuffle_down(lo[ii][1],  1);
++                        lo[ii][2] += simd_shuffle_down(lo[ii][2],  1);
++                        lo[ii][3] += simd_shuffle_down(lo[ii][3],  1);
++                    }
++                }
++
++                if ((DV4/NL % NW == 0) || ty == 0) {
++                    FOR_UNROLL (short ii = 0; ii < DV4/NL; ++ii) {
++                        so4[ii*NL] += lo[ii];
++                    }
++                }
++            }
++        }
++
++        if (FC_flash_attn_ext_vec_has_sinks && head_ok && iwg == 0) {
++            const float m = M;
++            const float s = tiisg == 0 ? ((device const float *) sinks)[iq2] : -FLT_MAX/2;
++
++            M = simd_max(max(M, s));
++
++            const float ms = exp(m - M);
++            const float vs = exp(s - M);
++
++            S = S*ms + simd_sum(vs);
++
++            if ((DV4/NL % NW == 0) || ty == 0) {
++                FOR_UNROLL (short ii = 0; ii < DV4/NL; ++ii) {
++                    so4[ii*NL] *= ms;
++                }
++            }
++        }
++
++        if (tiisg == 0) {
++            ss[0] = (s_t) S;
++            ss[1] = (s_t) M;
++        }
++    }
++
++    so4 -= tiisg;
++
++    threadgroup_barrier(mem_flags::mem_threadgroup);
++
++    if (head_ok) {
++        const int64_t nrows = args.ne3*args.ne2*args.ne1;
++        const int64_t rid   = iq3*args.ne2*args.ne1 + iq2 + iq1*args.ne1;
++
++        device float4 * dst4 = (device float4 *) dst;
++        device float  * dst1 = (device float  *) dst + nrows*DV*NWG;
++
++        const float S = NWG == 1 ? (ss[0] == 0.0f ? 0.0f : 1.0f/ss[0]) : 1.0f;
++
++        for (short i = tiisg; i < DV4; i += NW) {
++            dst4[rid*DV4*NWG + NWG*i + iwg] = (float4) so4[i]*S;
++        }
++
++        if (NWG > 1) {
++            if (tiisg == 0) {
++                dst1[rid*(2*NWG) + 2*iwg + 0] = ss[0];
++                dst1[rid*(2*NWG) + 2*iwg + 1] = ss[1];
++            }
++        }
++    }
++
++#undef NWG
++#undef NSG
++#undef NS10
++#undef NS20
++}
++
++typedef decltype(kernel_flash_attn_ext_vec_hp<FA_TYPES, half4, 1, dequantize_f16_t4, half4, 1, dequantize_f16_t4, 512, 512, 1, 2>) flash_attn_ext_vec_hp_t;
++
++template [[host_name("kernel_flash_attn_ext_vec_hp2_f16_dk512_dv512")]] kernel flash_attn_ext_vec_hp_t kernel_flash_attn_ext_vec_hp<FA_TYPES, half4, 1, dequantize_f16_t4, half4, 1, dequantize_f16_t4, 512, 512, 1, 2>;
++template [[host_name("kernel_flash_attn_ext_vec_hp4_f16_dk512_dv512")]] kernel flash_attn_ext_vec_hp_t kernel_flash_attn_ext_vec_hp<FA_TYPES, half4, 1, dequantize_f16_t4, half4, 1, dequantize_f16_t4, 512, 512, 1, 4>;
++template [[host_name("kernel_flash_attn_ext_vec_hp8_f16_dk512_dv512")]] kernel flash_attn_ext_vec_hp_t kernel_flash_attn_ext_vec_hp<FA_TYPES, half4, 1, dequantize_f16_t4, half4, 1, dequantize_f16_t4, 512, 512, 1, 8>;
++
+ #undef FA_TYPES
+ #undef FA_TYPES_F32
+ 
