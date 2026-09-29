@@ -50,16 +50,19 @@ while pgrep -x ds4-server >/dev/null; do sleep 2; done
 # prewarm cap (loader, ce99d26/f74eed1) and the package (router 5, fused
 # transitions, HC compound). The expert-ready continuation (=2, 4889363) is
 # not in it: run alone it was 4.5 ms a token slower (see V4.1-TUNING.md).
+# The expert cache at the working-set cap with the prefill reserve lent to
+# decode (9709 experts in decode, 2026-09-29): -2.06 ms a token.
 env DS4_METAL_V41_DECODE_QUEUE=1 DS4_METAL_IQ2_SELECTED_SHARED_EVENT=1 \
     DS4_METAL_STREAM_SPLIT_MIN_MISSING=1 \
-    DS4_METAL_STREAMING_EXPERT_AUTO_PRELOAD_CAP=7930 \
+    DS4_METAL_STREAMING_EXPERT_AUTO_PRELOAD_CAP=8192 \
+    DS4_METAL_V41_DECODE_LEND_HEADROOM=1 \
     DS4_METAL_V41_ABORT_GATE=40 DS4_METAL_V41_ABORT_GATE_SEG=3 \
     DS4_METAL_V41_EXPERT_RESIDENCY_SET=1 DS4_METAL_V41_FFN_OVERLAP=1 \
     DS4_METAL_V41_ROUTER_FUSE_TRANSFORM=5 DS4_METAL_V41_FUSE_BF16=2 \
     DS4_METAL_V41_HC_COMPOUND=1 \
     DS4_METAL_V41_GATE_ENCODE_AHEAD=1 \
     "$@" ./ds4-server -m "$MODEL" --ssd-streaming --ctx 8192 \
-    ${DS4_EXTRA_ARGS:-} \
+    ${DS4_EXTRA_ARGS:---ssd-streaming-cache-experts 10268} \
     --host 127.0.0.1 --port "$PORT" > "$LOG" 2>&1 &
 pid=$!
 trap 'kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null' EXIT

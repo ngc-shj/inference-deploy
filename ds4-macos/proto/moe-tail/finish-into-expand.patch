@@ -1,0 +1,273 @@
+diff --git a/ds4.c b/ds4.c
+index 23344f1..1e67ce8 100644
+--- a/ds4.c
++++ b/ds4.c
+@@ -43426,9 +43426,37 @@ static bool ds41_moe_shared_stage(ds41_gpu_graph *g, const ds4_model *m,
+                                 true, &late[1]);
+ }
+ 
++/* DS4_METAL_V41_HC_COMPOUND=2: the MoE's tail as one dispatch. The shared
++ * expert's deferred rounding and the finish (routed + shared, BF16) are not
++ * issued; the expand after the MoE computes them in place of reading the
++ * block (kernel_dsv41_moe_finish_expand4_pre). Single-step graph only, and
++ * only where that expand is the fused one. */
++static struct { bool pending, late3; } g_ds41_tail;
++/* =3 also runs the separate tail into shadows and counts differing words in
++ * the transition compare's residual and pre slots (4, 5). */
++static int g_ds41_tail_level;
++static unsigned long long g_ds41_tail_fused, g_ds41_tail_rounds_folded;
++static bool ds41_moe_tail_on(const ds41_gpu_graph *g) {
++    static int checked, on;
++    if (!checked) {
++        const char *e = getenv("DS4_METAL_V41_HC_COMPOUND");
++        checked = 1;
++        on = e ? atoi(e) : 0;
++        on = on == 2 || on == 3 ? on : 0;
++    }
++    g_ds41_tail_level = on;
++    return on && g && g == g_ds41_dag_graph && g->tp_world != 2 &&
++           g_ds41_sabl_stage == 0 && !g_ds41_sabl_capture &&
++           ds41_fuse_bf16() && ds41_fuse_transition() == 2;
++}
++
+ /* Issue the roundings a section deferred, now that it is closed. */
+ static bool ds41_moe_shared_round(ds41_gpu_graph *g, const ds4_layer_weights *l,
+                                   int stage, const bool late[2]) {
++    if (stage == 3 && ds41_moe_tail_on(g)) {
++        g_ds41_tail.late3 = late[0];
++        return true;
++    }
+     if (stage == 3)
+         return !late[0] || ds41_bf16(g->shared, DS4_N_EMBD);
+     return (!late[0] || ds41_bf16(g->shared_gate, (uint32_t)l->ffn_gate_shexp->dim[1])) &&
+@@ -43730,6 +43758,12 @@ static bool ds41_moe_experts_overlapped(ds41_gpu_graph *g, const ds4_model *m,
+ }
+ 
+ static bool ds41_moe_finish(ds41_gpu_graph *g, uint32_t il) {
++    if (ds41_moe_tail_on(g)) {
++        /* Left for the expand after the MoE, which does it in place. */
++        (void)il;
++        g_ds41_tail.pending = true;
++        return true;
++    }
+     const bool shared_owner = g->tp_world == 2 &&
+         !getenv("DS4_METAL_DISABLE_V41_TP_SHARED_OWNER");
+     ds4_gpu_tensor *routed = shared_owner ? g->block : g->routed;
+@@ -44293,6 +44327,37 @@ static bool ds41_graph_after_moe(ds41_gpu_graph *g) {
+      * store's fusion - both blits of a layer gone - which was the AGX
+      * driver re-shaping grid-indexed kernels under indirect dispatch; those
+      * kernels now index through their threadgroup. */
++    if (g_ds41_tail.pending) {
++        extern int ds4_gpu_dsv41_moe_finish_expand_pre_tensor(ds4_gpu_tensor *out_hc,
++                const ds4_gpu_tensor *block_out, const ds4_gpu_tensor *shared_out,
++                uint32_t round_shared, const ds4_gpu_tensor *residual_hc,
++                const ds4_gpu_tensor *split, ds4_gpu_tensor *pre, uint32_t n_embd,
++                uint32_t n_hc);
++        const bool late3 = g_ds41_tail.late3;
++        g_ds41_tail.pending = g_ds41_tail.late3 = false;
++        g_ds41_tail_fused++;
++        if (late3) g_ds41_tail_rounds_folded++;
++        if (g_ds41_tail_level == 3) {
++            /* The separate tail, into shadows, before the fused one writes the
++             * residual it reads. */
++            static ds4_gpu_tensor *sh, *blk;
++            const uint64_t row = (uint64_t)DS4_N_EMBD * sizeof(float);
++            if ((!sh && !(sh = ds4_gpu_tensor_alloc(row))) ||
++                (!blk && !(blk = ds4_gpu_tensor_alloc(row))) || !ds41_tr_shadows() ||
++                !ds4_gpu_tensor_copy(sh, 0, g->shared, 0, row) ||
++                (late3 && !ds41_bf16(sh, DS4_N_EMBD)) ||
++                !ds4_gpu_add_bf16_tensor(blk, g->routed, sh, DS4_N_EMBD) ||
++                !ds4_gpu_dsv41_hc_expand_pre_tensor(g_ds41_tr_res, blk, g->after_attn,
++                                                    g->ffn_split, g_ds41_tr_pre,
++                                                    DS4_N_EMBD, DS4_N_HC)) return false;
++        }
++        if (!ds4_gpu_dsv41_moe_finish_expand_pre_tensor(g->residual, g->routed, g->shared,
++                                                        late3, g->after_attn, g->ffn_split,
++                                                        g->pre, DS4_N_EMBD, DS4_N_HC)) return false;
++        return g_ds41_tail_level != 3 ||
++               (ds4_gpu_dsv41_words_compare(g->residual, g_ds41_tr_res, DS4_N_HC * DS4_N_EMBD, 4) &&
++                ds4_gpu_dsv41_words_compare(g->pre, g_ds41_tr_pre, DS4_N_HC, 5));
++    }
+     if (fused == 2 && ds41_fuse_bf16())
+         return ds4_gpu_dsv41_hc_expand_pre_tensor(g->residual, g->block, g->after_attn,
+                                                   g->ffn_split, g->pre, DS4_N_EMBD, DS4_N_HC);
+@@ -45228,6 +45293,9 @@ static int ds4_gate_report_cache(unsigned long long tokens, FILE *route_fp) {
+         }
+         fprintf(stderr, "ds4:   Engram rows written at step start in %llu steps; "
+                 "layer-13 drains %llu\n", g_ds41_engram_split_steps, g_ds41_layer13_drains);
++        if (g_ds41_tail_fused)
++            fprintf(stderr, "ds4:   MoE tails fused into the expand %llu, shared roundings "
++                    "folded %llu\n", g_ds41_tail_fused, g_ds41_tail_rounds_folded);
+         fprintf(stderr,
+                 "ds4:   residency a token: %.2f adds, %.2f removes, %.2f commits\n",
+                 (double)(res_add - last_add) / (double)dt,
+diff --git a/ds4_metal.m b/ds4_metal.m
+index 32983b8..cd55384 100644
+--- a/ds4_metal.m
++++ b/ds4_metal.m
+@@ -56612,6 +56612,93 @@ int ds4_gpu_dsv41_hc_expand_pre_tensor(
+     return 1;
+ }
+ 
++/* ds4_gpu_dsv41_hc_expand_pre_tensor with the MoE finish folded in: block_out
++ * is the routed output and shared_out the shared expert's, rounded here first
++ * when its producer deferred that. */
++int ds4_gpu_dsv41_moe_finish_expand_pre_tensor(
++        ds4_gpu_tensor       *out_hc,
++        const ds4_gpu_tensor *block_out,
++        const ds4_gpu_tensor *shared_out,
++        uint32_t              round_shared,
++        const ds4_gpu_tensor *residual_hc,
++        const ds4_gpu_tensor *split,
++        ds4_gpu_tensor       *pre,
++        uint32_t              n_embd,
++        uint32_t              n_hc) {
++    if (!g_initialized && !ds4_gpu_init()) return 0;
++    if (!out_hc || !block_out || !residual_hc || !split || !pre || n_hc != 4u) return 0;
++    @autoreleasepool {
++        const uint64_t mix_hc = 2ull * n_hc + (uint64_t)n_hc * n_hc;
++        const uint64_t hc_bytes = (uint64_t)n_hc * n_embd * sizeof(float);
++        id<MTLBuffer> blockbuf = ds4_gpu_tensor_buffer(block_out);
++        id<MTLBuffer> sharedbuf = ds4_gpu_tensor_buffer(shared_out);
++        if (!sharedbuf || ds4_gpu_tensor_bytes(shared_out) < (uint64_t)n_embd * sizeof(float))
++            return 0;
++        id<MTLBuffer> resbuf = ds4_gpu_tensor_buffer(residual_hc);
++        id<MTLBuffer> splitbuf = ds4_gpu_tensor_buffer(split);
++        id<MTLBuffer> outbuf = ds4_gpu_tensor_buffer(out_hc);
++        id<MTLBuffer> prebuf = ds4_gpu_tensor_buffer(pre);
++        /* One token only: the separate expand sizes its grid from the output
++         * tensor, and a larger one would be a different operation. */
++        if (!blockbuf || !resbuf || !splitbuf || !outbuf || !prebuf ||
++            ds4_gpu_tensor_bytes(out_hc) != hc_bytes ||
++            ds4_gpu_tensor_bytes(block_out) < (uint64_t)n_embd * sizeof(float) ||
++            ds4_gpu_tensor_bytes(residual_hc) < hc_bytes ||
++            ds4_gpu_tensor_bytes(split) < mix_hc * sizeof(float) ||
++            ds4_gpu_tensor_bytes(pre) < n_hc * sizeof(float)) {
++            fprintf(stderr, "ds4: V4.1 HC expand/pre wants one token row, output is %llu bytes\n",
++                    (unsigned long long)ds4_gpu_tensor_bytes(out_hc));
++            return 0;
++        }
++        ds4_gpu_hc_expand_args args = {
++            .n_embd = n_embd,
++            .n_hc = n_hc,
++            .n_tokens = 1,
++            .nb_block0 = sizeof(float),
++            .nb_block1 = (uint64_t)n_embd * sizeof(float),
++            .nb_add0 = sizeof(float),
++            .nb_add1 = (uint64_t)n_embd * sizeof(float),
++            .nb_res0 = sizeof(float),
++            .nb_res1 = (uint64_t)n_embd * sizeof(float),
++            .nb_res2 = (uint64_t)n_hc * n_embd * sizeof(float),
++            .nb_post0 = sizeof(float),
++            .nb_post1 = mix_hc * sizeof(float),
++            .nb_comb0 = sizeof(float),
++            .nb_comb1 = (uint64_t)n_hc * sizeof(float),
++            .nb_comb2 = mix_hc * sizeof(float),
++            .nb0 = sizeof(float),
++            .nb1 = (uint64_t)n_embd * sizeof(float),
++            .nb2 = (uint64_t)n_hc * n_embd * sizeof(float),
++            .has_add = 1,
++        };
++        args.bf16 = 1;
++        id<MTLComputePipelineState> pipe = ds4_gpu_get_pipeline("kernel_dsv41_moe_finish_expand4_pre");
++        if (!pipe) return 0;
++        const NSUInteger nth = MIN((NSUInteger)256, (NSUInteger)n_embd);
++        const NSUInteger n_tg = ((NSUInteger)n_embd + nth - 1u) / nth;
++        int owned = 0;
++        id<MTLCommandBuffer> cb = ds4_gpu_command_buffer(&owned);
++        if (!cb) return 0;
++        id<DS4Encoder> enc = ds4_gpu_compute_encoder(cb);
++        [enc setComputePipelineState:pipe];
++        [enc setBytes:&args length:sizeof(args) atIndex:0];
++        [enc setBuffer:blockbuf offset:ds4_gpu_tensor_offset(block_out) atIndex:1];
++        [enc setBuffer:resbuf offset:ds4_gpu_tensor_offset(residual_hc) atIndex:2];
++        [enc setBuffer:splitbuf offset:ds4_gpu_tensor_offset(split) + (NSUInteger)n_hc * sizeof(float) atIndex:3];
++        [enc setBuffer:splitbuf offset:ds4_gpu_tensor_offset(split) + (NSUInteger)(2u * n_hc) * sizeof(float) atIndex:4];
++        [enc setBuffer:sharedbuf offset:ds4_gpu_tensor_offset(shared_out) atIndex:5];
++        [enc setBuffer:outbuf offset:ds4_gpu_tensor_offset(out_hc) atIndex:6];
++        [enc setBuffer:splitbuf offset:ds4_gpu_tensor_offset(split) atIndex:7];
++        [enc setBuffer:prebuf offset:ds4_gpu_tensor_offset(pre) atIndex:8];
++        const uint32_t rs = round_shared ? 1u : 0u;
++        [enc setBytes:&rs length:sizeof(rs) atIndex:9];
++        ds4_gpu_dispatch(enc, MTLSizeMake(n_tg, 1, 1), MTLSizeMake(nth, 1, 1));
++        ds4_gpu_end_compute_encoder(cb, enc);
++        if (!ds4_gpu_finish_command_buffer(cb, owned, "V4.1 MoE finish and HC expand/pre")) return 0;
++    }
++    return 1;
++}
++
+ /* Diagnostic word comparison for the fused forms: counts[slot] gains the
+  * number of 32-bit words of b that differ from a. Read with
+  * ds4_gpu_dsv41_compare_counts once the work has completed. */
+diff --git a/metal/dsv41.metal b/metal/dsv41.metal
+index ab9fde4..319bed3 100644
+--- a/metal/dsv41.metal
++++ b/metal/dsv41.metal
+@@ -1303,6 +1303,67 @@ kernel void kernel_dsv41_hc_expand4_pre(
+     }
+ }
+ 
++// kernel_dsv41_hc_expand4_pre with the MoE finish (routed + shared, BF16)
++// computed in place of the block it would have read. Nothing else differs.
++kernel void kernel_dsv41_moe_finish_expand4_pre(
++        constant ds4_metal_args_dsv4_hc_expand & args,
++        device  const char * block_out,
++        device  const char * residual,
++        device  const char * post,
++        device  const char * comb,
++        device  const char * block_add,
++        device        char * dst,
++        device  const float * split,
++        device        float * pre,
++        constant uint & round_shared,
++        uint tg_ [[threadgroup_position_in_grid]],
++        uint tid_ [[thread_position_in_threadgroup]],
++        uint ntg_ [[threads_per_threadgroup]]) {
++    /* Indexed through the threadgroup - see kernel_swiglu_flat_f32. */
++    const uint gid = tg_ * ntg_ + tid_;
++    if (args.n_hc != 4) {
++        return;
++    }
++
++    const int64_t n_elem = args.n_embd * args.n_tokens;
++    if ((int64_t) gid >= n_elem) {
++        return;
++    }
++    if (gid < 4) {
++        pre[gid] = split[gid];
++    }
++
++    const int64_t d = ((int64_t) gid) % args.n_embd;
++    const int64_t t = ((int64_t) gid) / args.n_embd;
++
++    /* The MoE's finish in place of reading its output: the shared expert's
++     * deferred rounding, routed plus shared in that order, and the BF16
++     * rounding of the sum - the add2 kernel's arithmetic - then the expand. */
++    float shared_v = *((device const float *) (block_add + d*args.nb_add0 + t*args.nb_add1));
++    if (round_shared) {
++        shared_v = ds4_round_bf16(shared_v);
++    }
++    const float routed_v = *((device const float *) (block_out + d*args.nb_block0 + t*args.nb_block1));
++    const float block_v = ds4_round_bf16(routed_v + shared_v);
++
++    const float r0 = *((device const float *) (residual + d*args.nb_res0 + 0*args.nb_res1 + t*args.nb_res2));
++    const float r1 = *((device const float *) (residual + d*args.nb_res0 + 1*args.nb_res1 + t*args.nb_res2));
++    const float r2 = *((device const float *) (residual + d*args.nb_res0 + 2*args.nb_res1 + t*args.nb_res2));
++    const float r3 = *((device const float *) (residual + d*args.nb_res0 + 3*args.nb_res1 + t*args.nb_res2));
++
++    for (int64_t dst_hc = 0; dst_hc < 4; ++dst_hc) {
++        float acc = block_v * *((device const float *) (post + dst_hc*args.nb_post0 + t*args.nb_post1));
++
++        acc += *((device const float *) (comb + dst_hc*args.nb_comb0 + 0*args.nb_comb1 + t*args.nb_comb2)) * r0;
++        acc += *((device const float *) (comb + dst_hc*args.nb_comb0 + 1*args.nb_comb1 + t*args.nb_comb2)) * r1;
++        acc += *((device const float *) (comb + dst_hc*args.nb_comb0 + 2*args.nb_comb1 + t*args.nb_comb2)) * r2;
++        acc += *((device const float *) (comb + dst_hc*args.nb_comb0 + 3*args.nb_comb1 + t*args.nb_comb2)) * r3;
++
++        *((device float *) (dst + d*args.nb0 + dst_hc*args.nb1 + t*args.nb2)) =
++            args.bf16 ? ds4_round_bf16(acc) : acc;
++    }
++}
++
+ // Words of b that differ from a, added to counts[slot].
+ kernel void kernel_dsv41_words_compare(
+         device const uint * a,
