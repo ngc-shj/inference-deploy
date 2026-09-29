@@ -4,8 +4,9 @@
 # was measured with.
 #
 #   m4abba.sh <name> [blocks]      blocks of 3-4-4-3 (default 2: 8 arms)
-#   BIN_A=dir BIN_B=dir            instead: two binaries, both on Metal 4,
-#                                  in blocks of a-b-b-a (before/after a change)
+#   BIN_A=dir BIN_B=dir            instead: two binaries in blocks of a-b-b-a
+#                                  (before/after a change); MTL4_A/MTL4_B set
+#                                  DS4_METAL_V41_MTL4 per build (default 1)
 #
 # Waits for bench/startable.sh before the first arm, and before every arm
 # waits for bench/thermal to come back to 97% of the settled reference, so no
@@ -59,6 +60,9 @@ for be in $order; do
     vm_stat > "$OUT/$arm.vm0"
     t0=$("$S/cputicks"); s0=$(date +%s)
     M4=0; [ "$be" = 3 ] || M4=1
+    # MTL4_A / MTL4_B override the backend switch per build: an old build that
+    # still has the switch must be told 0 to be the Metal 3 baseline.
+    case "$be" in a) M4=${MTL4_A:-$M4} ;; b) M4=${MTL4_B:-$M4} ;; esac
     # Other GPU clients (the window server, a browser) share the GPU and
     # the CPU gate cannot see them: sample the render and device load.
     ( while :; do

@@ -1,0 +1,8 @@
+single: main True ids same m3work 0 backend 1
+inproc: short prompt 26 tokens, 2048 steps: logits differ at 0 of 2049 evaluations (first -1), tokens first differ at -1, ids 13607d993a447227 / 13607d993a447227;haiku prompt 21 tokens, 256 steps: logits differ at 0 of 257 evaluations (first -1), tokens first differ at -1, ids 8f561a8abb7bba25 / 8f561a8abb7bba25;long prompt 4795 tokens, 256 steps: logits differ at 0 of 257 evaluations (first -1), tokens first differ at -1, ids e197891559449b7b / e197891559449b7b;injected decode failure: eval returned 1 (V4.1 decode failed at position 34);injected prefill failure: sync returned 1 (V4.1 prefill failed at position 0);after a fresh session matches the reference for 128 of 128 tokens;fallback Metal 3 work noted under the Metal 4 backend: 0;health Metal 4: 112552 commits, 112552 feedback, 2 errors (the injected ones), residency held 0 entries 0.0 MiB, peak 95637.0 MiB, 10579836 adds, 10579836 releases;reopen an engine opened after the first closed matches the reference for 2048 of 2048 tokens;closed after the second close: residency held 0 entries;PASS;oracle short ids 13607d993a447227 as before;oracle haiku ids 8f561a8abb7bba25 as before;oracle long ids e197891559449b7b as before;
+vision: text same ids same m3work 0
+batch fallback: text same ids same m3work 0
+batch native: text same ids same rows3 381 m3work 0
+executor=2: main True ids same verify executor: 10 blocks
+disk kv: turn1 same turn2 same ids same hit 1
+abba: 01-ma 39.4 02-mb 39.8 03-mb 39.8 04-ma 39.2 
