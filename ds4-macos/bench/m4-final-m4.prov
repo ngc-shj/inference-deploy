@@ -1,0 +1,9 @@
+rev c7c7e198df1446b91fc37782069f6dafc57bc909
+dirty 8
+diffstat  8 files changed, 677 insertions(+), 101 deletions(-)
+binary ff8b268fdbb55b410359b1d56211a729992be2228e05f27b2a816824ba6990f1
+binary_mtime Sep 29 19:51:38 2026
+backend 4
+extra 
+started 2026-09-29 21:11:41
+finished 2026-09-29 21:28:09 rc=0
