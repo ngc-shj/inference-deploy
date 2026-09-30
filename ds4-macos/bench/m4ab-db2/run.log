@@ -1,0 +1,10 @@
+09-30 11:05:37 no gate: last 4 windows: max 1.915, range 0.763 (need <= 1.39 and <= 0.17) - wait
+09-30 11:15:18 01-ma: aggregate 23.40 tok/s over 87.5 s wall per token: 38.9 ms wall at 25.70 tok/s, 42.3 ms inside the graph, -3.4 ms (-9%) outside  | 1211.9 GFLOP/s (0.554 ms)
+09-30 11:24:56 02-mb: aggregate 24.21 tok/s over 84.6 s wall per token: 37.2 ms wall at 26.85 tok/s, 38.8 ms inside the graph, -1.6 ms (-4%) outside  | 1214.6 GFLOP/s (0.553 ms)
+09-30 11:34:36 03-mb: aggregate 23.54 tok/s over 87.0 s wall per token: 38.6 ms wall at 25.94 tok/s, 42.0 ms inside the graph, -3.4 ms (-9%) outside  | 1211.5 GFLOP/s (0.554 ms)
+09-30 11:44:16 04-ma: aggregate 23.40 tok/s over 87.5 s wall per token: 38.7 ms wall at 25.81 tok/s, 43.1 ms inside the graph, -4.4 ms (-11%) outside  | 1211.5 GFLOP/s (0.554 ms)
+09-30 11:53:52 05-ma: aggregate 24.62 tok/s over 83.2 s wall per token: 36.8 ms wall at 27.20 tok/s, 38.3 ms inside the graph, -1.5 ms (-4%) outside  | 1216.6 GFLOP/s (0.552 ms)
+09-30 12:03:30 06-mb: aggregate 24.04 tok/s over 85.2 s wall per token: 37.7 ms wall at 26.50 tok/s, 40.9 ms inside the graph, -3.2 ms (-8%) outside  | 1214.6 GFLOP/s (0.553 ms)
+09-30 12:13:07 07-mb: aggregate 24.59 tok/s over 83.3 s wall per token: 36.9 ms wall at 27.10 tok/s, 39.1 ms inside the graph, -2.2 ms (-6%) outside  | 1213.5 GFLOP/s (0.553 ms)
+09-30 12:22:44 08-ma: aggregate 24.32 tok/s over 84.2 s wall per token: 37.1 ms wall at 26.92 tok/s, 38.2 ms inside the graph, -1.1 ms (-3%) outside  | 1212.4 GFLOP/s (0.554 ms)
+09-30 12:22:44 done

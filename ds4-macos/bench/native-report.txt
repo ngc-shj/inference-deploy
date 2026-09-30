@@ -1,0 +1,9 @@
+single: main True ids same m3work 0 live 0
+abort-heavy: main True ids same live 0
+inproc: short prompt 26 tokens, 2048 steps: logits differ at 0 of 2049 evaluations (first -1), tokens first differ at -1, ids 13607d993a447227 / 13607d993a447227;after a fresh session matches the reference for 128 of 128 tokens;fallback Metal 3 work noted under the Metal 4 backend: 0;reopen an engine opened after the first closed matches the reference for 2048 of 2048 tokens;PASS;oracle short ids 13607d993a447227 as before;oracle haiku ids 8f561a8abb7bba25 as before;oracle long ids e197891559449b7b as before;
+vision: text same ids same
+batch native: text same ids same rows3 381
+batch fallback: text same ids same
+executor=2: main True ids same
+disk kv: turn1 same turn2 same ids same
+abba vs frozen Metal 3: 01-ma 40.3 02-mb 38.7 03-mb 38.6 04-ma 40.5 
