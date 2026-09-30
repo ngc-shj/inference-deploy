@@ -1,0 +1,11 @@
+single: main True ids same m3 [0 (refused 0); Metal 3 queues created before selection 1, after 0] overflow 0
+abort-heavy: main True ids same live 0 m3 [0 (refused 0); Metal 3 queues created before selection 1, after 0]
+inproc: warmup model views touched: ok; Metal 4 commits +1, encoders +1; Metal 3 commands +0;refusal a Metal 3-only call returned 0; refusals +1, Metal 3 commands +0;short prompt 26 tokens, 2048 steps: logits differ at 0 of 2049 evaluations (first -1), tokens first differ at -1, ids 13607d993a447227 / 13607d993a447227;haiku prompt 21 tokens, 256 steps: logits differ at 0 of 257 evaluations (first -1), tokens first differ at -1, ids 8f561a8abb7bba25 / 8f561a8abb7bba25;long prompt 4795 tokens, 256 steps: logits differ at 0 of 257 evaluations (first -1), tokens first differ at -1, ids e197891559449b7b / e197891559449b7b;injected decode failure: eval returned 1 (V4.1 decode failed at position 34);injected prefill failure: sync returned 1 (V4.1 prefill failed at position 0);after a fresh session matches the reference for 128 of 128 tokens;reopen an engine opened after the first closed matches the reference for 2048 of 2048 tokens;m3api Metal 3 command execution after Metal 4 selection: 0; refused 1 (the one deliberate); Metal 3 queues created before selection 2, after 0;PASS;oracle short ids 13607d993a447227 as before;oracle haiku ids 8f561a8abb7bba25 as before;oracle long ids e197891559449b7b as before;
+vision: text same ids same m3 [0 (refused 0); Metal 3 queues created before selection 1, after 0]
+batch native: text same ids same rows3 381 m3 [0 (refused 0); Metal 3 queues created before selection 1, after 0]
+batch fallback: text same ids same m3 [0 (refused 0); Metal 3 queues created before selection 1, after 0]
+executor=2: main True ids same m3 [0 (refused 0); Metal 3 queues created before selection 1, after 0]
+disk kv: turn1 same turn2 same ids same hit 1 m3 [0 (refused 0); Metal 3 queues created before selection 1, after 0]
+pacer: outputs True keepalive M3 0 M4 64, pacer M3 0 M4 54487 (cumulative) m3 [0 (refused 0); Metal 3 queues created before selection 1, after 0]
+overflow over all server logs: 0
+abba vs 6c71ed9: 01-ma 38.3 02-mb 38.4 03-mb 38.5 04-ma 38.6  hashes ee444de2 

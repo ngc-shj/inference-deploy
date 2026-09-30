@@ -33,7 +33,7 @@ env DS4_METAL_V41_DECODE_QUEUE=1 DS4_METAL_IQ2_SELECTED_SHARED_EVENT=1 \
     DS4_METAL_V41_GATE_ENCODE_AHEAD=1 \
     "$@" "./$T" "$MODEL" tests/long_context_story_prompt.txt > "$S/m4in-$NAME.log" 2>&1
 rc=$?
-grep -E '^(short|haiku|long|injected|after|fallback|health|reopen|closed|PASS|FAIL)' "$S/m4in-$NAME.log"
+grep -E '^(short|haiku|long|injected|after|fallback|health|reopen|closed|warmup|refusal|m3api|PASS|FAIL)' "$S/m4in-$NAME.log"
 grep -E '^FAIL' "$S/m4in-$NAME.log" | head -20
 if [ "${EXPECT:-0}" = 1 ]; then
     for c in short haiku long; do
