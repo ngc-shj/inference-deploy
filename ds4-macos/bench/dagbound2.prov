@@ -1,1 +1,5 @@
-rev 0e4eac7ad1f0ba04469bd2bd1ba97a2d970afea2 dirty 4 test 1c5cf99683f6a8b7
+rev 1adbfa9fbdefcdfcebb40187db74adc0c8d6464d dirty 3 binary bf3fd9935f31b73b458fff49fcba9d2244de9e22cd2b4c8df63bc31b8ea5cdbb
+ ds4_metal_mtl4.h                 |  18 +-
+ ds4_metal_replay.h               | 889 +++++++++++++++++++++++++++------------
+ tests/test_deepseek41_dagbound.c | 165 ++++++--
+ 3 files changed, 761 insertions(+), 311 deletions(-)
