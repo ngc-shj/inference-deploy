@@ -1,0 +1,14 @@
+rev 6a7603d0e73bb104d2498df7c683917ee5066ce1 dirty 0
+ds4-server sha256 01d67508ef96685506898d7c7885d29b76b31eb3dcc6d55c156892679e218e00
+ProductName:		macOS
+ProductVersion:		26.6.2
+BuildVersion:		25G83
+Darwin z1mn.local 25.6.0 Darwin Kernel Version 25.6.0: Fri Jul 31 19:19:08 PDT 2026; root:xnu-12377.161.14~5/RELEASE_ARM64_T6050 arm64
+Mac17,7
+137438953472
+Apple M5 Max
+reboot time                                木 10月  1 10:20
+reboot time                                木 10月  1 09:17
+reboot time                                木 10月  1 05:06
+reboot time                                木 10月  1 05:02
+reboot time                                土  9月 26 19:04

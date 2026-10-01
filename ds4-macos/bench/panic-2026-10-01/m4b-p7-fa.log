@@ -1,0 +1,62 @@
+ds4: abort gate on for the first 40 layers
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: V4.1 SSD cache fitted from 10268 to 9783 experts for context/runtime headroom
+ds4: Metal backend: Metal 4
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: metal SSD streaming cache target 90.69 GiB; effective 90.69 GiB = 7.12 GiB prefill headroom + 83.57 GiB dynamic cache (9015 experts, 9.49 MiB each)
+ds4: Metal SSD static weights remain pageable to preserve runtime headroom
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: expert cache prewarmed from the built-in V4.1 hotlist: 8192 experts (0 failed), 75.94 GiB in 26.02 s
+ds4: memory: KV 0.03 GiB (raw 0.01 + compressed 0.02) + buffers 1.79 GiB + resident model 9.37 GiB + expert cache 83.57 GiB + prefill expert reserve 7.12 GiB = 101.88 GiB planned
+ds4: memory detail: ctx=4096 prefill_cap=2048 raw_kv_rows=128 compressed_kv_rows=4097 backend=metal
+1001 10:19:48 ds4-server: context buffers 1864.68 MiB (ctx=4096, backend=metal, prefill_chunk=2048, raw_kv_rows=128, compressed_kv_rows=4097)
+1001 10:19:48 ds4-server: 3 resident sessions request at least 5.46 GiB of context buffers, or 1.89 GiB when the model shares one prefill workspace
+ds4: V4.1 executor ABI 3, arena align 256, rev aab7f0f36f9c-dirty, built Oct  1 2026 03:41:37
+ds4: V4.1 static context buffers 1864.68 MiB (ctx=4096), Engram disk-only
+ds4: V4.1 static context buffers 1864.68 MiB (ctx=4096), Engram disk-only
+ds4: V4.1 static context buffers 1864.68 MiB (ctx=4096), Engram disk-only
+1001 10:19:48 ds4-server: batched mode enabled resident_sessions=3 prefill_quantum=2048 mixed_prefill_quantum=128 decode_coalesce_us=2000
+1001 10:19:48 ds4-server: listening on http://127.0.0.1:18422
+1001 10:19:54 ds4-server: chat ctx=0..17:17 prompt start
+1001 10:19:54 ds4-server: chat ctx=0..17:17 prompt start
+1001 10:19:54 ds4-server: chat ctx=0..19:19 prompt start
+1001 10:19:54 ds4-server: metal 4 at request start: 0 commits, 0 feedback, 0 errors, residency 0 entries 0.0 MiB
+1001 10:19:54 ds4-server: metal 4 at request start: 0 commits, 0 feedback, 0 errors, residency 0 entries 0.0 MiB
+1001 10:19:54 ds4-server: metal 4 at request start: 0 commits, 0 feedback, 0 errors, residency 0 entries 0.0 MiB
+ds4: shared/routed FFN overlap ran, mode 1
+1001 10:19:58 ds4-server: chat ctx=0..17:17 prefill chunk 1/17 (5.9%) chunk=0.00 t/s avg=0.24 t/s 4.187s
+1001 10:19:59 ds4-server: chat ctx=0..17:17 prefill chunk 2/17 (11.8%) chunk=3.98 t/s avg=0.45 t/s 4.438s
+1001 10:19:59 ds4-server: chat ctx=0..17:17 prefill chunk 3/17 (17.6%) chunk=1.92 t/s avg=0.61 t/s 4.958s
+1001 10:19:59 ds4-server: chat ctx=0..17:17 prefill chunk 4/17 (23.5%) chunk=8.09 t/s avg=0.79 t/s 5.082s
+1001 10:20:00 ds4-server: chat ctx=0..17:17 prefill chunk 5/17 (29.4%) chunk=2.76 t/s avg=0.92 t/s 5.444s
+1001 10:20:00 ds4-server: chat ctx=0..17:17 prefill chunk 6/17 (35.3%) chunk=10.78 t/s avg=1.08 t/s 5.537s
+1001 10:20:00 ds4-server: chat ctx=0..17:17 prefill chunk 7/17 (41.2%) chunk=8.62 t/s avg=1.24 t/s 5.653s
+1001 10:20:00 ds4-server: chat ctx=0..17:17 prefill chunk 8/17 (47.1%) chunk=9.11 t/s avg=1.39 t/s 5.762s
+1001 10:20:00 ds4-server: chat ctx=0..17:17 prefill chunk 9/17 (52.9%) chunk=12.63 t/s avg=1.54 t/s 5.841s
+1001 10:20:00 ds4-server: chat ctx=0..17:17 prefill chunk 10/17 (58.8%) chunk=14.05 t/s avg=1.69 t/s 5.913s
+1001 10:20:00 ds4-server: chat ctx=0..17:17 prefill chunk 11/17 (64.7%) chunk=21.14 t/s avg=1.85 t/s 5.960s
+1001 10:20:00 ds4-server: chat ctx=0..17:17 prefill chunk 12/17 (70.6%) chunk=22.20 t/s avg=2.00 t/s 6.005s
+1001 10:20:00 ds4-server: chat ctx=0..17:17 prefill chunk 13/17 (76.5%) chunk=28.75 t/s avg=2.15 t/s 6.040s
+1001 10:20:00 ds4-server: chat ctx=0..17:17 prefill chunk 14/17 (82.4%) chunk=21.25 t/s avg=2.30 t/s 6.087s
+1001 10:20:00 ds4-server: chat ctx=0..17:17 prefill chunk 15/17 (88.2%) chunk=17.69 t/s avg=2.44 t/s 6.143s
+1001 10:20:01 ds4-server: chat ctx=0..17:17 prefill chunk 16/17 (94.1%) chunk=4.15 t/s avg=2.51 t/s 6.385s
+1001 10:20:01 ds4-server: chat ctx=0..17:17 prefill chunk 17/17 (100.0%) chunk=1.10 t/s avg=2.33 t/s 7.295s
+ds4: expert cache lent the prefill headroom for decode: 9015 -> 9783 experts
+1001 10:20:01 ds4-server: chat ctx=0..17:17 prompt done 7.303s
+1001 10:20:01 ds4-server: chat ctx=0..19:19 prefill chunk 1/19 (5.3%) chunk=0.00 t/s avg=0.14 t/s 7.342s
+1001 10:20:02 ds4-server: chat ctx=0..19:19 prefill chunk 2/19 (10.5%) chunk=30.44 t/s avg=0.27 t/s 7.375s
+1001 10:20:02 ds4-server: chat ctx=0..19:19 prefill chunk 3/19 (15.8%) chunk=25.49 t/s avg=0.40 t/s 7.414s
+1001 10:20:02 ds4-server: chat ctx=0..19:19 prefill chunk 4/19 (21.1%) chunk=11.34 t/s avg=0.53 t/s 7.502s
+1001 10:20:03 ds4-server: chat ctx=0..19:19 prefill chunk 5/19 (26.3%) chunk=0.77 t/s avg=0.57 t/s 8.809s
+1001 10:20:03 ds4-server: chat ctx=0..19:19 prefill chunk 6/19 (31.6%) chunk=6.38 t/s avg=0.67 t/s 8.966s
+1001 10:20:03 ds4-server: chat ctx=0..19:19 prefill chunk 7/19 (36.8%) chunk=6.53 t/s avg=0.77 t/s 9.119s
+1001 10:20:03 ds4-server: chat ctx=0..19:19 prefill chunk 8/19 (42.1%) chunk=9.18 t/s avg=0.87 t/s 9.228s
+1001 10:20:05 ds4-server: chat ctx=0..19:19 prefill chunk 9/19 (47.4%) chunk=0.66 t/s avg=0.84 t/s 10.754s
+1001 10:20:05 ds4-server: chat ctx=0..19:19 prefill chunk 10/19 (52.6%) chunk=10.43 t/s avg=0.92 t/s 10.850s
+1001 10:20:05 ds4-server: chat ctx=0..19:19 prefill chunk 11/19 (57.9%) chunk=11.11 t/s avg=1.01 t/s 10.940s
+1001 10:20:05 ds4-server: chat ctx=0..19:19 prefill chunk 12/19 (63.2%) chunk=12.17 t/s avg=1.09 t/s 11.022s
+1001 10:20:05 ds4-server: chat ctx=0..19:19 prefill chunk 13/19 (68.4%) chunk=13.57 t/s avg=1.17 t/s 11.096s
+1001 10:20:05 ds4-server: chat ctx=0..19:19 prefill chunk 14/19 (73.7%) chunk=15.29 t/s avg=1.25 t/s 11.161s
