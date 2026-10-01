@@ -6,3 +6,6 @@
 
 # Local Claude Code settings (machine-specific, not shared).
 .claude/
+
+# Built by ds4-macos/bench/gpurun.sh from memwatch.c.
+ds4-macos/bench/memwatch
