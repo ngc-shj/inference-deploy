@@ -7,6 +7,8 @@
 #   BIN_A=dir BIN_B=dir            instead: two binaries in blocks of a-b-b-a
 #                                  (before/after a change); MTL4_A/MTL4_B set
 #                                  DS4_METAL_V41_MTL4 per build (default 1)
+#   EXTRA_A / EXTRA_B              the server arguments for each build's arms
+#                                  (DS4_EXTRA_ARGS), e.g. its cache size
 #
 # Waits for bench/startable.sh before the first arm, and before every arm
 # waits for bench/thermal to come back to 97% of the settled reference, so no
@@ -71,7 +73,10 @@ for be in $order; do
           tr -dc '0-9\n' | tr '\n' ' '; echo; sleep 5
       done ) > "$OUT/$arm.gpu" 2>/dev/null &
     sampler=$!
-    TOKENS=2048 DS4_BIN="$BIN_ARM" "$S/sustained.sh" "m4ab-$NAME-$arm" DS4_METAL_V41_MTL4=$M4 \
+    EXTRA_ARM=${DS4_EXTRA_ARGS:-}
+    case "$be" in a) EXTRA_ARM=${EXTRA_A:-$EXTRA_ARM} ;; b) EXTRA_ARM=${EXTRA_B:-$EXTRA_ARM} ;; esac
+    echo "server args $EXTRA_ARM" >> "$OUT/$arm.prov"
+    env TOKENS=2048 DS4_BIN="$BIN_ARM" DS4_EXTRA_ARGS="$EXTRA_ARM" "$S/sustained.sh" "m4ab-$NAME-$arm" DS4_METAL_V41_MTL4=$M4 \
         > "$OUT/$arm.out" 2>&1
     kill "$sampler" 2>/dev/null; wait "$sampler" 2>/dev/null
     t1=$("$S/cputicks"); s1=$(date +%s)
