@@ -65,7 +65,13 @@ env DS4_METAL_V41_DECODE_QUEUE=1 DS4_METAL_IQ2_SELECTED_SHARED_EVENT=1 \
     ${DS4_EXTRA_ARGS:---ssd-streaming-cache-experts 10268} \
     --host 127.0.0.1 --port "$PORT" > "$LOG" 2>&1 &
 pid=$!
-trap 'kill "$pid" 2>/dev/null; wait "$pid" 2>/dev/null' EXIT
+# Every way out stops what this started: the server and any stream still
+# running. A TERM or INT becomes an exit so that this runs then too - killed
+# with the default action, bash runs no EXIT trap and leaves the server up.
+streams=""
+trap 'kill $streams "$pid" 2>/dev/null; for j in $streams "$pid"; do wait "$j" 2>/dev/null; done' EXIT
+trap 'exit 143' TERM
+trap 'exit 130' INT
 n=0
 until grep -q 'listening on' "$LOG"; do
     kill -0 "$pid" 2>/dev/null || { echo "server exited"; tail -30 "$LOG"; exit 1; }
@@ -80,7 +86,6 @@ wall0=$(python3 -c 'import time; print(time.time())')
 # above, which does not exit until it is killed - so the harness hung after every
 # generation and never printed its own lines, while the numbers still reached the
 # log and could be read from there.
-streams=""
 for c in $(seq 1 "$CONCURRENCY"); do
     curl -s --max-time 3600 "http://127.0.0.1:$PORT/v1/chat/completions" \
       -H 'content-type: application/json' \

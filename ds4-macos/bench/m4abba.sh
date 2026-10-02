@@ -24,6 +24,21 @@ NAME=${1:?usage: m4abba.sh <name> [blocks]}
 BLOCKS=${2:-2}
 BIN=${DS4_BIN:-$HOME/ghq/github.com/antirez/ds4-v41-mtl4dag}
 OUT=$S/m4ab-$NAME
+. "$S/gpusampler.sh"
+# The arm runs in the background and is waited on, so a TERM or INT reaches
+# this script at once rather than when the arm ends; the arm is then stopped
+# too, and reaped, along with the sampler.
+arm_pid=""
+stop_arm() {
+    gpusampler_stop
+    [ -n "$arm_pid" ] || return 0
+    kill -TERM "$arm_pid" 2>/dev/null
+    wait "$arm_pid" 2>/dev/null
+    arm_pid=""
+}
+trap 'stop_arm' EXIT
+trap 'stop_arm; exit 143' TERM
+trap 'stop_arm; exit 130' INT
 mkdir -p "$OUT"
 say() { echo "$(date '+%m-%d %H:%M:%S') $*" | tee -a "$OUT/run.log"; }
 
@@ -67,18 +82,16 @@ for be in $order; do
     case "$be" in a) M4=${MTL4_A:-$M4} ;; b) M4=${MTL4_B:-$M4} ;; esac
     # Other GPU clients (the window server, a browser) share the GPU and
     # the CPU gate cannot see them: sample the render and device load.
-    ( while :; do
-        ioreg -r -d 1 -c IOAccelerator | grep -o '"PerformanceStatistics" = {[^}]*}' |
-          tr ',' '\n' | grep -E 'Renderer Utilization|Tiler Utilization|Device Utilization' |
-          tr -dc '0-9\n' | tr '\n' ' '; echo; sleep 5
-      done ) > "$OUT/$arm.gpu" 2>/dev/null &
-    sampler=$!
+    gpusampler_start "$OUT/$arm.gpu"
     EXTRA_ARM=${DS4_EXTRA_ARGS:-}
     case "$be" in a) EXTRA_ARM=${EXTRA_A:-$EXTRA_ARM} ;; b) EXTRA_ARM=${EXTRA_B:-$EXTRA_ARM} ;; esac
     echo "server args $EXTRA_ARM" >> "$OUT/$arm.prov"
     env TOKENS=2048 DS4_BIN="$BIN_ARM" DS4_EXTRA_ARGS="$EXTRA_ARM" "$S/sustained.sh" "m4ab-$NAME-$arm" DS4_METAL_V41_MTL4=$M4 \
-        > "$OUT/$arm.out" 2>&1
-    kill "$sampler" 2>/dev/null; wait "$sampler" 2>/dev/null
+        > "$OUT/$arm.out" 2>&1 &
+    arm_pid=$!
+    wait "$arm_pid"
+    arm_pid=""
+    gpusampler_stop
     t1=$("$S/cputicks"); s1=$(date +%s)
     vm_stat > "$OUT/$arm.vm1"
     date +%s > "$OUT/.last-end"
