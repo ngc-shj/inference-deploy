@@ -43,3 +43,17 @@ inconclusive.
 d = mean(b) - mean(a) over the valid arms. A regression is d > max(0.3 ms,
 2 x s), where s is the larger of the two arms' standard deviations. Anything
 else is "no regression", with d and s reported.
+
+## Amendment, 2026-10-02, after arm 2 of the first run (abba8b2)
+
+The capacity premise above was wrong. b at the production request does not
+reach 7041 experts in decode: the budget holds the prefill reserve back, so
+the cache stops adding slabs at 6504 entries ("6504 of 7041 entries live"),
+while a held 7041. Arm 1 (a) 43.3 and arm 2 (b) 50.5 ms a token compared
+different cache sizes, with b missing 5.0-10.6 experts a token against a's
+4.2-6.7. The run was stopped there; those two arms are exploratory only.
+
+Rerun (abba8b2r) with a at `--ssd-streaming-cache-experts 6504`, the size b
+measurably runs at, and b unchanged at the production request 10268. All
+other rules above stand. A sentinel of a at 6504 is not needed: it is below
+the 7041 sentinel, which peaked at 79.36 GiB.
