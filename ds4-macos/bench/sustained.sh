@@ -50,12 +50,13 @@ while pgrep -x ds4-server >/dev/null; do sleep 2; done
 # prewarm cap (loader, ce99d26/f74eed1) and the package (router 5, fused
 # transitions, HC compound). The expert-ready continuation (=2, 4889363) is
 # not in it: run alone it was 4.5 ms a token slower (see V4.1-TUNING.md).
-# The expert cache at the working-set cap with the prefill reserve lent to
-# decode (9709 experts in decode, 2026-09-29): -2.06 ms a token.
+# Decode lends both the logical entry headroom and the physical prefill reserve.
+# Under the 80 GiB budget this grows the live cache from 6504 to 7041 entries:
+# -2.70 ms/token in the fixed eight-arm production ABBA (2026-10-02).
 env DS4_METAL_V41_DECODE_QUEUE=1 DS4_METAL_IQ2_SELECTED_SHARED_EVENT=1 \
     DS4_METAL_STREAM_SPLIT_MIN_MISSING=1 \
     DS4_METAL_STREAMING_EXPERT_AUTO_PRELOAD_CAP=8192 \
-    DS4_METAL_V41_DECODE_LEND_HEADROOM=1 \
+    DS4_METAL_V41_DECODE_LEND_HEADROOM=2 \
     DS4_METAL_V41_ABORT_GATE=40 DS4_METAL_V41_ABORT_GATE_SEG=3 \
     DS4_METAL_V41_EXPERT_RESIDENCY_SET=1 DS4_METAL_V41_FFN_OVERLAP=1 \
     DS4_METAL_V41_ROUTER_FUSE_TRANSFORM=5 DS4_METAL_V41_FUSE_BF16=2 \
