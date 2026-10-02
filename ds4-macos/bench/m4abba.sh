@@ -9,6 +9,8 @@
 #                                  DS4_METAL_V41_MTL4 per build (default 1)
 #   EXTRA_A / EXTRA_B              the server arguments for each build's arms
 #                                  (DS4_EXTRA_ARGS), e.g. its cache size
+#   ENV_A / ENV_B                  "VAR=VALUE ..." for each build's server,
+#                                  after the production environment
 #
 # Waits for bench/startable.sh before the first arm, and before every arm
 # waits for bench/thermal to come back to 97% of the settled reference, so no
@@ -85,8 +87,12 @@ for be in $order; do
     gpusampler_start "$OUT/$arm.gpu"
     EXTRA_ARM=${DS4_EXTRA_ARGS:-}
     case "$be" in a) EXTRA_ARM=${EXTRA_A:-$EXTRA_ARM} ;; b) EXTRA_ARM=${EXTRA_B:-$EXTRA_ARM} ;; esac
+    ENV_ARM=""
+    case "$be" in a) ENV_ARM=${ENV_A:-} ;; b) ENV_ARM=${ENV_B:-} ;; esac
     echo "server args $EXTRA_ARM" >> "$OUT/$arm.prov"
-    env TOKENS=2048 DS4_BIN="$BIN_ARM" DS4_EXTRA_ARGS="$EXTRA_ARM" "$S/sustained.sh" "m4ab-$NAME-$arm" DS4_METAL_V41_MTL4=$M4 \
+    echo "server env $ENV_ARM" >> "$OUT/$arm.prov"
+    # shellcheck disable=SC2086 - ENV_ARM is a list of VAR=VALUE words
+    env TOKENS=2048 DS4_BIN="$BIN_ARM" DS4_EXTRA_ARGS="$EXTRA_ARM" "$S/sustained.sh" "m4ab-$NAME-$arm" DS4_METAL_V41_MTL4=$M4 $ENV_ARM \
         > "$OUT/$arm.out" 2>&1 &
     arm_pid=$!
     wait "$arm_pid"
