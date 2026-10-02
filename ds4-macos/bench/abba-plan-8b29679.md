@@ -67,3 +67,19 @@ reuse check (64e5cc6) that serialized encode-ahead. That is a defect in b,
 fixed in e10ece8 and re-verified on every path; the run was stopped. The
 measured run is abba-e10 with b = e10ece8, a and every rule as in the first
 amendment. abba8b2r's two arms are exploratory only.
+
+## Result of abba-e10 (2026-10-02 11:04-11:52)
+
+All eight arms valid under the rules above: other processes' user ticks
+3384-4636 against a median of 4031 (limit 6047), pressure level 1 throughout,
+no swap growth. Every arm's provenance records its revision and server
+arguments (a 0e4eac7 at 6504, b e10ece8 at 10268).
+
+    a  44.9  45.4  45.5  45.3   mean 45.275  sd 0.263
+    b  44.7  45.2  45.2  45.2   mean 45.075  sd 0.250
+
+d = -0.200 ms a token; the regression threshold is max(0.3, 2 x 0.263) =
+0.526 ms. No regression.
+
+The ioreg sampler's sleep was left in the group when m4abba.sh exited;
+gpurun.sh stopped it (ORPHANS), as in abba1f5.
