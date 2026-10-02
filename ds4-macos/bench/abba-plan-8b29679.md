@@ -57,3 +57,13 @@ Rerun (abba8b2r) with a at `--ssd-streaming-cache-experts 6504`, the size b
 measurably runs at, and b unchanged at the production request 10268. All
 other rules above stand. A sentinel of a at 6504 is not needed: it is below
 the 7041 sentinel, which peaked at 79.36 GiB.
+
+## Second amendment, 2026-10-02, after arm 2 of abba8b2r
+
+Arm 2 (b) was 50.7 ms a token against arm 1 (a) at 44.9 with identical
+misses. The candidate's own counters showed why: 38 ms a token of encoding
+under the GPU against 2.7 in 1f5e2a9, from a host wait in the gate seed
+reuse check (64e5cc6) that serialized encode-ahead. That is a defect in b,
+fixed in e10ece8 and re-verified on every path; the run was stopped. The
+measured run is abba-e10 with b = e10ece8, a and every rule as in the first
+amendment. abba8b2r's two arms are exploratory only.
