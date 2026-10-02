@@ -38,8 +38,20 @@ fa) echo "== full address table, native batch"
     DS4_BIN=$C ./m4batch.sh $TAG-fa DS4_METAL_ENABLE_V41_STREAMING_SESSION_BATCH=1 DS4_METAL_ENABLE_STREAMING_FULL_EXPERT_ADDR_TABLE=1 > /dev/null 2>&1
     cmpjson m4b-$TAG-fa.json m4b-fa-m3.json; diff -q m4b-$TAG-fa.ids m4b-fa-m3.ids && echo "ids identical"
     grep -h "full expert address table uses\|wired .* expert buffers" m4b-$TAG-fa.log m4b-fa-m3.log | tail -3; census m4b-$TAG-fa.log ;;
-exec) echo "== executor"; ONLY=haiku DS4_BIN=$C ./m4prod.sh $TAG-exec 4 DS4_METAL_V41_MTL4=2 DS4_V41_BLOCK_DAG_TEST=1 DS4_V41_BLOCK_TXN_TEST=1 DS4_V41_FORCE_MISS_TEST=1 DS4_V41_BLOCK_TXN_CHAIN=1 > /dev/null 2>&1
-      echo "candidate $(cat m4-$TAG-exec.ids)"; echo "frozen    $(cat m4-exec-self-frozen.ids)"; census m4-$TAG-exec.log ;;
+exec) echo "== executor"
+      # The self-tests exercise the block executor, its transaction and the
+      # device's residency check: without those switched on they test another
+      # path and report FAIL and MISMATCH against expectations written for this
+      # one (they now refuse with NOT RUN instead). The cache is 6144, which
+      # the memory budget never fits, so the frozen build, which has no budget,
+      # can run the same command.
+      ONLY=haiku DS4_BIN=$C DS4_EXTRA_ARGS="--ssd-streaming-cache-experts 6144" ./m4prod.sh $TAG-exec 4 \
+          DS4_METAL_V41_MTL4=2 DS4_V41_BLOCK_DAG_TEST=1 DS4_V41_BLOCK_TXN_TEST=1 DS4_V41_FORCE_MISS_TEST=1 \
+          DS4_V41_BLOCK_TXN_CHAIN=1 DS4_METAL_V41_BLOCK=1 DS4_METAL_V41_BLOCK_TXN=1 \
+          DS4_METAL_V41_BLOCK_RESIDENCY=1 > /dev/null 2>&1
+      echo "candidate $(cat m4-$TAG-exec.ids)"; echo "frozen    $(cat m4-exec-self-frozen.ids)"
+      echo "self-tests: $(grep -c 'logits identical\|-> PASS\|match their single-step\|matches its references' m4-$TAG-exec.log) passing lines, $(grep -c 'FAIL\|MISMATCH\|DIFF' m4-$TAG-exec.log) failing, $(grep -c 'NOT RUN' m4-$TAG-exec.log) not run"
+      census m4-$TAG-exec.log ;;
 tl) echo "== timeline"; rm -f m4-$TAG-tl.timeline
     ONLY=haiku DS4_BIN=$C ./m4prod.sh $TAG-tl 4 DS4_METAL_ENCODER_TIMELINE=$S/m4-$TAG-tl.timeline > /dev/null 2>&1
     cmpjson m4-$TAG-tl.json co-mainref2.json; echo "E lines $(grep -c '^E ' m4-$TAG-tl.timeline) B lines $(grep -c '^B ' m4-$TAG-tl.timeline)"
