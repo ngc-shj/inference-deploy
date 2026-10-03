@@ -52,11 +52,13 @@ while pgrep -x ds4-server >/dev/null; do sleep 2; done
 # not in it: run alone it was 4.5 ms a token slower (see V4.1-TUNING.md).
 # Decode lends both the logical entry headroom and the physical prefill reserve.
 # Under the 80 GiB budget this grows the live cache from 6504 to 7041 entries:
-# -2.70 ms/token in the fixed eight-arm production ABBA (2026-10-02).
+# -2.70 ms/token. The guarded 84 GiB budget adds roughly 430 planned entries
+# and recovered another 1.31 ms/token in two valid ABBA blocks (2026-10-03).
 env DS4_METAL_V41_DECODE_QUEUE=1 DS4_METAL_IQ2_SELECTED_SHARED_EVENT=1 \
     DS4_METAL_STREAM_SPLIT_MIN_MISSING=1 \
     DS4_METAL_STREAMING_EXPERT_AUTO_PRELOAD_CAP=8192 \
     DS4_METAL_V41_DECODE_LEND_HEADROOM=2 \
+    DS4_METAL_V41_STREAMING_MEMORY_BUDGET_GIB=84 \
     DS4_METAL_V41_ABORT_GATE=40 DS4_METAL_V41_ABORT_GATE_SEG=3 \
     DS4_METAL_V41_EXPERT_RESIDENCY_SET=1 DS4_METAL_V41_FFN_OVERLAP=1 \
     DS4_METAL_V41_ROUTER_FUSE_TRANSFORM=5 DS4_METAL_V41_FUSE_BF16=2 \
