@@ -1,0 +1,6 @@
+command env TOKENS=2048 DS4_BIN=/Users/noguchi/ghq/github.com/antirez/ds4-v41-m4native ./sustained.sh sentF DS4_METAL_V41_MTL4=1
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-04 03:13:55 ds4-server 0 tests 0 pressure level 1 wired 3.38 GiB free 88% swap 0.22 GiB
+pid 35670 process group 35670
+rc 1 peak wired 78.69 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 65.70 GiB, peak Metal 65.00 GiB
+after 2026-10-04 03:16:09 ds4-server 0 tests 0 pressure level 1 wired 3.39 GiB free 88% swap 0.22 GiB

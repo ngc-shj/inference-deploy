@@ -71,3 +71,11 @@ is d > max(0.3 ms, 2 x s), where s is the larger of the two arms' standard
 deviations. An improvement is claimed only if d < -max(0.3 ms, 2 x s) and d1
 and d2 are both negative; anything else is "no regression", with d, d1, d2
 and s reported.
+
+## Sentinel result, before any arm (2026-10-04)
+
+sentF: b = cbad991 (dirty 0) at the production request, 2048 tokens, finish
+"length", pressure level 1, peak wired 78.69 GiB. Decode cache "7041 of 7041
+entries live", so N = 7041 and a runs at `--ssd-streaming-cache-experts 7041`,
+the size its own sentinel already completed at. The sentinel's 57.3 ms a token
+came straight after an hour of GPU runs and is not a result.
