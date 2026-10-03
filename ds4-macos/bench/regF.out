@@ -1,0 +1,50 @@
+== inF rc 0 peak wired 76.55 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+command env EXPECT=1 STEPS=2048 DS4_BIN=/Users/noguchi/ghq/github.com/antirez/ds4-v41-m4native ./m4inproc.sh inF
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-04 02:43:56 ds4-server 0 tests 0 pressure level 1 wired 3.38 GiB free 87% swap 0.22 GiB
+pid 79703 process group 79703
+rc 0 peak wired 76.55 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 62.43 GiB, peak Metal 62.00 GiB
+after 2026-10-04 02:54:28 ds4-server 0 tests 0 pressure level 1 wired 3.40 GiB free 87% swap 0.22 GiB
+== pathsF rc 0 peak wired 78.91 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+== prod
+m4-pF-prod.json vs co-mainref2.json: 7 compared, 0 differ []
+ds4: Metal 4 bindings with no stated length: 0 at 0 call sites
+ds4: backend request Metal 3 command execution after Metal 4 selection: 0 (refused 0); Metal 3 queues created before selection 0, after 0; full expert address table uses 0
+== native batch
+m4b-pF-nat.json vs m4b-nat-m3.json: 3 compared, 0 differ []
+ids identical
+ds4: Metal 4 bindings with no stated length: 0 at 0 call sites
+ds4: backend request Metal 3 command execution after Metal 4 selection: 0 (refused 0); Metal 3 queues created before selection 0, after 0; full expert address table uses 0
+== fallback batch
+m4b-pF-fb.json vs m4b-fb-m3.json: 3 compared, 0 differ []
+ids identical
+ds4: Metal 4 bindings with no stated length: 0 at 0 call sites
+ds4: backend request Metal 3 command execution after Metal 4 selection: 0 (refused 0); Metal 3 queues created before selection 0, after 0; full expert address table uses 0
+== disk kv
+kv bytes identical
+ids identical
+ds4: Metal 4 bindings with no stated length: 0 at 0 call sites
+ds4: backend request Metal 3 command execution after Metal 4 selection: 0 (refused 0); Metal 3 queues created before selection 0, after 0; full expert address table uses 0
+== vision
+m4v-pF-v.json vs m4v-v-m3.json: 4 compared, 0 differ []
+ids identical
+ds4: Metal 4 bindings with no stated length: 0 at 0 call sites
+ds4: backend request Metal 3 command execution after Metal 4 selection: 0 (refused 0); Metal 3 queues created before selection 0, after 0; full expert address table uses 0
+== full address table formally removed
+m4b-pF-fa.json vs m4b-nat-m3.json: 3 compared, 0 differ []
+ids identical
+ds4: Metal 4 bindings with no stated length: 0 at 0 call sites
+ds4: backend request Metal 3 command execution after Metal 4 selection: 0 (refused 0); Metal 3 queues created before selection 0, after 0; full expert address table uses 0
+== executor
+self-tests: 21 passing lines, 0 failing, 0 not run
+ds4: Metal 4 bindings with no stated length: 0 at 0 call sites
+ds4: backend request Metal 3 command execution after Metal 4 selection: 0 (refused 0); Metal 3 queues created before selection 0, after 0; full expert address table uses 0
+== timeline
+m4-pF-tl.json vs co-mainref2.json: 1 compared, 0 differ []
+== ledger
+m4-pF-lg.json vs co-mainref2.json: 1 compared, 0 differ []
+== budF rc 0 peak wired 71.33 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+budget ids identical to budD
+decoded    allocated 77.14 GiB of a 80.00 GiB budget (0.00 GiB reserve) | peak 77.14 GiB | cache 5955 entries in 5955 slots, 55.20 GiB | slabs given back 5, allocations refused 0, cache growth stopped
+closed     allocated 0.00 GiB of a 0.00 GiB budget (0.00 GiB reserve) | peak 0.00 GiB | cache 0 entries in 0 slots, 0.00 GiB | slabs given back 0, allocations refused 0, cache growth stopped 0
+REG-DONE
