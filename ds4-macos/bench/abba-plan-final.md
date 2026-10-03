@@ -79,3 +79,23 @@ sentF: b = cbad991 (dirty 0) at the production request, 2048 tokens, finish
 entries live", so N = 7041 and a runs at `--ssd-streaming-cache-experts 7041`,
 the size its own sentinel already completed at. The sentinel's 57.3 ms a token
 came straight after an hour of GPU runs and is not a result.
+
+## Result of abba-final (2026-10-04)
+
+All eight arms valid (abba-judge.py): every arm generated 2048 tokens with
+text identical to the first a arm's; other processes' user ticks 2777-4018
+against a median of 2932 (limit 4398); pressure level 1 and no swap growth in
+every arm; every b arm at N = 7041. a = 0e4eac7 (dirty 0) at 7041, b =
+cbad991 (dirty 0) at 10268.
+
+    a  43.5  43.4  43.6  43.6   mean 43.525  sd 0.096
+    b  43.6  43.4  43.5  43.5   mean 43.500  sd 0.082
+
+d = -0.025 ms a token; block 1 +0.050, block 2 -0.100; threshold
+max(0.3, 2 x 0.096) = 0.300 ms. No regression, and no improvement: the blocks
+disagree in sign.
+
+Exclusive split of a token, mean of the 32 windows of each arm, a / b:
+encode 0.72 / 0.70, commit-to-done 30.76 / 30.16, miss repair-load 8.70 /
+8.82, tail 1.40 / 1.40, residual 2.44 / 2.99 ms; misses 11.46 / 10.66 a
+token.
