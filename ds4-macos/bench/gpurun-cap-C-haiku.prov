@@ -1,0 +1,6 @@
+command env ARM_PROMPT=text:俳句を三つ、季語を変えて詠んでください。 ./m4capab.sh C-haiku /Users/noguchi/ghq/github.com/antirez/ds4-v41-m4native 4096 256
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-04 02:32:13 ds4-server 0 tests 0 pressure level 1 wired 3.38 GiB free 88% swap 0.22 GiB
+pid 57933 process group 57933
+rc 0 peak wired 51.12 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 38.36 GiB, peak Metal 38.00 GiB
+after 2026-10-04 02:32:42 ds4-server 0 tests 0 pressure level 1 wired 3.40 GiB free 88% swap 0.22 GiB

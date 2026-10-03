@@ -1,0 +1,3 @@
+short 13607d993a447227 2048 steps, capab-F-short (frozen c526a3b = c7c7e19 code, dirty 0, cache 4096)
+haiku 8f561a8abb7bba25 256 steps, capab-F-haiku (same build and cache)
+long 6d29be99270ceecf 256 steps, capab-F-long4096 (same build and cache); every logit equal at 5400, on 0e4eac7, and on cbad991 at 4096, 5400 and 10268

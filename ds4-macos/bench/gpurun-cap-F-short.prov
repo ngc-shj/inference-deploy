@@ -1,0 +1,6 @@
+command env ARM_PROMPT=text:Explain how a modern CPU executes an instruction, from fetch to retire, in as much detail as you can. ./m4capab.sh F-short /Users/noguchi/ghq/github.com/antirez/ds4-v41-frozen 4096 2048
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-04 02:26:06 ds4-server 0 tests 0 pressure level 1 wired 3.40 GiB free 88% swap 0.22 GiB
+pid 45973 process group 45973
+rc 0 peak wired 51.28 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 42.21 GiB, peak Metal 38.00 GiB
+after 2026-10-04 02:28:39 ds4-server 0 tests 0 pressure level 1 wired 3.38 GiB free 88% swap 0.22 GiB

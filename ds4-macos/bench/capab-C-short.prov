@@ -1,0 +1,3 @@
+rev cbad9911d450a6899caa5cc7708171f13e5b26ad dirty 0
+binary 5bffa033fb454c21e6b3223c60b125a62fdfc855cb3239d64fbd4f61a9534d6e
+cache 4096 steps 2048 bytes 22000 env  prompt text:Explain how a modern CPU executes an instruction, from fetch to retire, in as much detail as you can.

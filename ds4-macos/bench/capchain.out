@@ -1,0 +1,28 @@
+== F-short rc 0 peak wired 51.28 GiB, peak pressure level 1, peak swap growth 0 GiB, peak g 
+capacity 4096 experts: prompt 26 tokens, 2049 evaluations written, ids 13607d993a447227, logits 05061dd5f34744f6
+== C-short rc 0 peak wired 51.33 GiB, peak pressure level 1, peak swap growth 0 GiB, peak g 
+capacity 4096 experts: prompt 26 tokens, 2049 evaluations written, ids 13607d993a447227, logits 05061dd5f34744f6
+== F-haiku rc 0 peak wired 51.27 GiB, peak pressure level 1, peak swap growth 0 GiB, peak g 
+capacity 4096 experts: prompt 21 tokens, 257 evaluations written, ids 8f561a8abb7bba25, logits 80f3551add944684
+== C-haiku rc 0 peak wired 51.12 GiB, peak pressure level 1, peak swap growth 0 GiB, peak g 
+capacity 4096 experts: prompt 21 tokens, 257 evaluations written, ids 8f561a8abb7bba25, logits 80f3551add944684
+== F-long4096 rc 0 peak wired 58.23 GiB, peak pressure level 1, peak swap growth 0 GiB, peak g 
+capacity 4096 experts: prompt 4795 tokens, 257 evaluations written, ids 6d29be99270ceecf, logits 1d39179192ce829b
+== B-long4096 rc 0 peak wired 59.10 GiB, peak pressure level 1, peak swap growth 0 GiB, peak g 
+capacity 4096 experts: prompt 4795 tokens, 257 evaluations written, ids 6d29be99270ceecf, logits 1d39179192ce829b
+== C-long4096 rc 0 peak wired 57.82 GiB, peak pressure level 1, peak swap growth 0 GiB, peak g 
+capacity 4096 experts: prompt 4795 tokens, 257 evaluations written, ids 6d29be99270ceecf, logits 1d39179192ce829b
+== F-long5400 rc 0 peak wired 70.33 GiB, peak pressure level 1, peak swap growth 0 GiB, peak g 
+capacity 5400 experts: prompt 4795 tokens, 257 evaluations written, ids 6d29be99270ceecf, logits 1d39179192ce829b
+== C-long5400 rc 0 peak wired 69.97 GiB, peak pressure level 1, peak swap growth 0 GiB, peak g 
+capacity 5400 experts: prompt 4795 tokens, 257 evaluations written, ids 6d29be99270ceecf, logits 1d39179192ce829b
+== C-long10268 rc 0 peak wired 75.39 GiB, peak pressure level 1, peak swap growth 0 GiB, peak g 
+capacity 10268 experts: prompt 4795 tokens, 257 evaluations written, ids 6d29be99270ceecf, logits 1d39179192ce829b
+F-short = C-short: every logit identical
+F-haiku = C-haiku: every logit identical
+F-long4096 = B-long4096: every logit identical
+F-long4096 = C-long4096: every logit identical
+F-long4096 = F-long5400: every logit identical
+F-long4096 = C-long5400: every logit identical
+F-long4096 = C-long10268: every logit identical
+CAP-DONE

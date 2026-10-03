@@ -1,0 +1,6 @@
+command env ./m4capab.sh F-long4096 /Users/noguchi/ghq/github.com/antirez/ds4-v41-frozen 4096 256
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-04 02:32:42 ds4-server 0 tests 0 pressure level 1 wired 3.38 GiB free 88% swap 0.22 GiB
+pid 58890 process group 58890
+rc 0 peak wired 58.23 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 42.23 GiB, peak Metal 42.00 GiB
+after 2026-10-04 02:34:30 ds4-server 0 tests 0 pressure level 1 wired 3.44 GiB free 87% swap 0.22 GiB

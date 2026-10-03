@@ -20,13 +20,16 @@ newer=$(find . -maxdepth 1 \( -name '*.c' -o -name '*.m' -o -name '*.h' \) -newe
     echo "binary $(shasum -a 256 "$T" | cut -d' ' -f1)"
     echo "extra $*"
 } > "$S/m4in-$NAME.prov"
-# EXPECT=1: the token-id hashes must equal the ones the Metal 3 oracle
-# produced before it was removed (m4in-final-full2048.log, both backends).
+# EXPECT=1: the token-id hashes must equal the clean frozen baseline's
+# (m4in-oracle-clean.txt, from m4capab.sh). The hashes this once took from
+# m4in-final-full2048.log came from a dirty build on an unbudgeted 9648-expert
+# cache that no guarded run can repeat; its long hash is not the clean
+# baseline's.
 env DS4_METAL_V41_DECODE_QUEUE=1 DS4_METAL_IQ2_SELECTED_SHARED_EVENT=1 \
     DS4_METAL_STREAM_SPLIT_MIN_MISSING=1 \
     DS4_METAL_STREAMING_EXPERT_AUTO_PRELOAD_CAP=8192 \
     DS4_METAL_V41_DECODE_LEND_HEADROOM=2 \
-    DS4_METAL_V41_STREAMING_MEMORY_BUDGET_GIB=84 \
+    DS4_METAL_V41_STREAMING_MEMORY_BUDGET_GIB=80 \
     DS4_METAL_V41_ABORT_GATE=40 DS4_METAL_V41_ABORT_GATE_SEG=3 \
     DS4_METAL_V41_EXPERT_RESIDENCY_SET=1 DS4_METAL_V41_FFN_OVERLAP=1 \
     DS4_METAL_V41_ROUTER_FUSE_TRANSFORM=5 DS4_METAL_V41_FUSE_BF16=2 \
@@ -38,7 +41,7 @@ grep -E '^(short|haiku|long|injected|after|fallback|health|reopen|closed|warmup|
 grep -E '^FAIL' "$S/m4in-$NAME.log" | head -20
 if [ "${EXPECT:-0}" = 1 ]; then
     for c in short haiku long; do
-        want=$(awk -v c="$c" '$1 == c {print $NF}' "$S/m4in-final-full2048.log")
+        want=$(awk -v c="$c" '$1 == c {print $2}' "$S/m4in-oracle-clean.txt")
         got=$(awk -v c="$c" '$1 == c {print $NF}' "$S/m4in-$NAME.log")
         [ -n "$want" ] && [ "$want" = "$got" ] && echo "oracle   $c ids $got as before" ||
             { echo "ORACLE MISMATCH $c: want $want got $got"; rc=1; }

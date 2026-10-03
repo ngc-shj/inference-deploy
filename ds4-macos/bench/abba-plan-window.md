@@ -1,5 +1,10 @@
 # Sustained wall-time ABBA: 0e4eac7 against the candidate in window mode
 
+Withdrawn, never run. Its sentinel (sentW, 2026-10-02) pinned windows on 14 of
+40 layers, which left the other 26 about 1000 cache slots: 42 misses and
+61.0 ms a token against 45.1. Window mode was then removed from V4.1
+(e56ab96); abba-plan-final.md replaces this plan.
+
 Fixed before any arm runs. A change to this file after the first arm makes the
 run exploratory, not a result.
 

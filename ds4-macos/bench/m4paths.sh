@@ -33,11 +33,15 @@ kv) echo "== disk kv"; DS4_BIN=$C ./m4kv.sh $TAG-kv > /dev/null 2>&1
     census m4kv-$TAG-kv-b.log ;;
 vision) echo "== vision"; DS4_BIN=$C ./m4vision.sh $TAG-v > /dev/null 2>&1
         cmpjson m4v-$TAG-v.json m4v-v-m3.json; diff -q m4v-$TAG-v.ids m4v-v-m3.ids && echo "ids identical"; census m4v-$TAG-v.log ;;
-fa) echo "== full address table, native batch"
-    [ -f m4b-fa-m3.json ] || DS4_BIN=$F ./m4batch.sh fa-m3 DS4_METAL_V41_MTL4=0 DS4_METAL_ENABLE_V41_STREAMING_SESSION_BATCH=1 DS4_METAL_ENABLE_STREAMING_FULL_EXPERT_ADDR_TABLE=1 > /dev/null 2>&1
+fa) echo "== full address table formally removed"
+    # The Metal 3 full table's native-batch output was wrong, so it is no
+    # oracle. With the old switch set, the native batch must still match the
+    # ordinary Metal 3 native batch, and nothing may reach a table or window.
+    grep -q "ds41_expert_pin_windows" "$C/ds4.c" && echo "FAIL: pin windows still in ds4.c"
     DS4_BIN=$C ./m4batch.sh $TAG-fa DS4_METAL_ENABLE_V41_STREAMING_SESSION_BATCH=1 DS4_METAL_ENABLE_STREAMING_FULL_EXPERT_ADDR_TABLE=1 > /dev/null 2>&1
-    cmpjson m4b-$TAG-fa.json m4b-fa-m3.json; diff -q m4b-$TAG-fa.ids m4b-fa-m3.ids && echo "ids identical"
-    grep -h "full expert address table uses\|wired .* expert buffers" m4b-$TAG-fa.log m4b-fa-m3.log | tail -3; census m4b-$TAG-fa.log ;;
+    cmpjson m4b-$TAG-fa.json m4b-nat-m3.json; diff -q m4b-$TAG-fa.ids m4b-nat-m3.ids && echo "ids identical"
+    grep -h "pinned windows" m4b-$TAG-fa.log && echo "FAIL: a pinned window opened"
+    census m4b-$TAG-fa.log ;;
 exec) echo "== executor"
       # The self-tests exercise the block executor, its transaction and the
       # device's residency check: without those switched on they test another
