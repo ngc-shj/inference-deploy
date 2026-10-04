@@ -1,0 +1,33 @@
+== N-1-ca rc 0 peak wired 79.61 GiB, peak pressure level 1,  | page cache: resident 34.34 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+   prefill  4795 tokens in 47.801 s (cold, this process's first) | baseline ids/logits/state
+   decode   256 steps in 16.787 s, 65.57 ms a token (logits copied and written each step)
+   reads    during the prefill: 8734 loads, 42.13 GiB pread, 3.44 s of read-thread time | prefill tail at position 4096 ran 699 rows as 1 batch steps 
+== N-2-un rc 0 peak wired 80.25 GiB, peak pressure level 1,  | page cache: resident 34.70 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+   prefill  4795 tokens in 65.546 s (cold, this process's first) | baseline ids/logits/state
+   decode   256 steps in 20.400 s, 79.69 ms a token (logits copied and written each step)
+   reads    during the prefill: 8734 loads, 42.13 GiB pread, 3.14 s of read-thread time | prefill tail at position 4096 ran 699 rows as 1 batch steps 
+== N-3-un rc 0 peak wired 79.45 GiB, peak pressure level 1,  | page cache: resident 35.07 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+   prefill  4795 tokens in 74.221 s (cold, this process's first) | baseline ids/logits/state
+   decode   256 steps in 22.627 s, 88.38 ms a token (logits copied and written each step)
+   reads    during the prefill: 8734 loads, 42.13 GiB pread, 3.11 s of read-thread time | prefill tail at position 4096 ran 699 rows as 1 batch steps 
+== N-4-ca rc 0 peak wired 79.43 GiB, peak pressure level 1,  | page cache: resident 36.35 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+   prefill  4795 tokens in 82.771 s (cold, this process's first) | baseline ids/logits/state
+   decode   256 steps in 23.363 s, 91.26 ms a token (logits copied and written each step)
+   reads    during the prefill: 8734 loads, 42.13 GiB pread, 3.41 s of read-thread time | prefill tail at position 4096 ran 699 rows as 1 batch steps 
+== N-5-un rc 0 peak wired 79.44 GiB, peak pressure level 1,  | page cache: resident 34.83 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+   prefill  4795 tokens in 81.040 s (cold, this process's first) | baseline ids/logits/state
+   decode   256 steps in 22.526 s, 87.99 ms a token (logits copied and written each step)
+   reads    during the prefill: 8734 loads, 42.13 GiB pread, 3.08 s of read-thread time | prefill tail at position 4096 ran 699 rows as 1 batch steps 
+== N-6-ca rc 0 peak wired 79.43 GiB, peak pressure level 1,  | page cache: resident 36.26 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+   prefill  4795 tokens in 78.322 s (cold, this process's first) | baseline ids/logits/state
+   decode   256 steps in 21.989 s, 85.90 ms a token (logits copied and written each step)
+   reads    during the prefill: 8734 loads, 42.13 GiB pread, 3.22 s of read-thread time | prefill tail at position 4096 ran 699 rows as 1 batch steps 
+== N-7-ca rc 0 peak wired 79.44 GiB, peak pressure level 1,  | page cache: resident 35.09 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+   prefill  4795 tokens in 77.326 s (cold, this process's first) | baseline ids/logits/state
+   decode   256 steps in 22.092 s, 86.30 ms a token (logits copied and written each step)
+   reads    during the prefill: 8734 loads, 42.13 GiB pread, 3.31 s of read-thread time | prefill tail at position 4096 ran 699 rows as 1 batch steps 
+== N-8-un rc 0 peak wired 79.43 GiB, peak pressure level 1,  | page cache: resident 35.14 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+   prefill  4795 tokens in 77.419 s (cold, this process's first) | baseline ids/logits/state
+   decode   256 steps in 22.222 s, 86.80 ms a token (logits copied and written each step)
+   reads    during the prefill: 8734 loads, 42.13 GiB pread, 3.00 s of read-thread time | prefill tail at position 4096 ran 699 rows as 1 batch steps 
+ADOPT-DONE

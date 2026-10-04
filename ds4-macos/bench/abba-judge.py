@@ -47,7 +47,7 @@ for out in sorted(glob.glob(os.path.join(d, '[0-9][0-9]-m?.out'))):
     inside = [r for r in rows if lo <= r[0] <= hi]
     pressure = max((r[1] for r in inside), default=None)
     swap = max((r[2] for r in inside), default=0.0) - min((r[2] for r in inside), default=0.0)
-    n_live, ids, tails = None, None, 0
+    n_live, ids, tails, batched = None, None, 0, 0
     for line in open(os.path.join(d, arm + '.log'), errors='replace'):
         m2 = re.search(r'(\d+) of (\d+) entries live', line)
         if m2:
@@ -58,9 +58,12 @@ for out in sorted(glob.glob(os.path.join(d, '[0-9][0-9]-m?.out'))):
         m4 = re.search(r'prefill tail of \d+ rows at position \d+ ran (\d+) token-major steps', line)
         if m4:
             tails += int(m4.group(1))
+        m5 = re.search(r'prefill tail at position \d+ ran (\d+) rows as \d+ batch steps', line)
+        if m5:
+            batched += int(m5.group(1))
     if kind == 'a' and ref_text is None:
         ref_text, ref_ids = text, ids
-    arms.append(dict(arm=arm, kind=kind, ms=ms, tokens=tokens, text=text, ids=ids, tails=tails,
+    arms.append(dict(arm=arm, kind=kind, ms=ms, tokens=tokens, text=text, ids=ids, tails=tails, batched=batched,
                      ticks=t1 - t0, pressure=pressure, swap=swap, n=n_live))
 
 med = statistics.median(a['ticks'] for a in arms)
@@ -99,6 +102,7 @@ print('a mean %.3f sd %.3f | b mean %.3f sd %.3f' % (
     statistics.mean(A), statistics.stdev(A), statistics.mean(B), statistics.stdev(B)))
 print('token-major prefill tail steps in b arms: %d (0: the arithmetic 13c14ca changed is not on this path)' %
       sum(a['tails'] for a in arms if a['kind'] == 'b'))
+print('batched prefill tail rows in b arms: %d' % sum(a['batched'] for a in arms if a['kind'] == 'b'))
 print('d %.3f ms a token; blocks %s; threshold %.3f' % (dd, ['%.3f' % x for x in blocks], th))
 if dd > th:
     print('decision: REGRESSION')

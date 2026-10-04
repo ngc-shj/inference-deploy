@@ -105,8 +105,8 @@ st=$(diff m4st-frozen-m3.hashes m4st-st$T.hashes > /dev/null 2>&1 && echo 1)
 orc=$(grep -c "as before" gpurun-in$T.log)
 item 13 $([ "$st" = 1 ] && [ "$orc" = 3 ] && echo 1) "ids, every logit and the saved KV/carry state equal the frozen baseline's in all 8 cases; in-process ids on the clean oracle (3/3)"
 # Long prompt at each cache size: the frozen baseline's production ids, every
-# logit and saved state (m4st-frozen-m3 "long"), one token-major tail of 699
-# rows at 4096 run as 699 token-major steps, and byte-identical logit files.
+# logit and saved state (m4st-frozen-m3 "long"), the 699-row tail at 4096 run
+# as one exact batch step, and byte-identical logit files.
 want=$(awk '$1 == "long" {print $7, $9, $11}' m4st-frozen-m3.hashes)
 ref=$(ls capab-$T-long*.f32 2>/dev/null | head -1); same=1; n=0; sizes=""
 for f in capab-$T-long*.f32; do
@@ -116,12 +116,12 @@ for f in capab-$T-long*.f32; do
     cmp -s "$ref" "$f" || same=0
     got=$(sed -n 's/^capacity.* ids \([0-9a-f]*\), logits \([0-9a-f]*\), state \([0-9a-f]*\).*/\1 \2 \3/p' "$l")
     [ "$got" = "$want" ] || { echo "$l: ids/logits/state $got, baseline $want"; same=0; }
-    [ "$(grep -c 'prefill tail of 699 rows at position 4096 ran 699 token-major steps' "$l")" = 1 ] ||
-        { echo "$l: not one 699-row tail run as 699 token-major steps"; same=0; }
+    [ "$(grep -c 'prefill tail at position 4096 ran 699 rows as 1 batch steps' "$l")" = 1 ] ||
+        { echo "$l: the 699-row tail did not run as one batch step"; same=0; }
 done
 for c in 4096 5400 10268; do printf '%s' " $sizes " | grep -q " $c " || { echo "no long run at cache $c"; same=0; }; done
 bud=$(diff <(grep "^ids" gpurun-budD.log) <(grep "^ids" gpurun-bud$T.log) > /dev/null && echo 1)
-item 14 $([ "$st" = 1 ] && [ "$same" = 1 ] && [ "$bud" = 1 ] && echo 1) "2048 tokens, 3 prompts, 2 sessions, 3 consecutive requests; long prompt at caches$sizes: baseline ids, logits and state, the 699-row tail as 699 token-major steps in each; 4-session budget"
+item 14 $([ "$st" = 1 ] && [ "$same" = 1 ] && [ "$bud" = 1 ] && echo 1) "2048 tokens, 3 prompts, 2 sessions, 3 consecutive requests; long prompt at caches$sizes: baseline ids, logits and state, the 699-row tail as one exact batch step in each; 4-session budget"
 judge=$(python3 abba-judge.py "m4ab-abba-$t" "gpurun-abba$t.samples" 7041 2>/dev/null)
 abba=$(printf '%s\n' "$judge" | tail -1)
 tails=$(printf '%s\n' "$judge" | sed -n 's/^token-major prefill tail steps in b arms: \([0-9]*\).*/\1/p')

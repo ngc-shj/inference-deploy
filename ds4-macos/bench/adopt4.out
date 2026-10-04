@@ -1,0 +1,25 @@
+== W-1-r32 rc 0 peak wired 76.29 GiB, peak pressure level 1,  | page cache: resident 0.00 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+   prefill  4795 tokens in 50.898 s (cold, this process's first) | baseline ids/logits/state
+   reads    during the prefill: 13376 loads, 85.16 GiB pread, 4.98 s of read-thread time | prefill tail at position 4096 ran 699 rows as 22 batch steps 
+== W-2-r699 rc 0 peak wired 80.69 GiB, peak pressure level 1,  | page cache: resident 38.65 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+   prefill  4795 tokens in 49.140 s (cold, this process's first) | baseline ids/logits/state
+   reads    during the prefill: 8734 loads, 42.13 GiB pread, 3.29 s of read-thread time | prefill tail at position 4096 ran 699 rows as 1 batch steps 
+== W-3-r699 rc 0 peak wired 79.55 GiB, peak pressure level 1,  | page cache: resident 34.68 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+   prefill  4795 tokens in 55.498 s (cold, this process's first) | baseline ids/logits/state
+   reads    during the prefill: 8734 loads, 42.13 GiB pread, 3.45 s of read-thread time | prefill tail at position 4096 ran 699 rows as 1 batch steps 
+== W-4-r32 rc 0 peak wired 76.37 GiB, peak pressure level 1,  | page cache: resident 34.39 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+   prefill  4795 tokens in 70.224 s (cold, this process's first) | baseline ids/logits/state
+   reads    during the prefill: 13376 loads, 85.16 GiB pread, 4.98 s of read-thread time | prefill tail at position 4096 ran 699 rows as 22 batch steps 
+== W-5-r699 rc 0 peak wired 79.50 GiB, peak pressure level 1,  | page cache: resident 38.52 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+   prefill  4795 tokens in 73.918 s (cold, this process's first) | baseline ids/logits/state
+   reads    during the prefill: 8734 loads, 42.13 GiB pread, 3.41 s of read-thread time | prefill tail at position 4096 ran 699 rows as 1 batch steps 
+== W-6-r32 rc 0 peak wired 76.33 GiB, peak pressure level 1,  | page cache: resident 33.85 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+   prefill  4795 tokens in 77.628 s (cold, this process's first) | baseline ids/logits/state
+   reads    during the prefill: 13376 loads, 85.16 GiB pread, 5.16 s of read-thread time | prefill tail at position 4096 ran 699 rows as 22 batch steps 
+== W-7-r32 rc 0 peak wired 76.21 GiB, peak pressure level 1,  | page cache: resident 38.04 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+   prefill  4795 tokens in 80.385 s (cold, this process's first) | baseline ids/logits/state
+   reads    during the prefill: 13376 loads, 85.16 GiB pread, 4.93 s of read-thread time | prefill tail at position 4096 ran 699 rows as 22 batch steps 
+== W-8-r699 rc 0 peak wired 79.56 GiB, peak pressure level 1,  | page cache: resident 38.24 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+   prefill  4795 tokens in 75.778 s (cold, this process's first) | baseline ids/logits/state
+   reads    during the prefill: 8734 loads, 42.13 GiB pread, 3.26 s of read-thread time | prefill tail at position 4096 ran 699 rows as 1 batch steps 
+ADOPT-DONE

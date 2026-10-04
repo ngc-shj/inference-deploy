@@ -1,0 +1,28 @@
+settled: wired 3 GiB, 1216.5 GFLOP/s (0.552 ms)
+== L-ttft1-pv rc 0 peak wired 77.35 GiB, peak pressure level 1,  | prefill  4795 tokens in 61.555 s (cold, this process's first) | baseline ids/logits/state | prefill tail at position 4096 ran 699 rows as 22 batch steps 
+settled: wired 3 GiB, 1211.9 GFLOP/s (0.554 ms)
+== L-ttft2-nw rc 0 peak wired 78.40 GiB, peak pressure level 1,  | prefill  4795 tokens in 64.473 s (cold, this process's first) | baseline ids/logits/state | prefill tail at position 4096 ran 699 rows as 1 batch steps 
+settled: wired 3 GiB, 1212.4 GFLOP/s (0.554 ms)
+== L-ttft3-nw rc 0 peak wired 78.62 GiB, peak pressure level 1,  | prefill  4795 tokens in 72.192 s (cold, this process's first) | baseline ids/logits/state | prefill tail at position 4096 ran 699 rows as 1 batch steps 
+settled: wired 3 GiB, 1211.3 GFLOP/s (0.554 ms)
+== L-ttft4-pv rc 0 peak wired 75.40 GiB, peak pressure level 1,  | prefill  4795 tokens in 81.476 s (cold, this process's first) | baseline ids/logits/state | prefill tail at position 4096 ran 699 rows as 22 batch steps 
+settled: wired 3 GiB, 1212.1 GFLOP/s (0.554 ms)
+== L-ttft5-nw rc 0 peak wired 78.54 GiB, peak pressure level 1,  | prefill  4795 tokens in 75.350 s (cold, this process's first) | baseline ids/logits/state | prefill tail at position 4096 ran 699 rows as 1 batch steps 
+settled: wired 6 GiB, 1212.7 GFLOP/s (0.553 ms)
+== L-ttft6-pv rc 0 peak wired 75.17 GiB, peak pressure level 1,  | prefill  4795 tokens in 79.336 s (cold, this process's first) | baseline ids/logits/state | prefill tail at position 4096 ran 699 rows as 22 batch steps 
+settled: wired 6 GiB, 1211.7 GFLOP/s (0.554 ms)
+== L-ttft7-pv rc 0 peak wired 75.17 GiB, peak pressure level 1,  | prefill  4795 tokens in 79.959 s (cold, this process's first) | baseline ids/logits/state | prefill tail at position 4096 ran 699 rows as 22 batch steps 
+settled: wired 3 GiB, 1212.4 GFLOP/s (0.553 ms)
+== L-ttft8-nw rc 0 peak wired 78.60 GiB, peak pressure level 1,  | prefill  4795 tokens in 74.516 s (cold, this process's first) | baseline ids/logits/state | prefill tail at position 4096 ran 699 rows as 1 batch steps 
+settled: wired 3 GiB, 1216.0 GFLOP/s (0.552 ms)
+== stL rc 0 peak wired 78.60 GiB, peak pressure level 1, peak swap growth 0 GiB, peak g
+state: 8 cases identical to frozen production
+   1 ds4: V4.1 prefill tail at position 1 ran 15 rows as 1 batch steps
+   1 ds4: V4.1 prefill tail at position 1 ran 16 rows as 1 batch steps
+   1 ds4: V4.1 prefill tail at position 1 ran 17 rows as 1 batch steps
+   1 ds4: V4.1 prefill tail at position 1 ran 20 rows as 1 batch steps
+   1 ds4: V4.1 prefill tail at position 1 ran 25 rows as 1 batch steps
+   1 ds4: V4.1 prefill tail at position 178 ran 16 rows as 1 batch steps
+   1 ds4: V4.1 prefill tail at position 354 ran 12 rows as 1 batch steps
+   1 ds4: V4.1 prefill tail at position 4096 ran 699 rows as 1 batch steps
+ADOPT-DONE

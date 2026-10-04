@@ -17,3 +17,5 @@ load.log
 # m4capab.sh: every logit of a run (133 MB a long arm) and the baseline builds.
 capab-*.f32
 capbin/
+# Built by hand from pagecache.c.
+pagecache
