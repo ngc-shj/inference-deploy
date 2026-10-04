@@ -59,3 +59,12 @@ frozen oracle's ids, logits and state (capab-Q-prevnr2) - so the pair
 differs only in what is measured, not in build, I/O path or any other
 commit. Arm b is the candidate's production. Arms are named V-<n>-<old|new>.
 Every other rule above stands.
+
+## Stopped before any arm (2026-10-05)
+
+The final chain on 7cfffd8 was stopped during its first state check; no
+ABBA arm and no cold pair ran. 7cfffd8 is a development baseline, not the
+candidate: performance work continues on it, and this plan is amended again
+with the final commit before its arms run. What did complete on 7cfffd8 is
+kept as the baseline's evidence - the long prompt at caches 4096, 5400 and
+10268, each with the frozen oracle's ids, logits and state.
