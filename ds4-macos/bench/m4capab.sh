@@ -8,6 +8,8 @@
 #         API only), so the frozen baseline runs the very same test
 #   ARM_ENV="VAR=VALUE ..."   after the production environment
 #   ARM_PROMPT="text:..."     the user message itself instead of the story
+#   ARM_MODE=token-major      run a streaming append's tail token-major, as
+#                             before it was batched (the test's 7th argument)
 #
 # Run each arm through gpurun.sh, one at a time, then cmp the .f32 files: the
 # cache is a performance state and must not change a byte. Writes
@@ -41,7 +43,7 @@ cd "$TREE" || exit 1
 {
     echo "rev $(git rev-parse HEAD) dirty $(git status --porcelain --untracked-files=no | wc -l | tr -d ' ')"
     echo "binary $(shasum -a 256 "$T" | cut -d' ' -f1)"
-    echo "cache $CACHE steps $STEPS bytes $BYTES env ${ARM_ENV:-} prompt ${ARM_PROMPT:-story}"
+    echo "cache $CACHE steps $STEPS bytes $BYTES env ${ARM_ENV:-} prompt ${ARM_PROMPT:-story} mode ${ARM_MODE:-production}"
 } > "$S/capab-$NAME.prov"
 # shellcheck disable=SC2086 - ARM_ENV is a list of VAR=VALUE words
 env DS4_METAL_V41_DECODE_QUEUE=1 DS4_METAL_IQ2_SELECTED_SHARED_EVENT=1 \
@@ -55,7 +57,7 @@ env DS4_METAL_V41_DECODE_QUEUE=1 DS4_METAL_IQ2_SELECTED_SHARED_EVENT=1 \
     DS4_METAL_V41_HC_COMPOUND=1 \
     DS4_METAL_V41_GATE_ENCODE_AHEAD=1 \
     ${ARM_ENV:-} "$T" "$MODEL" "${ARM_PROMPT:-tests/long_context_story_prompt.txt}" \
-    "$CACHE" "$STEPS" "$S/capab-$NAME.f32" "$BYTES" > "$S/capab-$NAME.log" 2>&1
+    "$CACHE" "$STEPS" "$S/capab-$NAME.f32" "$BYTES" ${ARM_MODE:-} > "$S/capab-$NAME.log" 2>&1
 rc=$?
-grep '^capacity' "$S/capab-$NAME.log"
+grep -E '^(prefill|capacity)' "$S/capab-$NAME.log"
 exit $rc

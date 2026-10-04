@@ -1,0 +1,6 @@
+command ./m4capab.sh J-ttft2-bt /Users/noguchi/ghq/github.com/antirez/ds4-v41-m4native 10268 256
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-04 15:24:06 ds4-server 0 tests 0 pressure level 1 wired 3.37 GiB free 88% swap 0.21 GiB
+pid 43464 process group 43464
+rc 0 peak wired 75.15 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 65.72 GiB, peak Metal 65.00 GiB
+after 2026-10-04 15:25:32 ds4-server 0 tests 0 pressure level 1 wired 32.49 GiB free 64% swap 0.21 GiB

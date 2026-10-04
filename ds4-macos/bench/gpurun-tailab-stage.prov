@@ -1,0 +1,6 @@
+command env DS4_V41_BATCH_STAGE_MS=1 ./m4tailab.sh stage 0
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-04 15:18:48 ds4-server 0 tests 0 pressure level 1 wired 3.36 GiB free 88% swap 0.21 GiB
+pid 31633 process group 31633
+rc 0 peak wired 74.63 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 58.64 GiB, peak Metal 58.00 GiB
+after 2026-10-04 15:20:57 ds4-server 0 tests 0 pressure level 1 wired 3.35 GiB free 87% swap 0.21 GiB

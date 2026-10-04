@@ -1,0 +1,8 @@
+== J-ttft1-tm token-major rc 0 peak wired 75.38 GiB, peak pressure level 1, peak swap  | prefill  4795 tokens in 67.977 s (cold, this process's first) | baseline ids/logits/state | prefill tail of 699 rows at position 4096 ran 699 token-major steps 
+== J-ttft2-bt batched rc 0 peak wired 75.15 GiB, peak pressure level 1, peak swap  | prefill  4795 tokens in 59.714 s (cold, this process's first) | baseline ids/logits/state | prefill tail at position 4096 ran 699 rows as 22 batch steps 
+== J-ttft3-bt batched rc 0 peak wired 75.16 GiB, peak pressure level 1, peak swap  | prefill  4795 tokens in 86.613 s (cold, this process's first) | baseline ids/logits/state | prefill tail at position 4096 ran 699 rows as 22 batch steps 
+== J-ttft4-tm token-major rc 0 peak wired 75.31 GiB, peak pressure level 1, peak swap  | prefill  4795 tokens in 123.806 s (cold, this process's first) | baseline ids/logits/state | prefill tail of 699 rows at position 4096 ran 699 token-major steps 
+== stJ 
+diff: m4st-stJ.hashes: No such file or directory
+grep: m4st-stJ.log: No such file or directory
+ADOPT-DONE
