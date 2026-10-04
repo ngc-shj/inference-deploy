@@ -114,3 +114,14 @@ above, with b's sentinel taken again first. Two rules are added:
   for a regression and is no measure of 13c14ca's cost.
 
 abba-final stays recorded as the measurement of cbad991.
+
+## Second amendment before the rerun (2026-10-04)
+
+abba-h was stopped during its second arm, before any decision: 7dabfad only
+said a tail had started token-major, and 6749f95 replaces that with the
+number of single steps the tail took, so the binary changed. Its arms are
+exploratory. The rerun, abba-i, measures b = 6749f95 under every rule above,
+with b's sentinel taken again first; a b arm's tail steps are the sum of its
+"prefill tail ... ran N token-major steps" lines. Stopping abba-h also showed
+that a TERM during COOL waited for the sleep to end; m4abba.sh now waits on
+the cooling as on an arm.

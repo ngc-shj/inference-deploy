@@ -1,7 +1,8 @@
 #!/bin/bash
 # Leaves m4abba.sh nothing to leave behind: every way out of a run - normal
-# end, TERM or INT to the script alone mid-arm, a server that fails in every
-# arm - must end with its process group empty, without gpurun.sh to clean up.
+# end, TERM or INT to the script alone mid-arm or mid-cooling, a server that
+# fails in every arm - must end promptly with its process group empty, without
+# gpurun.sh to clean up.
 #
 #   test-abba-cleanup.sh        prints one line a case, exits 1 if any leaks
 #
@@ -31,18 +32,21 @@ check() {
         fail=1
     fi
 }
-run() {   # name bin port [signal]
+run() {   # name bin port [signal [cool]]
     set -m
-    ( cd "$D/bench" && PORT=$3 NOGATE=1 BIN_A=$D/$2 BIN_B=$D/$2 exec ./m4abba.sh "t$1" 1 ) \
+    ( cd "$D/bench" && PORT=$3 NOGATE=1 COOL=${5:-} BIN_A=$D/$2 BIN_B=$D/$2 exec ./m4abba.sh "t$1" 1 ) \
         > "$D/$1.out" 2>&1 &
     local p=$!
     set +m
     if [ -n "${4:-}" ]; then sleep 8; kill "-$4" "$p"; fi
+    local t0=$SECONDS
     wait "$p"
+    [ $((SECONDS - t0)) -gt 30 ] && echo "FAIL $1: took $((SECONDS - t0)) s to stop" && fail=1
     check "$p" "$1"
 }
 run normal bin_ok 8091
 run term bin_slow 8092 TERM
 run int bin_slow 8093 INT
 run error bin_err 8094
+run cool bin_ok 8095 TERM 600
 exit $fail

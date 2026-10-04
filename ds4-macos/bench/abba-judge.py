@@ -5,7 +5,7 @@
 
 Per arm: wall ms a token ("per token: X ms wall"), generated tokens, whether
 its text and its token ids (the server's "token ids: N, hash H") equal the
-first a arm's, how many prefill tails ran token-major, other processes' CPU ticks, the worst
+first a arm's, how many prefill-tail steps ran token-major, other processes' CPU ticks, the worst
 pressure level and swap growth gpurun sampled while it ran, and b's last
 "entries live" N. Then d, d1, d2, s and the decision.
 """
@@ -55,8 +55,9 @@ for out in sorted(glob.glob(os.path.join(d, '[0-9][0-9]-m?.out'))):
         m3 = re.search(r'token ids: (\d+), hash ([0-9a-f]+)', line)
         if m3:
             ids = m3.group(1) + ':' + m3.group(2)
-        if 'prefill tail of' in line and 'runs token-major' in line:
-            tails += 1
+        m4 = re.search(r'prefill tail of \d+ rows at position \d+ ran (\d+) token-major steps', line)
+        if m4:
+            tails += int(m4.group(1))
     if kind == 'a' and ref_text is None:
         ref_text, ref_ids = text, ids
     arms.append(dict(arm=arm, kind=kind, ms=ms, tokens=tokens, text=text, ids=ids, tails=tails,
@@ -74,7 +75,7 @@ for a in arms:
     if a['swap'] > 0.5: why.append('swap +%.2f GiB' % a['swap'])
     if a['kind'] == 'b' and want_n is not None and a['n'] != want_n: why.append('N %s' % a['n'])
     a['valid'] = not why
-    print('%s %s %6s ms  tokens %s  ids %s  tails %d  ticks %d  pressure %s  swap +%.2f  N %s  %s' % (
+    print('%s %s %6s ms  tokens %s  ids %s  tail steps %d  ticks %d  pressure %s  swap +%.2f  N %s  %s' % (
         a['arm'], a['kind'], a['ms'], a['tokens'], a['ids'], a['tails'], a['ticks'], a['pressure'],
         a['swap'], a['n'], 'valid' if a['valid'] else 'INVALID: ' + '; '.join(why)))
 
@@ -96,7 +97,7 @@ for k in range(0, len(arms), 4):
 th = max(0.3, 2 * s)
 print('a mean %.3f sd %.3f | b mean %.3f sd %.3f' % (
     statistics.mean(A), statistics.stdev(A), statistics.mean(B), statistics.stdev(B)))
-print('token-major prefill tails in b arms: %d (0: the arithmetic 13c14ca changed is not on this path)' %
+print('token-major prefill tail steps in b arms: %d (0: the arithmetic 13c14ca changed is not on this path)' %
       sum(a['tails'] for a in arms if a['kind'] == 'b'))
 print('d %.3f ms a token; blocks %s; threshold %.3f' % (dd, ['%.3f' % x for x in blocks], th))
 if dd > th:

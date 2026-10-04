@@ -71,7 +71,8 @@ for be in $order; do
     # COOL=seconds idles before every arm: on this machine the decode slows
     # continuously as it heats (29 -> 87 ms of GPU a token over three arms)
     # while the one-second compute probe does not move.
-    [ -n "${COOL:-}" ] && sleep "$COOL"
+    # Waited on like an arm: a foreground sleep holds a TERM until it ends.
+    if [ -n "${COOL:-}" ]; then sleep "$COOL" & arm_pid=$!; wait "$arm_pid"; arm_pid=""; fi
     if [ "${NOGATE:-0}" = 1 ]; then "$S/thermal" > "$OUT/$arm.thermal" 2>&1; else "$S/thermal" --until 0.97 > "$OUT/$arm.thermal" 2>&1; fi
     (cd "$BIN_ARM" && echo "rev $(git rev-parse HEAD) dirty $(git status --porcelain --untracked-files=no | wc -l | tr -d ' ') binary $(shasum -a 256 ds4-server | cut -d' ' -f1)") > "$OUT/$arm.prov"
     now=$(date +%s)

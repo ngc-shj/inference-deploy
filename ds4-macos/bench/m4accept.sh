@@ -10,7 +10,9 @@
 #     gpurun-bud<T>.log                 m4budget.sh
 #     m4ab-abba-<t>/                    the final ABBA (abba-judge.py)
 #   DS4_BIN  the engine tree (default ds4-v41-m4native); every record must
-#            name its HEAD with dirty 0
+#            name its HEAD with dirty 0 and the hash of the binary it holds
+#   BASE_BIN the ABBA baseline tree (default ds4-v41-m4base), checked the
+#            same way for the a arms
 #
 # Prints PASS or FAIL per item with the evidence it read, and exits 1 unless
 # all fifteen pass.
@@ -22,8 +24,10 @@ C=${DS4_BIN:-$HOME/ghq/github.com/antirez/ds4-v41-m4native}
 REV=$(git -C "$C" rev-parse HEAD)
 cd "$S"
 pass=0
-item() {   # n verdict text
-    if [ "$2" = 1 ]; then echo "PASS $1  $3"; pass=$((pass + 1)); else echo "FAIL $1  $3"; fi
+item() {   # n [verdict] text - an empty verdict vanishes from the words
+    local v=$2 txt=${3:-}
+    [ $# = 2 ] && { v=0; txt=$2; }
+    if [ "$v" = 1 ]; then echo "PASS $1  $txt"; pass=$((pass + 1)); else echo "FAIL $1  $txt"; fi
 }
 src() { grep -c -E "$1" "$C/ds4_metal.m" "$C/ds4_metal_mtl4.h" "$C/ds4.c" | awk -F: '{s += $2} END {print s + 0}'; }
 logs="gpurun-paths$T.log gpurun-in$T.log"
@@ -53,12 +57,23 @@ rec m4in-in$T.prov tests/test_deepseek41_backend in$T
 rec gpurun-bud$T.rev tests/test_deepseek41_budget bud$T
 for f in capab-$T-long*.prov; do n=${f#capab-}; rec "$f" tests/test_deepseek41_capacity "cap-${n%.prov}"; done
 for f in m4ab-abba-$t/0*-mb.prov; do rec "$f" ds4-server; done
+# The baseline arms against their own tree: its HEAD, clean, its server.
+BT=${BASE_BIN:-$HOME/ghq/github.com/antirez/ds4-v41-m4base}
+BREV=$(git -C "$BT" rev-parse HEAD); BSHA=$(shasum -a 256 "$BT/ds4-server" | cut -d' ' -f1)
+na=0
+for f in m4ab-abba-$t/0*-ma.prov; do
+    [ -f "$f" ] || continue
+    na=$((na + 1)); one=$(tr '\n' ' ' < "$f")
+    printf '%s' "$one" | grep -q "rev $BREV dirty 0 binary $BSHA" ||
+        { echo "$f: not the baseline tree's $BREV, clean, binary $BSHA"; stale=1; }
+done
+[ "$na" = 4 ] || { echo "baseline arms: $na of 4"; stale=1; }
 grep -q "^rc 0 .*peak pressure level 1," gpurun-abba$t.prov 2>/dev/null || { echo "gpurun-abba$t.prov: not rc 0 at pressure level 1"; stale=1; }
 [ "$stale" = 0 ] && echo "records: every one is $REV, dirty 0, the tree's binaries, rc 0 at pressure level 1" ||
     echo "records: STALE - the items below do not describe $REV"
 
 # Census lines: one per server run and test, all must read zero.
-m3=$(cat $logs | grep -h "Metal 3 command execution after Metal 4 selection" | grep -cv "selection: 0 (refused [01]); Metal 3 queues created before selection 0, after 0")
+m3=$(cat $logs | grep -h "Metal 3 command execution after Metal 4 selection" | grep -cvE "selection: 0( \(refused 0\)|; refused 1 \(the deliberate one\)); Metal 3 queues created before selection 0, after 0")
 m3n=$(cat $logs | grep -hc "Metal 3 command execution after Metal 4 selection")
 unst=$(cat $logs | grep -h "bindings with no stated length" | grep -cv "length: 0 at 0")
 unstn=$(cat $logs | grep -hc "bindings with no stated length")
@@ -91,7 +106,7 @@ orc=$(grep -c "as before" gpurun-in$T.log)
 item 13 $([ "$st" = 1 ] && [ "$orc" = 3 ] && echo 1) "ids, every logit and the saved KV/carry state equal the frozen baseline's in all 8 cases; in-process ids on the clean oracle (3/3)"
 # Long prompt at each cache size: the frozen baseline's production ids, every
 # logit and saved state (m4st-frozen-m3 "long"), one token-major tail of 699
-# rows at 4096, and byte-identical logit files.
+# rows at 4096 run as 699 token-major steps, and byte-identical logit files.
 want=$(awk '$1 == "long" {print $7, $9, $11}' m4st-frozen-m3.hashes)
 ref=$(ls capab-$T-long*.f32 2>/dev/null | head -1); same=1; n=0; sizes=""
 for f in capab-$T-long*.f32; do
@@ -101,19 +116,19 @@ for f in capab-$T-long*.f32; do
     cmp -s "$ref" "$f" || same=0
     got=$(sed -n 's/^capacity.* ids \([0-9a-f]*\), logits \([0-9a-f]*\), state \([0-9a-f]*\).*/\1 \2 \3/p' "$l")
     [ "$got" = "$want" ] || { echo "$l: ids/logits/state $got, baseline $want"; same=0; }
-    [ "$(grep -c 'prefill tail of 699 rows at position 4096 runs token-major' "$l")" = 1 ] ||
-        { echo "$l: not exactly one 699-row tail"; same=0; }
+    [ "$(grep -c 'prefill tail of 699 rows at position 4096 ran 699 token-major steps' "$l")" = 1 ] ||
+        { echo "$l: not one 699-row tail run as 699 token-major steps"; same=0; }
 done
 for c in 4096 5400 10268; do printf '%s' " $sizes " | grep -q " $c " || { echo "no long run at cache $c"; same=0; }; done
 bud=$(diff <(grep "^ids" gpurun-budD.log) <(grep "^ids" gpurun-bud$T.log) > /dev/null && echo 1)
-item 14 $([ "$st" = 1 ] && [ "$same" = 1 ] && [ "$bud" = 1 ] && echo 1) "2048 tokens, 3 prompts, 2 sessions, 3 consecutive requests; long prompt at caches$sizes: baseline ids, logits and state, one 699-row tail each; 4-session budget"
+item 14 $([ "$st" = 1 ] && [ "$same" = 1 ] && [ "$bud" = 1 ] && echo 1) "2048 tokens, 3 prompts, 2 sessions, 3 consecutive requests; long prompt at caches$sizes: baseline ids, logits and state, the 699-row tail as 699 token-major steps in each; 4-session budget"
 judge=$(python3 abba-judge.py "m4ab-abba-$t" "gpurun-abba$t.samples" 7041 2>/dev/null)
 abba=$(printf '%s\n' "$judge" | tail -1)
-tails=$(printf '%s\n' "$judge" | sed -n 's/^token-major prefill tails in b arms: \([0-9]*\).*/\1/p')
+tails=$(printf '%s\n' "$judge" | sed -n 's/^token-major prefill tail steps in b arms: \([0-9]*\).*/\1/p')
 ok15=0
 case "$abba" in "decision: no regression"|"decision: improvement"*) ok15=1 ;; esac
 printf '%s\n' "$judge" | grep -q "INVALID" && ok15=0
 [ "$(printf '%s\n' "$judge" | grep -c ' valid$')" = 8 ] || ok15=0
-item 15 "$ok15" "ABBA m4ab-abba-$t, b on $REV: 8 valid arms, same text and token ids in all; changed prefill path taken ${tails:-?} times; ${abba:-none}"
+item 15 "$ok15" "ABBA m4ab-abba-$t, b on $REV: 8 valid arms, same text and token ids in all; token-major prefill-tail steps in b arms ${tails:-?}; ${abba:-none}"
 echo "$pass of 15"
 [ "$pass" = 15 ] && [ "$stale" = 0 ]
