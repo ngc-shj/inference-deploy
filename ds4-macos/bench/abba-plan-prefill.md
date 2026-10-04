@@ -43,3 +43,19 @@ tests, vision, the in-process long prompt - and neither measurement ran. The
 fix is 899f47c: batched tails only for 256-1023-row appends,
 none for sessions with images, the wide gathers allocated before the batch).
 The candidate is that commit; every rule above stands.
+
+## Second amendment before any arm (2026-10-05)
+
+No arm of the amended plan ran: the candidates with a 1 ms an input token
+ceiling were evaluated first (records a3aa502). The candidate is now
+7cfffd8 - 899f47c, the eight-output Q8_0 tile (cba0262) and test hooks.
+The final regression is run Q (regQ.out, m4accept.sh Q), the decode ABBA
+abba-q.
+
+The cold time-to-first-token baseline is no longer 6749f95. Arm a is the
+32-row batched tail with the two-output Q8_0 tile in the candidate's own
+binary - m4capab.sh with ARM_MODE="prev q8nr2", which reproduces the
+frozen oracle's ids, logits and state (capab-Q-prevnr2) - so the pair
+differs only in what is measured, not in build, I/O path or any other
+commit. Arm b is the candidate's production. Arms are named V-<n>-<old|new>.
+Every other rule above stands.
