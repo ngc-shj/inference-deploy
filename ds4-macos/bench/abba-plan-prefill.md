@@ -35,3 +35,11 @@ sentinel (sentM) reaches, b = the candidate at 10268. Run as abba-m.
   improvement is stated only if every pair is negative; it is stated as d
   seconds and d / 4795 ms per input token. Anything else is reported as it is,
   with no improvement claimed.
+
+## Amendment before any arm (2026-10-05)
+
+The final regression of a33097f (regM.out) failed items 11 and 13 - self-
+tests, vision, the in-process long prompt - and neither measurement ran. The
+fix is 899f47c: batched tails only for 256-1023-row appends,
+none for sessions with images, the wide gathers allocated before the batch).
+The candidate is that commit; every rule above stands.
