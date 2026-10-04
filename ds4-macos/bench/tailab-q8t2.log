@@ -1,0 +1,26 @@
+ds4: abort gate on for the first 40 layers
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: V4.1 SSD cache fitted from 10268 to 6679 experts for context/runtime headroom
+ds4: Metal backend: Metal 4
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: metal SSD streaming cache target 61.91 GiB; effective 61.91 GiB = 7.12 GiB prefill headroom + 54.79 GiB dynamic cache (5911 experts, 9.49 MiB each)
+ds4: Metal SSD static weights locked 9.37 GiB; pageable 0.00 GiB
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: expert cache prewarmed from the built-in V4.1 hotlist: 5910 experts (0 failed), 54.78 GiB in 5.66 s; stopped where the cache was full
+ds4: memory: KV 0.06 GiB (raw 0.01 + compressed 0.05) + buffers 3.30 GiB + resident model 9.37 GiB + expert cache 54.79 GiB + prefill expert reserve 7.12 GiB = 74.64 GiB planned
+ds4: memory detail: ctx=8192 prefill_cap=4096 raw_kv_rows=128 compressed_kv_rows=8193 backend=metal
+ds4: Q8_0 row tiles against the single-row arithmetic: 0 of 528 combinations differ
+ds4:   attn_output_a   4096x8192   699 rows: t4 18.14 t48 10.33 ms
+ds4:   attn_output_b   8192x5120   699 rows: t4 22.42 t48 11.48 ms
+ds4:   shexp_gate      5120x2304   699 rows: t4 6.15 t48 3.53 ms
+ds4:   shexp_up        5120x2304   699 rows: t4 6.50 t48 3.73 ms
+ds4:   shexp_down      2304x5120   699 rows: t4 8.60 t48 4.70 ms
+ds4:   attn_q_a        5120x1280   699 rows: t4 3.61 t48 2.12 ms
+ds4:   attn_q_b        1280x32768  699 rows: t4 39.59 t48 23.59 ms
+ds4:   attn_kv         5120x512    699 rows: t4 1.63 t48 0.97 ms
+tiles    0 combination(s) differ from the single-row arithmetic -> PASS
+ds4: memory budget: peak 69.36 GiB allocated of 80.00 GiB; 0 slab(s) given back, 0 allocation(s) refused, cache growth stopped 0 time(s)
+ds4: expert directory: 0 pinned hits, 0 cache hits, 5910 loads; 0 address mismatches, 0 missing with a non-zero slot, 0 selected and missing; 0 pinned experts given back to the budget

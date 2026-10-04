@@ -1,0 +1,241 @@
+ds4: abort gate on for the first 40 layers
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: V4.1 SSD cache fitted from 10268 to 6679 experts for context/runtime headroom
+ds4: Metal backend: Metal 4
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: metal SSD streaming cache target 61.91 GiB; effective 61.91 GiB = 7.12 GiB prefill headroom + 54.79 GiB dynamic cache (5911 experts, 9.49 MiB each)
+ds4: Metal SSD static weights locked 9.37 GiB; pageable 0.00 GiB
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: expert cache prewarmed from the built-in V4.1 hotlist: 5910 experts (0 failed), 54.78 GiB in 5.64 s; stopped where the cache was full
+ds4: memory: KV 0.06 GiB (raw 0.01 + compressed 0.05) + buffers 3.30 GiB + resident model 9.37 GiB + expert cache 54.79 GiB + prefill expert reserve 7.12 GiB = 74.64 GiB planned
+ds4: memory detail: ctx=8192 prefill_cap=4096 raw_kv_rows=128 compressed_kv_rows=8193 backend=metal
+ds4: Q8_0 row tiles against the single-row arithmetic: 0 of 864 combinations differ
+ds4:   attn_output_a   4096x8192   699 rows: t4 17.96 t48 10.40 t404 14.70 t802 13.05 t806 13.57 t1204 10.62 ms
+ds4:   attn_output_b   8192x5120   699 rows: t4 22.22 t48 11.53 t404 15.97 t802 14.72 t806 14.92 t1204 11.51 ms
+ds4:   shexp_gate      5120x2304   699 rows: t4 6.14 t48 3.52 t404 4.95 t802 4.40 t806 4.67 t1204 3.60 ms
+ds4:   shexp_up        5120x2304   699 rows: t4 6.15 t48 3.54 t404 4.92 t802 4.40 t806 4.69 t1204 3.58 ms
+ds4:   shexp_down      2304x5120   699 rows: t4 7.59 t48 4.20 t404 5.76 t802 5.56 t806 5.76 t1204 4.55 ms
+ds4:   attn_q_a        5120x1280   699 rows: t4 3.43 t48 2.05 t404 2.76 t802 2.49 t806 2.62 t1204 2.07 ms
+  compressor_kv   5120x512 rows=1 tile=804: 242 floats differ
+  compressor_kv   5120x512 rows=1 tile=408: 242 floats differ
+  compressor_kv   5120x512 rows=2 tile=804: 498 floats differ
+  compressor_kv   5120x512 rows=2 tile=408: 498 floats differ
+  compressor_kv   5120x512 rows=3 tile=804: 754 floats differ
+  compressor_kv   5120x512 rows=3 tile=408: 754 floats differ
+  compressor_kv   5120x512 rows=4 tile=804: 1009 floats differ
+  compressor_kv   5120x512 rows=4 tile=408: 1009 floats differ
+  compressor_kv   5120x512 rows=5 tile=804: 1264 floats differ
+  compressor_kv   5120x512 rows=5 tile=408: 1264 floats differ
+  compressor_kv   5120x512 rows=7 tile=804: 1786 floats differ
+  compressor_kv   5120x512 rows=7 tile=408: 1786 floats differ
+  compressor_kv   5120x512 rows=8 tile=804: 2046 floats differ
+  compressor_kv   5120x512 rows=8 tile=408: 2046 floats differ
+  compressor_kv   5120x512 rows=9 tile=804: 2309 floats differ
+  compressor_kv   5120x512 rows=9 tile=408: 2309 floats differ
+  compressor_kv   5120x512 rows=63 tile=804: 16107 floats differ
+  compressor_kv   5120x512 rows=63 tile=408: 16107 floats differ
+  compressor_kv   5120x512 rows=64 tile=804: 16356 floats differ
+  compressor_kv   5120x512 rows=64 tile=408: 16356 floats differ
+  compressor_kv   5120x512 rows=65 tile=804: 16582 floats differ
+  compressor_kv   5120x512 rows=65 tile=408: 16582 floats differ
+  compressor_kv   5120x512 rows=699 tile=804: 178885 floats differ
+  compressor_kv   5120x512 rows=699 tile=408: 178885 floats differ
+  compressor_kv   5120x512 rows=2048 tile=804: 523170 floats differ
+  compressor_kv   5120x512 rows=2048 tile=408: 523170 floats differ
+  compressor_kv   5120x511 rows=1 tile=804: 242 floats differ
+  compressor_kv   5120x511 rows=1 tile=408: 242 floats differ
+  compressor_kv   5120x511 rows=2 tile=804: 497 floats differ
+  compressor_kv   5120x511 rows=2 tile=408: 497 floats differ
+  compressor_kv   5120x511 rows=3 tile=804: 752 floats differ
+  compressor_kv   5120x511 rows=3 tile=408: 752 floats differ
+  compressor_kv   5120x511 rows=4 tile=804: 1006 floats differ
+  compressor_kv   5120x511 rows=4 tile=408: 1006 floats differ
+  compressor_kv   5120x511 rows=5 tile=804: 1260 floats differ
+  compressor_kv   5120x511 rows=5 tile=408: 1260 floats differ
+  compressor_kv   5120x511 rows=7 tile=804: 1782 floats differ
+  compressor_kv   5120x511 rows=7 tile=408: 1782 floats differ
+  compressor_kv   5120x511 rows=8 tile=804: 2042 floats differ
+  compressor_kv   5120x511 rows=8 tile=408: 2042 floats differ
+  compressor_kv   5120x511 rows=9 tile=804: 2304 floats differ
+  compressor_kv   5120x511 rows=9 tile=408: 2304 floats differ
+  compressor_kv   5120x511 rows=63 tile=804: 16074 floats differ
+  compressor_kv   5120x511 rows=63 tile=408: 16074 floats differ
+  compressor_kv   5120x511 rows=64 tile=804: 16322 floats differ
+  compressor_kv   5120x511 rows=64 tile=408: 16322 floats differ
+  compressor_kv   5120x511 rows=65 tile=804: 16547 floats differ
+  compressor_kv   5120x511 rows=65 tile=408: 16547 floats differ
+  compressor_kv   5120x511 rows=699 tile=804: 178505 floats differ
+  compressor_kv   5120x511 rows=699 tile=408: 178505 floats differ
+  compressor_kv   5120x511 rows=2048 tile=804: 522084 floats differ
+  compressor_kv   5120x511 rows=2048 tile=408: 522084 floats differ
+  compressor_kv   5120x510 rows=1 tile=804: 242 floats differ
+  compressor_kv   5120x510 rows=1 tile=408: 242 floats differ
+  compressor_kv   5120x510 rows=2 tile=804: 496 floats differ
+  compressor_kv   5120x510 rows=2 tile=408: 496 floats differ
+  compressor_kv   5120x510 rows=3 tile=804: 750 floats differ
+  compressor_kv   5120x510 rows=3 tile=408: 750 floats differ
+  compressor_kv   5120x510 rows=4 tile=804: 1004 floats differ
+  compressor_kv   5120x510 rows=4 tile=408: 1004 floats differ
+  compressor_kv   5120x510 rows=5 tile=804: 1258 floats differ
+  compressor_kv   5120x510 rows=5 tile=408: 1258 floats differ
+  compressor_kv   5120x510 rows=7 tile=804: 1780 floats differ
+  compressor_kv   5120x510 rows=7 tile=408: 1780 floats differ
+  compressor_kv   5120x510 rows=8 tile=804: 2039 floats differ
+  compressor_kv   5120x510 rows=8 tile=408: 2039 floats differ
+  compressor_kv   5120x510 rows=9 tile=804: 2301 floats differ
+  compressor_kv   5120x510 rows=9 tile=408: 2301 floats differ
+  compressor_kv   5120x510 rows=63 tile=804: 16043 floats differ
+  compressor_kv   5120x510 rows=63 tile=408: 16043 floats differ
+  compressor_kv   5120x510 rows=64 tile=804: 16290 floats differ
+  compressor_kv   5120x510 rows=64 tile=408: 16290 floats differ
+  compressor_kv   5120x510 rows=65 tile=804: 16514 floats differ
+  compressor_kv   5120x510 rows=65 tile=408: 16514 floats differ
+  compressor_kv   5120x510 rows=699 tile=804: 178120 floats differ
+  compressor_kv   5120x510 rows=699 tile=408: 178120 floats differ
+  compressor_kv   5120x510 rows=2048 tile=804: 521011 floats differ
+  compressor_kv   5120x510 rows=2048 tile=408: 521011 floats differ
+  compressor_kv   5120x509 rows=1 tile=804: 241 floats differ
+  compressor_kv   5120x509 rows=1 tile=408: 241 floats differ
+  compressor_kv   5120x509 rows=2 tile=804: 494 floats differ
+  compressor_kv   5120x509 rows=2 tile=408: 494 floats differ
+  compressor_kv   5120x509 rows=3 tile=804: 748 floats differ
+  compressor_kv   5120x509 rows=3 tile=408: 748 floats differ
+  compressor_kv   5120x509 rows=4 tile=804: 1001 floats differ
+  compressor_kv   5120x509 rows=4 tile=408: 1001 floats differ
+  compressor_kv   5120x509 rows=5 tile=804: 1254 floats differ
+  compressor_kv   5120x509 rows=5 tile=408: 1254 floats differ
+  compressor_kv   5120x509 rows=7 tile=804: 1776 floats differ
+  compressor_kv   5120x509 rows=7 tile=408: 1776 floats differ
+  compressor_kv   5120x509 rows=8 tile=804: 2034 floats differ
+  compressor_kv   5120x509 rows=8 tile=408: 2034 floats differ
+  compressor_kv   5120x509 rows=9 tile=804: 2296 floats differ
+  compressor_kv   5120x509 rows=9 tile=408: 2296 floats differ
+  compressor_kv   5120x509 rows=63 tile=804: 16003 floats differ
+  compressor_kv   5120x509 rows=63 tile=408: 16003 floats differ
+  compressor_kv   5120x509 rows=64 tile=804: 16249 floats differ
+  compressor_kv   5120x509 rows=64 tile=408: 16249 floats differ
+  compressor_kv   5120x509 rows=65 tile=804: 16472 floats differ
+  compressor_kv   5120x509 rows=65 tile=408: 16472 floats differ
+  compressor_kv   5120x509 rows=699 tile=804: 177729 floats differ
+  compressor_kv   5120x509 rows=699 tile=408: 177729 floats differ
+  compressor_kv   5120x509 rows=2048 tile=804: 519913 floats differ
+  compressor_kv   5120x509 rows=2048 tile=408: 519913 floats differ
+  indexer_proj    5120x32 rows=1 tile=804: 14 floats differ
+  indexer_proj    5120x32 rows=1 tile=408: 14 floats differ
+  indexer_proj    5120x32 rows=2 tile=804: 29 floats differ
+  indexer_proj    5120x32 rows=2 tile=408: 29 floats differ
+  indexer_proj    5120x32 rows=3 tile=804: 41 floats differ
+  indexer_proj    5120x32 rows=3 tile=408: 41 floats differ
+  indexer_proj    5120x32 rows=4 tile=804: 52 floats differ
+  indexer_proj    5120x32 rows=4 tile=408: 52 floats differ
+  indexer_proj    5120x32 rows=5 tile=804: 66 floats differ
+  indexer_proj    5120x32 rows=5 tile=408: 66 floats differ
+  indexer_proj    5120x32 rows=7 tile=804: 92 floats differ
+  indexer_proj    5120x32 rows=7 tile=408: 92 floats differ
+  indexer_proj    5120x32 rows=8 tile=804: 108 floats differ
+  indexer_proj    5120x32 rows=8 tile=408: 108 floats differ
+  indexer_proj    5120x32 rows=9 tile=804: 123 floats differ
+  indexer_proj    5120x32 rows=9 tile=408: 123 floats differ
+  indexer_proj    5120x32 rows=63 tile=804: 953 floats differ
+  indexer_proj    5120x32 rows=63 tile=408: 953 floats differ
+  indexer_proj    5120x32 rows=64 tile=804: 968 floats differ
+  indexer_proj    5120x32 rows=64 tile=408: 968 floats differ
+  indexer_proj    5120x32 rows=65 tile=804: 983 floats differ
+  indexer_proj    5120x32 rows=65 tile=408: 983 floats differ
+  indexer_proj    5120x32 rows=699 tile=804: 10752 floats differ
+  indexer_proj    5120x32 rows=699 tile=408: 10752 floats differ
+  indexer_proj    5120x32 rows=2048 tile=804: 31706 floats differ
+  indexer_proj    5120x32 rows=2048 tile=408: 31706 floats differ
+  indexer_proj    5120x31 rows=1 tile=804: 13 floats differ
+  indexer_proj    5120x31 rows=1 tile=408: 13 floats differ
+  indexer_proj    5120x31 rows=2 tile=804: 27 floats differ
+  indexer_proj    5120x31 rows=2 tile=408: 27 floats differ
+  indexer_proj    5120x31 rows=3 tile=804: 39 floats differ
+  indexer_proj    5120x31 rows=3 tile=408: 39 floats differ
+  indexer_proj    5120x31 rows=4 tile=804: 50 floats differ
+  indexer_proj    5120x31 rows=4 tile=408: 50 floats differ
+  indexer_proj    5120x31 rows=5 tile=804: 64 floats differ
+  indexer_proj    5120x31 rows=5 tile=408: 64 floats differ
+  indexer_proj    5120x31 rows=7 tile=804: 90 floats differ
+  indexer_proj    5120x31 rows=7 tile=408: 90 floats differ
+  indexer_proj    5120x31 rows=8 tile=804: 105 floats differ
+  indexer_proj    5120x31 rows=8 tile=408: 105 floats differ
+  indexer_proj    5120x31 rows=9 tile=804: 120 floats differ
+  indexer_proj    5120x31 rows=9 tile=408: 120 floats differ
+  indexer_proj    5120x31 rows=63 tile=804: 930 floats differ
+  indexer_proj    5120x31 rows=63 tile=408: 930 floats differ
+  indexer_proj    5120x31 rows=64 tile=804: 945 floats differ
+  indexer_proj    5120x31 rows=64 tile=408: 945 floats differ
+  indexer_proj    5120x31 rows=65 tile=804: 959 floats differ
+  indexer_proj    5120x31 rows=65 tile=408: 959 floats differ
+  indexer_proj    5120x31 rows=699 tile=804: 10399 floats differ
+  indexer_proj    5120x31 rows=699 tile=408: 10399 floats differ
+  indexer_proj    5120x31 rows=2048 tile=804: 30673 floats differ
+  indexer_proj    5120x31 rows=2048 tile=408: 30673 floats differ
+  indexer_proj    5120x30 rows=1 tile=804: 12 floats differ
+  indexer_proj    5120x30 rows=1 tile=408: 12 floats differ
+  indexer_proj    5120x30 rows=2 tile=804: 26 floats differ
+  indexer_proj    5120x30 rows=2 tile=408: 26 floats differ
+  indexer_proj    5120x30 rows=3 tile=804: 38 floats differ
+  indexer_proj    5120x30 rows=3 tile=408: 38 floats differ
+  indexer_proj    5120x30 rows=4 tile=804: 48 floats differ
+  indexer_proj    5120x30 rows=4 tile=408: 48 floats differ
+  indexer_proj    5120x30 rows=5 tile=804: 61 floats differ
+  indexer_proj    5120x30 rows=5 tile=408: 61 floats differ
+  indexer_proj    5120x30 rows=7 tile=804: 87 floats differ
+  indexer_proj    5120x30 rows=7 tile=408: 87 floats differ
+  indexer_proj    5120x30 rows=8 tile=804: 102 floats differ
+  indexer_proj    5120x30 rows=8 tile=408: 102 floats differ
+  indexer_proj    5120x30 rows=9 tile=804: 117 floats differ
+  indexer_proj    5120x30 rows=9 tile=408: 117 floats differ
+  indexer_proj    5120x30 rows=63 tile=804: 905 floats differ
+  indexer_proj    5120x30 rows=63 tile=408: 905 floats differ
+  indexer_proj    5120x30 rows=64 tile=804: 919 floats differ
+  indexer_proj    5120x30 rows=64 tile=408: 919 floats differ
+  indexer_proj    5120x30 rows=65 tile=804: 933 floats differ
+  indexer_proj    5120x30 rows=65 tile=408: 933 floats differ
+  indexer_proj    5120x30 rows=699 tile=804: 10065 floats differ
+  indexer_proj    5120x30 rows=699 tile=408: 10065 floats differ
+  indexer_proj    5120x30 rows=2048 tile=804: 29669 floats differ
+  indexer_proj    5120x30 rows=2048 tile=408: 29669 floats differ
+  indexer_proj    5120x29 rows=1 tile=804: 12 floats differ
+  indexer_proj    5120x29 rows=1 tile=408: 12 floats differ
+  indexer_proj    5120x29 rows=2 tile=804: 26 floats differ
+  indexer_proj    5120x29 rows=2 tile=408: 26 floats differ
+  indexer_proj    5120x29 rows=3 tile=804: 38 floats differ
+  indexer_proj    5120x29 rows=3 tile=408: 38 floats differ
+  indexer_proj    5120x29 rows=4 tile=804: 48 floats differ
+  indexer_proj    5120x29 rows=4 tile=408: 48 floats differ
+  indexer_proj    5120x29 rows=5 tile=804: 60 floats differ
+  indexer_proj    5120x29 rows=5 tile=408: 60 floats differ
+  indexer_proj    5120x29 rows=7 tile=804: 86 floats differ
+  indexer_proj    5120x29 rows=7 tile=408: 86 floats differ
+  indexer_proj    5120x29 rows=8 tile=804: 101 floats differ
+  indexer_proj    5120x29 rows=8 tile=408: 101 floats differ
+  indexer_proj    5120x29 rows=9 tile=804: 115 floats differ
+  indexer_proj    5120x29 rows=9 tile=408: 115 floats differ
+  indexer_proj    5120x29 rows=63 tile=804: 878 floats differ
+  indexer_proj    5120x29 rows=63 tile=408: 878 floats differ
+  indexer_proj    5120x29 rows=64 tile=804: 891 floats differ
+  indexer_proj    5120x29 rows=64 tile=408: 891 floats differ
+  indexer_proj    5120x29 rows=65 tile=804: 904 floats differ
+  indexer_proj    5120x29 rows=65 tile=408: 904 floats differ
+  indexer_proj    5120x29 rows=699 tile=804: 9738 floats differ
+  indexer_proj    5120x29 rows=699 tile=408: 9738 floats differ
+  indexer_proj    5120x29 rows=2048 tile=804: 28680 floats differ
+  indexer_proj    5120x29 rows=2048 tile=408: 28680 floats differ
+ds4: F16 row tiles against the one-row kernel: 208 of 1456 combinations differ
+ds4:   compressor_kv    5120x512    699 rows: one 3.69 t204 2.08 t404 1.55 t804 1.39 t402 1.55 t408 3.00 t802 1.25 t208 3.13 ms
+ds4:   compressor_kv    5120x512   2048 rows: one 11.17 t204 6.13 t404 4.53 t804 3.92 t402 4.56 t408 8.27 t802 3.58 t208 9.06 ms
+ds4:   indexer_q_b      1280x4096   699 rows: one 9.44 t204 6.30 t404 5.61 t804 5.32 t402 5.38 t408 8.38 t802 4.89 t208 7.48 ms
+ds4:   indexer_q_b      1280x4096  2048 rows: one 27.51 t204 18.45 t404 16.35 t804 15.47 t402 15.58 t408 24.37 t802 14.16 t208 21.73 ms
+ds4:   indexer_proj     5120x32     699 rows: one 0.28 t204 0.20 t404 0.18 t804 0.17 t402 0.16 t408 0.27 t802 0.16 t208 0.29 ms
+ds4:   indexer_proj     5120x32    2048 rows: one 0.71 t204 0.47 t404 0.37 t804 0.34 t402 0.35 t408 0.62 t802 0.31 t208 0.69 ms
+ds4:   indexer_k         512x128    699 rows: one 0.27 t204 0.15 t404 0.15 t804 0.16 t402 0.14 t408 0.19 t802 0.14 t208 0.18 ms
+ds4:   indexer_k         512x128   2048 rows: one 0.67 t204 0.35 t404 0.30 t804 0.29 t402 0.30 t408 0.41 t802 0.28 t208 0.37 ms
+tiles    208 combination(s) differ from the single-row arithmetic -> FAIL
+ds4: memory budget: peak 66.05 GiB allocated of 80.00 GiB; 0 slab(s) given back, 0 allocation(s) refused, cache growth stopped 0 time(s)
+ds4: expert directory: 0 pinned hits, 0 cache hits, 5910 loads; 0 address mismatches, 0 missing with a non-zero slot, 0 selected and missing; 0 pinned experts given back to the budget

@@ -1,0 +1,3 @@
+prefix   4096 rows layer-major in 34.655 s (cold), 8.46 ms a row; tail 699 rows; B = token-major
+ds4: V4.1 prefill tail of 699 rows at position 4096 ran 699 token-major steps
+warm-up  A 20.381 s, B 45.006 s; reference logits dd695094752a1c7e state d721dfb78fb413ae

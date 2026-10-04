@@ -1,0 +1,52 @@
+ds4: abort gate on for the first 40 layers
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: V4.1 SSD cache fitted from 10268 to 6679 experts for context/runtime headroom
+ds4: Metal backend: Metal 4
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: metal SSD streaming cache target 61.91 GiB; effective 61.91 GiB = 7.12 GiB prefill headroom + 54.79 GiB dynamic cache (5911 experts, 9.49 MiB each)
+ds4: Metal SSD static weights locked 9.37 GiB; pageable 0.00 GiB
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: expert cache prewarmed from the built-in V4.1 hotlist: 5910 experts (0 failed), 54.78 GiB in 5.05 s; stopped where the cache was full
+ds4: memory: KV 0.06 GiB (raw 0.01 + compressed 0.05) + buffers 3.30 GiB + resident model 9.37 GiB + expert cache 54.79 GiB + prefill expert reserve 7.12 GiB = 74.64 GiB planned
+ds4: memory detail: ctx=8192 prefill_cap=4096 raw_kv_rows=128 compressed_kv_rows=8193 backend=metal
+ds4: V4.1 executor ABI 3, arena align 256, rev 899f47ce087e-dirty, built Oct  5 2026 00:35:38
+ds4: V4.1 static context buffers 3435.75 MiB (ctx=8192), Engram disk-only
+ds4: expert cache lent the prefill headroom for decode: 5911 -> 6679 experts
+prefix   4096 rows layer-major in 24.644 s (cold), 6.02 ms a row; tail 699 rows; B = Q8_0 projections on the four-row tile
+ds4: V4.1 K-block effective configuration: rows=699 exact_vocab=0 head_tile=0 dense_tile=4 block_kv=1 block_levels=1 block_attn_k=0 block_attn_raw=0 block_low_batch=0 block_attn=0 batch_fuse=0 batch_attn_out=1 batch_stream_experts=1 row_gather=1 moe_expert_major=0 block_txn=0 row_logits_readback=0
+ds4: V4.1 block-local KV delta, 699 rows over 127 prefix keys
+ds4: V4.1 batch attn_output_b hoisted out of the per-row loop (699 rows)
+ds4: V4.1 routed gate/up encode: ds4_gpu_encode_mul_mv_addr_iq2_pair_swiglu
+ds4: V4.1 block attention by level, 699 rows, concurrent section open
+ds4: V4.1 batch step rows=699 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 prefill tail at position 4096 ran 699 rows as 1 batch steps
+ds4: expert cache lent the prefill headroom for decode: 5911 -> 6679 experts
+touched  the tail used 9604 distinct experts of 15360 (89.0 GiB at 9.49 MiB each); 4545 loads, 4545 misses
+ds4: V4.1 batch step rows=699 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 prefill tail at position 4096 ran 699 rows as 1 batch steps
+ds4: expert cache lent the prefill headroom for decode: 5911 -> 6679 experts
+host     A: drain 6.01, prepare 3.57 (load prepare 0.00, pread 0.00, install 0.00, slot buffers 0.00, readahead 0.00, reuse scan 0.00) s
+host     B: drain 7.50, prepare 3.66 (load prepare 0.00, pread 0.00, install 0.00, slot buffers 0.00, readahead 0.00, reuse scan 0.00) s
+warm-up  A 16.526 s, B 18.306 s; reference logits dd695094752a1c7e state d721dfb78fb413ae
+ds4: V4.1 batch step rows=699 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 prefill tail at position 4096 ran 699 rows as 1 batch steps
+ds4: expert cache lent the prefill headroom for decode: 5911 -> 6679 experts
+round 0 A  16.729 s  logits dd695094752a1c7e state d721dfb78fb413ae same | hits 163591 misses 4169 loads 4169 evictions 4169, expert-major dispatches 0
+ds4: V4.1 batch step rows=699 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 prefill tail at position 4096 ran 699 rows as 1 batch steps
+ds4: expert cache lent the prefill headroom for decode: 5911 -> 6679 experts
+round 0 B  19.233 s  logits dd695094752a1c7e state d721dfb78fb413ae same | hits 163666 misses 4094 loads 4094 evictions 4094, expert-major dispatches 0
+ds4: V4.1 batch step rows=699 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 prefill tail at position 4096 ran 699 rows as 1 batch steps
+ds4: expert cache lent the prefill headroom for decode: 5911 -> 6679 experts
+round 0 B  19.297 s  logits dd695094752a1c7e state d721dfb78fb413ae same | hits 163711 misses 4049 loads 4049 evictions 4049, expert-major dispatches 0
+ds4: V4.1 batch step rows=699 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 prefill tail at position 4096 ran 699 rows as 1 batch steps
+ds4: expert cache lent the prefill headroom for decode: 5911 -> 6679 experts
+round 0 A  18.352 s  logits dd695094752a1c7e state d721dfb78fb413ae same | hits 163761 misses 3999 loads 3999 evictions 3999, expert-major dispatches 0
+tail     A mean 17.541 s, B mean 19.265 s, B - A +1.725 s over 1 rounds; 0 arm(s) differing from the reference -> PASS
+ds4: memory budget: peak 71.49 GiB allocated of 80.00 GiB; 0 slab(s) given back, 0 allocation(s) refused, cache growth stopped 0 time(s)
+ds4: expert directory: 0 pinned hits, 32453 cache hits, 35270 loads; 0 address mismatches, 0 missing with a non-zero slot, 0 selected and missing; 0 pinned experts given back to the budget

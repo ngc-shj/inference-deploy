@@ -1,0 +1,5 @@
+resident 40.39 GiB of 340.60 GiB
+after drop: resident 0.00 GiB of 340.60 GiB
+prefix   4096 rows layer-major in 32.476 s (cold), 7.93 ms a row; tail 699 rows; B = token-major
+ds4: V4.1 prefill tail of 699 rows at position 4096 ran 699 token-major steps
+warm-up  A 19.662 s, B 42.656 s; reference logits dd695094752a1c7e state d721dfb78fb413ae

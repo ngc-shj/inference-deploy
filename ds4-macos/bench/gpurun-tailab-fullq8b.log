@@ -1,0 +1,7 @@
+prefix   4096 rows layer-major in 24.648 s (cold), 6.02 ms a row; tail 699 rows; B = Q8_0 four-row tile, two outputs a threadgroup; arms prefill the whole prompt
+warm-up  A 42.622 s, B 55.914 s; reference logits dd695094752a1c7e state d721dfb78fb413ae
+round 0 A  113.585 s  logits dd695094752a1c7e state d721dfb78fb413ae same | hits 169318 misses 4322 loads 4322 evictions 4322, expert-major dispatches 0
+round 0 B  110.229 s  logits dd695094752a1c7e state d721dfb78fb413ae same | hits 169355 misses 4285 loads 4285 evictions 4285, expert-major dispatches 0
+round 0 B  99.483 s  logits dd695094752a1c7e state d721dfb78fb413ae same | hits 169376 misses 4264 loads 4264 evictions 4264, expert-major dispatches 0
+round 0 A  79.560 s  logits dd695094752a1c7e state d721dfb78fb413ae same | hits 169379 misses 4261 loads 4261 evictions 4261, expert-major dispatches 0
+tail     A mean 96.573 s, B mean 104.856 s, B - A +8.284 s over 1 rounds; 0 arm(s) differing from the reference -> PASS

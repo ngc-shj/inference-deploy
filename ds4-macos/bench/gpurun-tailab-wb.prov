@@ -1,0 +1,6 @@
+command ./m4tailab.sh wb 1 10268 benv:DS4_METAL_V41_BLOCK_WRITE_BATCH=1
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-05 00:41:38 ds4-server 0 tests 0 pressure level 1 wired 4.54 GiB free 86% swap 0.20 GiB
+pid 92305 process group 92305
+rc 0 peak wired 76.21 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 62.66 GiB, peak Metal 59.00 GiB
+after 2026-10-05 00:45:50 ds4-server 0 tests 0 pressure level 1 wired 4.21 GiB free 86% swap 0.20 GiB

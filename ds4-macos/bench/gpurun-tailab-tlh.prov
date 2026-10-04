@@ -1,0 +1,6 @@
+command env DS4_METAL_ENCODER_TIMELINE=/Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench/tailab-tlh.timeline ./m4tailab.sh tlh 0 10268 hoist
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-05 00:52:42 ds4-server 0 tests 0 pressure level 1 wired 4.58 GiB free 85% swap 0.20 GiB
+pid 12167 process group 12167
+rc 0 peak wired 76.80 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 63.34 GiB, peak Metal 60.00 GiB
+after 2026-10-05 00:54:28 ds4-server 0 tests 0 pressure level 1 wired 4.30 GiB free 85% swap 0.20 GiB

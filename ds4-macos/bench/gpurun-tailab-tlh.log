@@ -1,0 +1,2 @@
+prefix   4096 rows layer-major in 43.022 s (cold), 10.50 ms a row; tail 699 rows; B = token-major
+warm-up  A 26.286 s, B 27.255 s; reference logits dd695094752a1c7e state d721dfb78fb413ae

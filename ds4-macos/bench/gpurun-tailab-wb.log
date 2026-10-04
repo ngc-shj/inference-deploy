@@ -1,0 +1,10 @@
+prefix   4096 rows layer-major in 31.132 s (cold), 7.60 ms a row; tail 699 rows; B = token-major
+ds4: V4.1 prefill tail of 699 rows at position 4096 ran 699 token-major steps
+warm-up  A 18.469 s, B 40.968 s; reference logits dd695094752a1c7e state d721dfb78fb413ae
+round 0 A  21.746 s  logits dd695094752a1c7e state d721dfb78fb413ae same | hits 160823 misses 6937 loads 6937 evictions 6937, expert-major dispatches 0
+ds4: V4.1 prefill tail of 699 rows at position 4096 ran 699 token-major steps
+round 0 B  47.742 s  logits dd695094752a1c7e state d721dfb78fb413ae same | hits 167550 misses 11802 loads 11802 evictions 11802, expert-major dispatches 0
+ds4: V4.1 prefill tail of 699 rows at position 4096 ran 699 token-major steps
+round 0 B  56.103 s  logits dd695094752a1c7e state d721dfb78fb413ae same | hits 167715 misses 12875 loads 12875 evictions 12875, expert-major dispatches 0
+round 0 A  28.691 s  logits dd695094752a1c7e state d721dfb78fb413ae same | hits 160723 misses 7037 loads 7037 evictions 7037, expert-major dispatches 0
+tail     A mean 25.219 s, B mean 51.923 s, B - A +26.704 s over 1 rounds; 0 arm(s) differing from the reference -> PASS

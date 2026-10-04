@@ -1,0 +1,315 @@
+ds4: abort gate on for the first 40 layers
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: V4.1 SSD cache fitted from 10268 to 6679 experts for context/runtime headroom
+ds4: Metal backend: Metal 4
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: metal SSD streaming cache target 61.91 GiB; effective 61.91 GiB = 7.12 GiB prefill headroom + 54.79 GiB dynamic cache (5911 experts, 9.49 MiB each)
+ds4: Metal SSD static weights locked 9.37 GiB; pageable 0.00 GiB
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: expert cache prewarmed from the built-in V4.1 hotlist: 5910 experts (0 failed), 54.78 GiB in 5.35 s; stopped where the cache was full
+ds4: memory: KV 0.06 GiB (raw 0.01 + compressed 0.05) + buffers 3.30 GiB + resident model 9.37 GiB + expert cache 54.79 GiB + prefill expert reserve 7.12 GiB = 74.64 GiB planned
+ds4: memory detail: ctx=8192 prefill_cap=4096 raw_kv_rows=128 compressed_kv_rows=8193 backend=metal
+ds4: V4.1 executor ABI 3, arena align 256, rev 899f47ce087e-dirty, built Oct  5 2026 01:10:27
+ds4: V4.1 static context buffers 3435.75 MiB (ctx=8192), Engram disk-only
+ds4: Metal streaming prefill layer pread layer=0 tokens=2048 threads=8 ranges=104 bytes=4.96 GiB wait=214.352 ms thread=214.358 ms read=4.96 GiB ok=1
+ds4: V4.1 prefill layer=0 pos=0 rows=2048 encoder_resident=0 map=216.281 engram=0.000 encode=19.822 drain=286.253 seed=0.001 ms
+ds4: V4.1 prefill layer=0 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=1.753 drain=223.279 seed=8.976 ms
+ds4: Metal streaming prefill layer pread layer=1 tokens=2048 threads=8 ranges=96 bytes=4.02 GiB wait=0.037 ms thread=287.105 ms read=4.02 GiB ok=1
+ds4: V4.1 prefill layer=1 pos=0 rows=2048 encoder_resident=0 map=0.474 engram=0.001 encode=2.770 drain=492.033 seed=0.000 ms
+ds4: V4.1 prefill layer=1 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.961 drain=532.328 seed=9.333 ms
+ds4: Metal streaming prefill layer pread layer=2 tokens=2048 threads=8 ranges=112 bytes=3.75 GiB wait=0.028 ms thread=279.183 ms read=3.75 GiB ok=1
+ds4: V4.1 prefill layer=2 pos=0 rows=2048 encoder_resident=0 map=0.352 engram=0.000 encode=4.714 drain=537.488 seed=0.001 ms
+ds4: V4.1 prefill layer=2 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=1.987 drain=724.314 seed=10.359 ms
+ds4: Metal streaming prefill layer pread layer=3 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.032 ms thread=390.002 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=3 pos=0 rows=2048 encoder_resident=0 map=0.339 engram=0.000 encode=0.270 drain=476.930 seed=0.000 ms
+ds4: V4.1 prefill layer=3 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.201 drain=390.311 seed=11.088 ms
+ds4: Metal streaming prefill layer pread layer=4 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.034 ms thread=314.600 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=4 pos=0 rows=2048 encoder_resident=0 map=0.318 engram=0.000 encode=0.332 drain=489.526 seed=0.001 ms
+ds4: V4.1 prefill layer=4 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.202 drain=367.567 seed=8.445 ms
+ds4: Metal streaming prefill layer pread layer=5 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.046 ms thread=342.295 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=5 pos=0 rows=2048 encoder_resident=0 map=0.404 engram=0.000 encode=0.368 drain=571.980 seed=0.000 ms
+ds4: V4.1 prefill layer=5 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.191 drain=320.502 seed=8.633 ms
+ds4: Metal streaming prefill layer pread layer=6 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.037 ms thread=443.776 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=6 pos=0 rows=2048 encoder_resident=0 map=0.394 engram=0.001 encode=0.361 drain=414.012 seed=-0.000 ms
+ds4: V4.1 prefill layer=6 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.170 drain=319.699 seed=10.938 ms
+ds4: Metal streaming prefill layer pread layer=7 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.029 ms thread=430.650 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=7 pos=0 rows=2048 encoder_resident=0 map=0.323 engram=0.000 encode=0.314 drain=449.556 seed=-0.000 ms
+ds4: V4.1 prefill layer=7 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.141 drain=371.401 seed=11.695 ms
+ds4: Metal streaming prefill layer pread layer=8 tokens=2048 threads=8 ranges=112 bytes=3.75 GiB wait=0.029 ms thread=582.205 ms read=3.75 GiB ok=1
+ds4: V4.1 prefill layer=8 pos=0 rows=2048 encoder_resident=0 map=0.333 engram=0.000 encode=2.437 drain=550.602 seed=0.000 ms
+ds4: V4.1 prefill layer=8 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=1.627 drain=542.678 seed=11.438 ms
+ds4: Metal streaming prefill layer pread layer=9 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.032 ms thread=365.899 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=9 pos=0 rows=2048 encoder_resident=0 map=0.351 engram=0.000 encode=0.336 drain=401.452 seed=-0.000 ms
+ds4: V4.1 prefill layer=9 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.158 drain=351.344 seed=10.872 ms
+ds4: Metal streaming prefill layer pread layer=10 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.032 ms thread=352.978 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=10 pos=0 rows=2048 encoder_resident=0 map=0.369 engram=0.000 encode=0.414 drain=379.083 seed=1.246 ms
+ds4: V4.1 prefill layer=10 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=13.812 drain=348.787 seed=12.678 ms
+ds4: Metal streaming prefill layer pread layer=11 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.056 ms thread=461.457 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=11 pos=0 rows=2048 encoder_resident=0 map=0.745 engram=0.000 encode=0.295 drain=437.338 seed=0.000 ms
+ds4: V4.1 prefill layer=11 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.138 drain=347.946 seed=11.181 ms
+ds4: Metal streaming prefill layer pread layer=12 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.033 ms thread=359.952 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=12 pos=0 rows=2048 encoder_resident=0 map=0.324 engram=0.000 encode=0.326 drain=417.244 seed=-0.000 ms
+ds4: V4.1 prefill layer=12 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.176 drain=358.393 seed=11.886 ms
+ds4: Metal streaming prefill layer pread layer=13 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.038 ms thread=359.781 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=13 pos=0 rows=2048 encoder_resident=0 map=0.393 engram=0.000 encode=0.347 drain=423.181 seed=-0.000 ms
+ds4: V4.1 prefill layer=13 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.179 drain=353.219 seed=12.629 ms
+ds4: Metal streaming prefill layer pread layer=14 tokens=2048 threads=8 ranges=112 bytes=4.04 GiB wait=0.031 ms thread=361.630 ms read=4.04 GiB ok=1
+ds4: V4.1 prefill layer=14 pos=0 rows=2048 encoder_resident=0 map=0.357 engram=0.000 encode=1.447 drain=544.094 seed=0.000 ms
+ds4: V4.1 prefill layer=14 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=1.886 drain=533.628 seed=12.993 ms
+ds4: Metal streaming prefill layer pread layer=15 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.029 ms thread=361.746 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=15 pos=0 rows=2048 encoder_resident=0 map=0.311 engram=0.000 encode=0.333 drain=379.497 seed=0.003 ms
+ds4: V4.1 prefill layer=15 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.359 drain=345.904 seed=13.510 ms
+ds4: Metal streaming prefill layer pread layer=16 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.043 ms thread=543.341 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=16 pos=0 rows=2048 encoder_resident=0 map=0.462 engram=0.000 encode=0.400 drain=410.714 seed=-0.000 ms
+ds4: V4.1 prefill layer=16 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.001 encode=0.150 drain=346.696 seed=14.543 ms
+ds4: Metal streaming prefill layer pread layer=17 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.030 ms thread=400.272 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=17 pos=0 rows=2048 encoder_resident=0 map=0.338 engram=0.000 encode=0.340 drain=454.310 seed=0.000 ms
+ds4: V4.1 prefill layer=17 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.183 drain=337.843 seed=13.878 ms
+ds4: Metal streaming prefill layer pread layer=18 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.029 ms thread=395.433 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=18 pos=0 rows=2048 encoder_resident=0 map=0.329 engram=0.000 encode=0.328 drain=431.773 seed=0.000 ms
+ds4: V4.1 prefill layer=18 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.131 drain=341.827 seed=16.301 ms
+ds4: Metal streaming prefill layer pread layer=19 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.047 ms thread=382.846 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=19 pos=0 rows=2048 encoder_resident=0 map=0.420 engram=0.000 encode=0.266 drain=429.841 seed=-0.000 ms
+ds4: V4.1 prefill layer=19 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.132 drain=353.619 seed=10.773 ms
+ds4: Metal streaming prefill layer pread layer=20 tokens=2048 threads=8 ranges=112 bytes=3.74 GiB wait=0.027 ms thread=388.956 ms read=3.74 GiB ok=1
+ds4: V4.1 prefill layer=20 pos=0 rows=2048 encoder_resident=0 map=0.347 engram=0.000 encode=29.327 drain=615.622 seed=-0.000 ms
+ds4: V4.1 prefill layer=20 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=15.590 drain=530.941 seed=10.808 ms
+ds4: Metal streaming prefill layer pread layer=21 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.040 ms thread=377.451 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=21 pos=0 rows=2048 encoder_resident=0 map=0.385 engram=0.000 encode=0.346 drain=379.056 seed=0.001 ms
+ds4: V4.1 prefill layer=21 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.223 drain=332.011 seed=17.914 ms
+ds4: Metal streaming prefill layer pread layer=22 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.038 ms thread=384.720 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=22 pos=0 rows=2048 encoder_resident=0 map=0.370 engram=0.000 encode=0.295 drain=425.545 seed=-0.000 ms
+ds4: V4.1 prefill layer=22 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.136 drain=340.333 seed=16.549 ms
+ds4: Metal streaming prefill layer pread layer=23 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.037 ms thread=376.137 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=23 pos=0 rows=2048 encoder_resident=0 map=0.361 engram=0.000 encode=0.321 drain=404.006 seed=0.000 ms
+ds4: V4.1 prefill layer=23 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.138 drain=350.059 seed=13.482 ms
+ds4: Metal streaming prefill layer pread layer=24 tokens=2048 threads=8 ranges=96 bytes=3.74 GiB wait=0.031 ms thread=370.160 ms read=3.74 GiB ok=1
+ds4: V4.1 prefill layer=24 pos=0 rows=2048 encoder_resident=0 map=10.153 engram=0.000 encode=3.378 drain=558.375 seed=0.002 ms
+ds4: V4.1 prefill layer=24 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=5.076 drain=464.974 seed=14.638 ms
+ds4: Metal streaming prefill layer pread layer=25 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.026 ms thread=450.166 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=25 pos=0 rows=2048 encoder_resident=0 map=0.408 engram=0.001 encode=0.346 drain=356.174 seed=0.000 ms
+ds4: V4.1 prefill layer=25 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.165 drain=338.781 seed=16.684 ms
+ds4: Metal streaming prefill layer pread layer=26 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.030 ms thread=366.895 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=26 pos=0 rows=2048 encoder_resident=0 map=0.326 engram=0.000 encode=0.332 drain=410.365 seed=-0.000 ms
+ds4: V4.1 prefill layer=26 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.141 drain=342.387 seed=14.831 ms
+ds4: Metal streaming prefill layer pread layer=27 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.034 ms thread=376.891 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=27 pos=0 rows=2048 encoder_resident=0 map=0.366 engram=0.000 encode=0.372 drain=408.709 seed=0.001 ms
+ds4: V4.1 prefill layer=27 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.207 drain=389.660 seed=16.867 ms
+ds4: Metal streaming prefill layer pread layer=28 tokens=2048 threads=8 ranges=96 bytes=3.74 GiB wait=0.030 ms thread=411.393 ms read=3.74 GiB ok=1
+ds4: V4.1 prefill layer=28 pos=0 rows=2048 encoder_resident=0 map=0.395 engram=0.000 encode=3.675 drain=563.248 seed=0.000 ms
+ds4: V4.1 prefill layer=28 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=3.973 drain=461.388 seed=14.098 ms
+ds4: Metal streaming prefill layer pread layer=29 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.042 ms thread=404.775 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=29 pos=0 rows=2048 encoder_resident=0 map=0.545 engram=0.000 encode=0.335 drain=373.932 seed=0.000 ms
+ds4: V4.1 prefill layer=29 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.297 drain=361.938 seed=17.031 ms
+ds4: Metal streaming prefill layer pread layer=30 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.036 ms thread=448.745 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=30 pos=0 rows=2048 encoder_resident=0 map=0.351 engram=0.000 encode=0.290 drain=450.020 seed=0.000 ms
+ds4: V4.1 prefill layer=30 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.169 drain=364.251 seed=19.399 ms
+ds4: Metal streaming prefill layer pread layer=31 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.038 ms thread=383.419 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=31 pos=0 rows=2048 encoder_resident=0 map=0.356 engram=0.000 encode=0.331 drain=421.567 seed=0.001 ms
+ds4: V4.1 prefill layer=31 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.196 drain=379.768 seed=16.792 ms
+ds4: Metal streaming prefill layer pread layer=32 tokens=2048 threads=8 ranges=96 bytes=3.74 GiB wait=0.034 ms thread=368.496 ms read=3.74 GiB ok=1
+ds4: V4.1 prefill layer=32 pos=0 rows=2048 encoder_resident=0 map=0.305 engram=0.000 encode=3.106 drain=517.792 seed=0.000 ms
+ds4: V4.1 prefill layer=32 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=3.839 drain=462.356 seed=15.270 ms
+ds4: Metal streaming prefill layer pread layer=33 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.035 ms thread=451.958 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=33 pos=0 rows=2048 encoder_resident=0 map=0.352 engram=0.001 encode=0.304 drain=395.957 seed=0.001 ms
+ds4: V4.1 prefill layer=33 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.300 drain=363.502 seed=17.216 ms
+ds4: Metal streaming prefill layer pread layer=34 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.034 ms thread=456.043 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=34 pos=0 rows=2048 encoder_resident=0 map=0.418 engram=0.001 encode=0.388 drain=412.023 seed=-0.000 ms
+ds4: V4.1 prefill layer=34 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.169 drain=353.227 seed=14.844 ms
+ds4: Metal streaming prefill layer pread layer=35 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.027 ms thread=386.581 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=35 pos=0 rows=2048 encoder_resident=0 map=0.351 engram=0.001 encode=0.370 drain=491.987 seed=0.001 ms
+ds4: V4.1 prefill layer=35 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.152 drain=352.697 seed=17.069 ms
+ds4: Metal streaming prefill layer pread layer=36 tokens=2048 threads=8 ranges=96 bytes=3.74 GiB wait=0.041 ms thread=446.817 ms read=3.74 GiB ok=1
+ds4: V4.1 prefill layer=36 pos=0 rows=2048 encoder_resident=0 map=0.361 engram=0.000 encode=3.169 drain=505.268 seed=0.001 ms
+ds4: V4.1 prefill layer=36 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=4.174 drain=459.488 seed=15.266 ms
+ds4: Metal streaming prefill layer pread layer=37 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.030 ms thread=385.920 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=37 pos=0 rows=2048 encoder_resident=0 map=0.385 engram=0.000 encode=0.342 drain=397.760 seed=0.000 ms
+ds4: V4.1 prefill layer=37 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.222 drain=333.697 seed=15.897 ms
+ds4: Metal streaming prefill layer pread layer=38 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.035 ms thread=405.849 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=38 pos=0 rows=2048 encoder_resident=0 map=0.378 engram=0.001 encode=0.399 drain=439.741 seed=-0.000 ms
+ds4: V4.1 prefill layer=38 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.166 drain=372.949 seed=23.526 ms
+ds4: Metal streaming prefill layer pread layer=39 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.058 ms thread=440.610 ms read=3.73 GiB ok=1
+ds4: V4.1 prefill layer=39 pos=0 rows=2048 encoder_resident=0 map=0.456 engram=0.000 encode=0.159 drain=439.595 seed=-0.000 ms
+ds4: V4.1 prefill layer=39 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=0.173 drain=356.078 seed=24.111 ms
+ds4: expert cache lent the prefill headroom for decode: 5911 -> 6679 experts
+prefix   4096 rows layer-major in 34.655 s (cold), 8.46 ms a row; tail 699 rows; B = token-major
+ds4: V4.1 K-block effective configuration: rows=699 exact_vocab=0 head_tile=0 dense_tile=4 block_kv=1 block_levels=1 block_attn_k=0 block_attn_raw=0 block_low_batch=0 block_attn=0 batch_fuse=0 batch_attn_out=1 batch_stream_experts=1 row_gather=1 moe_expert_major=0 block_txn=0 row_logits_readback=0
+ds4: V4.1 block-local KV delta, 699 rows over 127 prefix keys
+ds4: V4.1 batch attn_output_b hoisted out of the per-row loop (699 rows)
+ds4: V4.1 routed gate/up encode: ds4_gpu_encode_mul_mv_addr_iq2_pair_swiglu
+ds4: V4.1 block attention by level, 699 rows, concurrent section open
+ds4: V4.1 batch step rows=699 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 prefill tail at position 4096 ran 699 rows as 1 batch steps
+ds4: expert cache lent the prefill headroom for decode: 5911 -> 6679 experts
+touched  the tail used 9604 distinct experts of 15360 (89.0 GiB at 9.49 MiB each); 4545 loads, 4545 misses
+ds4: shared/routed FFN overlap ran, mode 1
+ds4:   decode path so far: 64 single-row steps (52.1 ms each inside the graph over the last 64), 1 K-row verification steps over 699 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1398 nodes attended one at a time
+ds4: gate over tokens 1-64: 20.47 command buffers, 9.48 aborts, 240.0 expert ids accounted, 104.71 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.11 + commit-to-done 38.41 + repair-load 9.59 + accounting 0.04 + tail 0.00 = 49.15 of a 53.27 ms wall, residual 4.12
+ds4:   GPU busy 699.58 ms of the token's wall (the union of its buffers' spans), idle -646.32 ms
+ds4:   1348.9 gated dispatches a token, 8.4 of them behind an abort; 315.5 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 9.98 segments used, 9.00 dropped, 3.80 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 167.91 attempted, 167.91 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 33.92 command buffers sent, 10719.3 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 33.92 contexts in 36.55 command buffers (0.91 split); 11828.1 nodes = 10719.3 dispatches + 1108.7 copies; barriers 6119.9 from the graph, 73.1 queue; engine asked for 98.5 barriers and 359.6 section ends, neither encoded; 28394.8 buffer and 11194.1 constant bindings (898236 B), 0.0 with no stated length; 33.92 blocking waits, 701.19 ms
+ds4:   expert cache over the last 64 tokens: 2810.42 hits, 239.84 misses, 147.48 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 103.38 genuinely absent
+ds4:   of the repair a token: readahead 27.26 ms, slot preparation 32.15 ms, reads 33.45 ms, install 0.19 ms, over 168.83 loads
+ds4:   Engram rows written at step start in 64 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 128 single-row steps (59.7 ms each inside the graph over the last 64), 1 K-row verification steps over 699 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1398 nodes attended one at a time
+ds4: gate over tokens 65-128: 21.84 command buffers, 11.53 aborts, 240.0 expert ids accounted, 129.63 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.42 + commit-to-done 40.70 + repair-load 11.53 + accounting 0.04 + tail 0.00 = 53.70 of a 57.85 ms wall, residual 4.15
+ds4:   GPU busy 41.20 ms of the token's wall (the union of its buffers' spans), idle 16.65 ms
+ds4:   1363.2 gated dispatches a token, 10.8 of them behind an abort; 385.2 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 9.31 segments used, 10.91 dropped, 3.77 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 186.38 attempted, 186.38 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 32.75 command buffers sent, 2767.1 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 32.75 contexts in 32.75 command buffers (0.00 split); 2885.3 nodes = 2767.1 dispatches + 118.2 copies; barriers 2060.8 from the graph, 65.5 queue; engine asked for 101.9 barriers and 394.0 section ends, neither encoded; 11306.2 buffer and 3190.8 constant bindings (284294 B), 0.0 with no stated length; 32.75 blocking waits, 39.37 ms
+ds4:   expert cache over the last 64 tokens: 239.80 hits, 13.66 misses, 13.66 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 13.66 genuinely absent
+ds4:   of the repair a token: readahead 5.50 ms, slot preparation 0.66 ms, reads 5.12 ms, install 0.03 ms, over 13.66 loads
+ds4:   Engram rows written at step start in 128 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 192 single-row steps (62.2 ms each inside the graph over the last 64), 1 K-row verification steps over 699 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1398 nodes attended one at a time
+ds4: gate over tokens 129-192: 22.55 command buffers, 13.19 aborts, 240.0 expert ids accounted, 153.80 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.68 + commit-to-done 38.60 + repair-load 16.75 + accounting 0.04 + tail 0.00 = 57.07 of a 61.57 ms wall, residual 4.51
+ds4:   GPU busy 38.79 ms of the token's wall (the union of its buffers' spans), idle 22.78 ms
+ds4:   1347.6 gated dispatches a token, 8.9 of them behind an abort; 433.9 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.36 segments used, 12.67 dropped, 4.08 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 201.03 attempted, 201.03 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 35.22 command buffers sent, 2963.0 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 35.22 contexts in 35.22 command buffers (0.00 split); 3099.8 nodes = 2963.0 dispatches + 136.8 copies; barriers 2204.6 from the graph, 70.4 queue; engine asked for 108.4 barriers and 424.1 section ends, neither encoded; 12113.5 buffer and 3419.2 constant bindings (304472 B), 0.0 with no stated length; 35.22 blocking waits, 37.16 ms
+ds4:   expert cache over the last 64 tokens: 239.94 hits, 16.20 misses, 16.20 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 16.20 genuinely absent
+ds4:   of the repair a token: readahead 9.03 ms, slot preparation 0.74 ms, reads 6.65 ms, install 0.03 ms, over 16.20 loads
+ds4:   Engram rows written at step start in 192 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 256 single-row steps (63.1 ms each inside the graph over the last 64), 1 K-row verification steps over 699 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1398 nodes attended one at a time
+ds4: gate over tokens 193-256: 22.81 command buffers, 13.48 aborts, 240.0 expert ids accounted, 155.43 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.92 + commit-to-done 37.84 + repair-load 17.45 + accounting 0.03 + tail 0.00 = 57.25 of a 62.28 ms wall, residual 5.03
+ds4:   GPU busy 38.16 ms of the token's wall (the union of its buffers' spans), idle 24.12 ms
+ds4:   1348.2 gated dispatches a token, 9.8 of them behind an abort; 446.1 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.33 segments used, 12.84 dropped, 4.57 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 202.53 attempted, 202.53 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 35.66 command buffers sent, 2980.5 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 35.66 contexts in 35.66 command buffers (0.00 split); 3120.7 nodes = 2980.5 dispatches + 140.1 copies; barriers 2218.8 from the graph, 71.3 queue; engine asked for 109.0 barriers and 427.2 section ends, neither encoded; 12185.5 buffer and 3439.7 constant bindings (306394 B), 0.0 with no stated length; 35.66 blocking waits, 36.27 ms
+ds4:   expert cache over the last 64 tokens: 239.95 hits, 16.38 misses, 16.38 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 16.38 genuinely absent
+ds4:   of the repair a token: readahead 9.63 ms, slot preparation 0.84 ms, reads 6.63 ms, install 0.04 ms, over 16.38 loads
+ds4:   Engram rows written at step start in 256 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 320 single-row steps (65.4 ms each inside the graph over the last 64), 1 K-row verification steps over 699 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1398 nodes attended one at a time
+ds4: gate over tokens 257-320: 23.12 command buffers, 13.62 aborts, 240.0 expert ids accounted, 159.88 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.98 + commit-to-done 38.10 + repair-load 19.15 + accounting 0.04 + tail 0.00 = 59.27 of a 64.49 ms wall, residual 5.22
+ds4:   GPU busy 38.63 ms of the token's wall (the union of its buffers' spans), idle 25.87 ms
+ds4:   1374.0 gated dispatches a token, 13.6 of them behind an abort; 445.3 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.50 segments used, 12.84 dropped, 4.80 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 204.75 attempted, 204.75 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 35.97 command buffers sent, 3013.0 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 35.97 contexts in 35.97 command buffers (0.00 split); 3154.6 nodes = 3013.0 dispatches + 141.6 copies; barriers 2241.7 from the graph, 71.9 queue; engine asked for 110.1 barriers and 431.8 section ends, neither encoded; 12319.3 buffer and 3477.3 constant bindings (309598 B), 0.0 with no stated length; 35.97 blocking waits, 36.47 ms
+ds4:   expert cache over the last 64 tokens: 239.91 hits, 16.84 misses, 16.84 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 16.84 genuinely absent
+ds4:   of the repair a token: readahead 10.48 ms, slot preparation 0.87 ms, reads 7.42 ms, install 0.04 ms, over 16.84 loads
+ds4:   Engram rows written at step start in 320 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 384 single-row steps (67.7 ms each inside the graph over the last 64), 1 K-row verification steps over 699 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1398 nodes attended one at a time
+ds4: gate over tokens 321-384: 24.17 command buffers, 15.47 aborts, 240.0 expert ids accounted, 184.36 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 2.18 + commit-to-done 37.23 + repair-load 22.22 + accounting 0.04 + tail 0.00 = 61.66 of a 67.03 ms wall, residual 5.37
+ds4:   GPU busy 36.70 ms of the token's wall (the union of its buffers' spans), idle 30.33 ms
+ds4:   1359.6 gated dispatches a token, 18.7 of them behind an abort; 500.6 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 7.70 segments used, 14.52 dropped, 4.95 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 219.28 attempted, 219.28 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 38.69 command buffers sent, 3204.1 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 38.69 contexts in 38.69 command buffers (0.00 split); 3362.3 nodes = 3204.1 dispatches + 158.2 copies; barriers 2383.3 from the graph, 77.4 queue; engine asked for 116.4 barriers and 461.8 section ends, neither encoded; 13107.9 buffer and 3700.2 constant bindings (329627 B), 0.0 with no stated length; 38.69 blocking waits, 35.39 ms
+ds4:   expert cache over the last 64 tokens: 239.94 hits, 19.42 misses, 19.42 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 19.42 genuinely absent
+ds4:   of the repair a token: readahead 12.73 ms, slot preparation 0.93 ms, reads 8.11 ms, install 0.04 ms, over 19.42 loads
+ds4:   Engram rows written at step start in 384 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 448 single-row steps (66.4 ms each inside the graph over the last 64), 1 K-row verification steps over 699 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1398 nodes attended one at a time
+ds4: gate over tokens 385-448: 23.27 command buffers, 14.11 aborts, 240.0 expert ids accounted, 168.78 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 2.05 + commit-to-done 37.89 + repair-load 20.40 + accounting 0.04 + tail 0.00 = 60.38 of a 65.62 ms wall, residual 5.24
+ds4:   GPU busy 37.63 ms of the token's wall (the union of its buffers' spans), idle 28.00 ms
+ds4:   1362.7 gated dispatches a token, 12.2 of them behind an abort; 464.2 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.16 segments used, 13.30 dropped, 4.84 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 208.69 attempted, 208.69 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 36.56 command buffers sent, 3069.4 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 36.56 contexts in 36.56 command buffers (0.00 split); 3216.0 nodes = 3069.4 dispatches + 146.7 copies; barriers 2284.1 from the graph, 73.1 queue; engine asked for 111.7 barriers and 439.8 section ends, neither encoded; 12543.2 buffer and 3542.4 constant bindings (315417 B), 0.0 with no stated length; 36.56 blocking waits, 36.15 ms
+ds4:   expert cache over the last 64 tokens: 239.88 hits, 17.78 misses, 17.78 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 17.78 genuinely absent
+ds4:   of the repair a token: readahead 11.87 ms, slot preparation 0.87 ms, reads 7.24 ms, install 0.04 ms, over 17.78 loads
+ds4:   Engram rows written at step start in 448 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 512 single-row steps (64.1 ms each inside the graph over the last 64), 1 K-row verification steps over 699 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1398 nodes attended one at a time
+ds4: gate over tokens 449-512: 22.94 command buffers, 13.19 aborts, 240.0 expert ids accounted, 155.73 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.83 + commit-to-done 39.32 + repair-load 17.30 + accounting 0.04 + tail 0.00 = 58.50 of a 63.46 ms wall, residual 4.96
+ds4:   GPU busy 39.27 ms of the token's wall (the union of its buffers' spans), idle 24.19 ms
+ds4:   1364.4 gated dispatches a token, 11.2 of them behind an abort; 430.2 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.75 segments used, 12.48 dropped, 4.57 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 200.56 attempted, 200.56 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 35.42 command buffers sent, 2955.6 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 35.42 contexts in 35.42 command buffers (0.00 split); 3093.5 nodes = 2955.6 dispatches + 137.9 copies; barriers 2200.4 from the graph, 70.8 queue; engine asked for 108.3 barriers and 423.4 section ends, neither encoded; 12083.8 buffer and 3410.4 constant bindings (303777 B), 0.0 with no stated length; 35.42 blocking waits, 37.69 ms
+ds4:   expert cache over the last 64 tokens: 239.98 hits, 16.41 misses, 16.41 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 16.41 genuinely absent
+ds4:   of the repair a token: readahead 9.49 ms, slot preparation 0.79 ms, reads 6.66 ms, install 0.04 ms, over 16.41 loads
+ds4:   Engram rows written at step start in 512 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 576 single-row steps (65.3 ms each inside the graph over the last 64), 1 K-row verification steps over 699 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1398 nodes attended one at a time
+ds4: gate over tokens 513-576: 22.53 command buffers, 12.89 aborts, 240.0 expert ids accounted, 148.46 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.81 + commit-to-done 39.10 + repair-load 18.36 + accounting 0.04 + tail 0.00 = 59.31 of a 64.15 ms wall, residual 4.84
+ds4:   GPU busy 39.19 ms of the token's wall (the union of its buffers' spans), idle 24.96 ms
+ds4:   1354.2 gated dispatches a token, 8.9 of them behind an abort; 427.4 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.64 segments used, 12.33 dropped, 4.43 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 198.50 attempted, 198.50 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 34.86 command buffers sent, 2936.4 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 34.86 contexts in 34.86 command buffers (0.00 split); 3071.8 nodes = 2936.4 dispatches + 135.4 copies; barriers 2186.1 from the graph, 69.7 queue; engine asked for 107.3 barriers and 419.0 section ends, neither encoded; 11992.5 buffer and 3386.9 constant bindings (301596 B), 0.0 with no stated length; 34.86 blocking waits, 37.55 ms
+ds4:   expert cache over the last 64 tokens: 239.97 hits, 15.64 misses, 15.64 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 15.64 genuinely absent
+ds4:   of the repair a token: readahead 10.70 ms, slot preparation 0.80 ms, reads 6.53 ms, install 0.04 ms, over 15.64 loads
+ds4:   Engram rows written at step start in 576 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 640 single-row steps (64.8 ms each inside the graph over the last 64), 1 K-row verification steps over 699 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1398 nodes attended one at a time
+ds4: gate over tokens 577-640: 22.59 command buffers, 12.84 aborts, 240.0 expert ids accounted, 155.43 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.78 + commit-to-done 39.41 + repair-load 18.46 + accounting 0.04 + tail 0.00 = 59.69 of a 64.50 ms wall, residual 4.80
+ds4:   GPU busy 39.36 ms of the token's wall (the union of its buffers' spans), idle 25.13 ms
+ds4:   1361.4 gated dispatches a token, 9.8 of them behind an abort; 420.8 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.75 segments used, 12.08 dropped, 4.43 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 195.91 attempted, 195.91 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 34.67 command buffers sent, 2883.1 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 34.67 contexts in 34.67 command buffers (0.00 split); 3019.2 nodes = 2883.1 dispatches + 136.1 copies; barriers 2145.8 from the graph, 69.3 queue; engine asked for 105.9 barriers and 413.6 section ends, neither encoded; 11795.4 buffer and 3327.3 constant bindings (296437 B), 0.0 with no stated length; 34.67 blocking waits, 37.80 ms
+ds4:   expert cache over the last 64 tokens: 239.95 hits, 16.38 misses, 16.38 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 16.38 genuinely absent
+ds4:   of the repair a token: readahead 10.75 ms, slot preparation 0.77 ms, reads 6.54 ms, install 0.04 ms, over 16.38 loads
+ds4:   Engram rows written at step start in 640 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4: V4.1 prefill tail of 699 rows at position 4096 ran 699 token-major steps
+ds4: expert cache lent the prefill headroom for decode: 5911 -> 6679 experts
+host     A: drain 8.31, prepare 3.38 (load prepare 0.00, pread 0.00, install 0.00, slot buffers 0.00, readahead 0.00, reuse scan 0.00) s
+host     B: drain 0.00, prepare 0.00 (load prepare 0.00, pread 0.00, install 0.00, slot buffers 0.00, readahead 0.00, reuse scan 0.00) s
+warm-up  A 20.381 s, B 45.006 s; reference logits dd695094752a1c7e state d721dfb78fb413ae
+ds4: memory budget: peak 71.49 GiB allocated of 80.00 GiB; 0 slab(s) given back, 0 allocation(s) refused, cache growth stopped 0 time(s)
+ds4: expert directory: 0 pinned hits, 5059 cache hits, 26361 loads; 0 address mismatches, 0 missing with a non-zero slot, 0 selected and missing; 0 pinned experts given back to the budget

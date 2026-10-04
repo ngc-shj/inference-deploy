@@ -1,0 +1,24 @@
+ds4: abort gate on for the first 40 layers
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: V4.1 SSD cache fitted from 10268 to 6679 experts for context/runtime headroom
+ds4: Metal backend: Metal 4
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: metal SSD streaming cache target 61.91 GiB; effective 61.91 GiB = 7.12 GiB prefill headroom + 54.79 GiB dynamic cache (5911 experts, 9.49 MiB each)
+ds4: Metal SSD static weights locked 9.37 GiB; pageable 0.00 GiB
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: expert cache prewarmed from the built-in V4.1 hotlist: 5910 experts (0 failed), 54.78 GiB in 5.68 s; stopped where the cache was full
+ds4: memory: KV 0.06 GiB (raw 0.01 + compressed 0.05) + buffers 3.30 GiB + resident model 9.37 GiB + expert cache 54.79 GiB + prefill expert reserve 7.12 GiB = 74.64 GiB planned
+ds4: memory detail: ctx=8192 prefill_cap=4096 raw_kv_rows=128 compressed_kv_rows=8193 backend=metal
+ds4: Q8_0 row tiles against the single-row arithmetic: 0 of 1296 combinations differ
+ds4:   attn_output_a   4096x8192   699 rows: t2 32.37 t4 28.39 t8 34.59 t48 16.53 t64 34.01 t1604 18.36 t1602 19.41 t3202 38.06 t808 23.10 ms
+ds4:   attn_output_b   8192x5120   699 rows: t2 37.88 t4 35.84 t8 39.06 t48 19.10 t64 40.57 t1604 22.06 t1602 23.76 t3202 46.13 t808 26.11 ms
+ds4:   shexp_gate      5120x2304   699 rows: t2 10.96 t4 9.78 t8 11.45 t48 5.63 t64 12.31 t1604 6.40 t1602 6.57 t3202 13.25 t808 8.27 ms
+ds4:   shexp_up        5120x2304   699 rows: t2 10.97 t4 9.89 t8 11.51 t48 5.62 t64 12.30 t1604 6.60 t1602 6.67 t3202 13.29 t808 8.54 ms
+ds4:   shexp_down      2304x5120   699 rows: t2 12.63 t4 11.90 t8 15.02 t48 6.51 t64 12.49 t1604 7.97 t1602 8.32 t3202 16.44 t808 10.25 ms
+ds4:   attn_q_a        5120x1280   699 rows: t2 6.04 t4 5.56 t8 6.77 t48 3.31 t64 7.36 t1604 3.81 t1602 3.83 t3202 7.69 t808 4.71 ms
+tiles    0 combination(s) differ from the single-row arithmetic -> PASS
+ds4: memory budget: peak 65.08 GiB allocated of 80.00 GiB; 0 slab(s) given back, 0 allocation(s) refused, cache growth stopped 0 time(s)
+ds4: expert directory: 0 pinned hits, 0 cache hits, 5910 loads; 0 address mismatches, 0 missing with a non-zero slot, 0 selected and missing; 0 pinned experts given back to the budget

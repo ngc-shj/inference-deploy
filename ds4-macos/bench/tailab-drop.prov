@@ -1,0 +1,3 @@
+rev cba026237bdada0f016793b0ac14078a8a8e1469 dirty 2
+binary 90c60050d7b392dbea7483630d1812b52b32b366c9bb66261e7cdeac69c76db0
+rounds 1 cache 10268 args drop:/Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench/pagecache

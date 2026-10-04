@@ -1,0 +1,2 @@
+prefix   4096 rows layer-major in 33.001 s (cold), 8.06 ms a row; tail 699 rows; B = Q8_0 projections on the four-row tile
+warm-up  A 21.417 s, B 21.278 s; reference logits dd695094752a1c7e state d721dfb78fb413ae

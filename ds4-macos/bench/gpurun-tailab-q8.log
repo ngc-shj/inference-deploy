@@ -1,0 +1,7 @@
+prefix   4096 rows layer-major in 31.630 s (cold), 7.72 ms a row; tail 699 rows; B = Q8_0 projections on the four-row tile
+warm-up  A 18.451 s, B 18.185 s; reference logits dd695094752a1c7e state d721dfb78fb413ae
+round 0 A  18.978 s  logits dd695094752a1c7e state d721dfb78fb413ae same | hits 163591 misses 4169 loads 4169 evictions 4169, expert-major dispatches 0
+round 0 B  18.954 s  logits dd695094752a1c7e state d721dfb78fb413ae same | hits 163666 misses 4094 loads 4094 evictions 4094, expert-major dispatches 0
+round 0 B  19.418 s  logits dd695094752a1c7e state d721dfb78fb413ae same | hits 163711 misses 4049 loads 4049 evictions 4049, expert-major dispatches 0
+round 0 A  20.727 s  logits dd695094752a1c7e state d721dfb78fb413ae same | hits 163761 misses 3999 loads 3999 evictions 3999, expert-major dispatches 0
+tail     A mean 19.853 s, B mean 19.186 s, B - A -0.667 s over 1 rounds; 0 arm(s) differing from the reference -> PASS

@@ -1,0 +1,6 @@
+command env DS4_METAL_STREAMING_PREFILL_LAYER_PREAD_PROFILE=1 DS4_METAL_GRAPH_PREFILL_PROFILE=1 ./m4tailab.sh pfxw 0 10268
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-05 01:36:58 ds4-server 0 tests 0 pressure level 1 wired 4.62 GiB free 85% swap 0.20 GiB
+pid 91315 process group 91315
+rc 0 peak wired 75.67 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 62.66 GiB, peak Metal 59.00 GiB
+after 2026-10-05 01:38:46 ds4-server 0 tests 0 pressure level 1 wired 4.18 GiB free 85% swap 0.20 GiB
