@@ -99,3 +99,18 @@ Exclusive split of a token, mean of the 32 windows of each arm, a / b:
 encode 0.72 / 0.70, commit-to-done 30.76 / 30.16, miss repair-load 8.70 /
 8.82, tail 1.40 / 1.40, residual 2.44 / 2.99 ms; misses 11.46 / 10.66 a
 token.
+
+## Amendment before the rerun (2026-10-04)
+
+abba-final measured cbad991, which still let the expert cache's size choose
+how a prefill tail is computed (fixed in 13c14ca; the tail is reported since
+7dabfad). The rerun, abba-h, measures b = 7dabfad or later under every rule
+above, with b's sentinel taken again first. Two rules are added:
+
+- an arm is invalid unless its server log's "token ids: 2048, hash H" equals
+  the first a arm's, as its text must;
+- the b arms' "prefill tail ... runs token-major" lines are counted. With
+  this 50-token prompt none is expected; if there are none, this ABBA checks
+  for a regression and is no measure of 13c14ca's cost.
+
+abba-final stays recorded as the measurement of cbad991.

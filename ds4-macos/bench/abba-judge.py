@@ -4,7 +4,8 @@
     abba-judge.py <m4ab-dir> <gpurun-samples> [want_n_b]
 
 Per arm: wall ms a token ("per token: X ms wall"), generated tokens, whether
-its text equals the first a arm's, other processes' CPU ticks, the worst
+its text and its token ids (the server's "token ids: N, hash H") equal the
+first a arm's, how many prefill tails ran token-major, other processes' CPU ticks, the worst
 pressure level and swap growth gpurun sampled while it ran, and b's last
 "entries live" N. Then d, d1, d2, s and the decision.
 """
@@ -22,7 +23,7 @@ def sample_rows():
     return rows
 
 rows = sample_rows()
-arms, ref_text = [], None
+arms, ref_text, ref_ids = [], None, None
 for out in sorted(glob.glob(os.path.join(d, '[0-9][0-9]-m?.out'))):
     arm = os.path.basename(out)[:-4]
     kind = arm[-1]
@@ -37,8 +38,6 @@ for out in sorted(glob.glob(os.path.join(d, '[0-9][0-9]-m?.out'))):
                (j['choices'][0]['message'].get('reasoning_content') or '')
     except Exception:
         pass
-    if kind == 'a' and ref_text is None:
-        ref_text = text
     # cputicks: five counters (the first is other processes' user ticks),
     # then the epoch second, at the start and again at the end.
     f = list(map(int, open(os.path.join(d, arm + '.ticks')).read().split()))
@@ -48,13 +47,20 @@ for out in sorted(glob.glob(os.path.join(d, '[0-9][0-9]-m?.out'))):
     inside = [r for r in rows if lo <= r[0] <= hi]
     pressure = max((r[1] for r in inside), default=None)
     swap = max((r[2] for r in inside), default=0.0) - min((r[2] for r in inside), default=0.0)
-    n_live = None
+    n_live, ids, tails = None, None, 0
     for line in open(os.path.join(d, arm + '.log'), errors='replace'):
         m2 = re.search(r'(\d+) of (\d+) entries live', line)
         if m2:
             n_live = int(m2.group(1))
-    arms.append(dict(arm=arm, kind=kind, ms=ms, tokens=tokens, text=text, ticks=t1 - t0,
-                     pressure=pressure, swap=swap, n=n_live))
+        m3 = re.search(r'token ids: (\d+), hash ([0-9a-f]+)', line)
+        if m3:
+            ids = m3.group(1) + ':' + m3.group(2)
+        if 'prefill tail of' in line and 'runs token-major' in line:
+            tails += 1
+    if kind == 'a' and ref_text is None:
+        ref_text, ref_ids = text, ids
+    arms.append(dict(arm=arm, kind=kind, ms=ms, tokens=tokens, text=text, ids=ids, tails=tails,
+                     ticks=t1 - t0, pressure=pressure, swap=swap, n=n_live))
 
 med = statistics.median(a['ticks'] for a in arms)
 for a in arms:
@@ -62,14 +68,15 @@ for a in arms:
     if a['ms'] is None: why.append('no wall')
     if a['tokens'] != 2048: why.append('tokens %s' % a['tokens'])
     if a['text'] != ref_text: why.append('TEXT DIFFERS from the first a arm')
+    if a['ids'] is None or a['ids'] != ref_ids: why.append('TOKEN IDS %s differ from %s' % (a['ids'], ref_ids))
     if a['ticks'] > 1.5 * med: why.append('ticks %d > 1.5 x median %d' % (a['ticks'], med))
     if a['pressure'] is None or a['pressure'] > 1: why.append('pressure %s' % a['pressure'])
     if a['swap'] > 0.5: why.append('swap +%.2f GiB' % a['swap'])
     if a['kind'] == 'b' and want_n is not None and a['n'] != want_n: why.append('N %s' % a['n'])
     a['valid'] = not why
-    print('%s %s %6s ms  tokens %s  ticks %d  pressure %s  swap +%.2f  N %s  %s' % (
-        a['arm'], a['kind'], a['ms'], a['tokens'], a['ticks'], a['pressure'], a['swap'],
-        a['n'], 'valid' if a['valid'] else 'INVALID: ' + '; '.join(why)))
+    print('%s %s %6s ms  tokens %s  ids %s  tails %d  ticks %d  pressure %s  swap +%.2f  N %s  %s' % (
+        a['arm'], a['kind'], a['ms'], a['tokens'], a['ids'], a['tails'], a['ticks'], a['pressure'],
+        a['swap'], a['n'], 'valid' if a['valid'] else 'INVALID: ' + '; '.join(why)))
 
 valid = [a for a in arms if a['valid']]
 if len(valid) != len(arms):
@@ -89,6 +96,8 @@ for k in range(0, len(arms), 4):
 th = max(0.3, 2 * s)
 print('a mean %.3f sd %.3f | b mean %.3f sd %.3f' % (
     statistics.mean(A), statistics.stdev(A), statistics.mean(B), statistics.stdev(B)))
+print('token-major prefill tails in b arms: %d (0: the arithmetic 13c14ca changed is not on this path)' %
+      sum(a['tails'] for a in arms if a['kind'] == 'b'))
 print('d %.3f ms a token; blocks %s; threshold %.3f' % (dd, ['%.3f' % x for x in blocks], th))
 if dd > th:
     print('decision: REGRESSION')
