@@ -1,0 +1,34 @@
+ds4: abort gate on for the first 40 layers
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: V4.1 SSD cache fitted from 10268 to 6679 experts for context/runtime headroom
+ds4: Metal backend: Metal 4
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: metal SSD streaming cache target 61.91 GiB; effective 61.91 GiB = 7.12 GiB prefill headroom + 54.79 GiB dynamic cache (5911 experts, 9.49 MiB each)
+ds4: Metal SSD static weights locked 9.37 GiB; pageable 0.00 GiB
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: expert cache prewarmed from the built-in V4.1 hotlist: 5910 experts (0 failed), 54.78 GiB in 6.01 s; stopped where the cache was full
+ds4: memory: KV 0.06 GiB (raw 0.01 + compressed 0.05) + buffers 3.30 GiB + resident model 9.37 GiB + expert cache 54.79 GiB + prefill expert reserve 7.12 GiB = 74.64 GiB planned
+ds4: memory detail: ctx=8192 prefill_cap=4096 raw_kv_rows=128 compressed_kv_rows=8193 backend=metal
+ds4: Q8_0 row tiles against the single-row arithmetic: 0 of 1320 combinations differ
+ds4:   attn_output_a   4096x8192    699 rows: t4 20.34 t48 11.47 t6804 13.52 t7604 14.05 t6808 17.61 ms
+ds4:   attn_output_a   4096x8192   2048 rows: t4 61.93 t48 35.11 t6804 40.53 t7604 38.21 t6808 47.06 ms
+ds4:   attn_output_b   8192x5120    699 rows: t4 26.49 t48 13.35 t6804 15.83 t7604 14.22 t6808 18.81 ms
+ds4:   attn_output_b   8192x5120   2048 rows: t4 83.93 t48 41.38 t6804 48.84 t7604 42.69 t6808 54.42 ms
+ds4:   shexp_gate      5120x2304    699 rows: t4 7.50 t48 4.30 t6804 4.73 t7604 4.53 t6808 5.94 ms
+ds4:   shexp_gate      5120x2304   2048 rows: t4 22.91 t48 12.34 t6804 14.17 t7604 13.31 t6808 17.11 ms
+ds4:   shexp_up        5120x2304    699 rows: t4 7.67 t48 4.22 t6804 4.85 t7604 4.65 t6808 5.94 ms
+ds4:   shexp_up        5120x2304   2048 rows: t4 23.29 t48 12.53 t6804 14.29 t7604 13.30 t6808 16.89 ms
+ds4:   shexp_down      2304x5120    699 rows: t4 8.67 t48 4.84 t6804 5.61 t7604 5.86 t6808 7.53 ms
+ds4:   shexp_down      2304x5120   2048 rows: t4 25.34 t48 14.77 t6804 16.28 t7604 17.14 t6808 21.39 ms
+ds4:   attn_q_a        5120x1280    699 rows: t4 4.11 t48 2.41 t6804 2.71 t7604 2.59 t6808 3.41 ms
+ds4:   attn_q_a        5120x1280   2048 rows: t4 12.94 t48 7.22 t6804 8.08 t7604 7.47 t6808 9.58 ms
+ds4:   attn_q_b        1280x32768   699 rows: t4 38.74 t48 23.58 t6804 24.35 t7604 28.44 t6808 34.70 ms
+ds4:   attn_q_b        1280x32768  2048 rows: t4 118.92 t48 70.92 t6804 73.19 t7604 83.01 t6808 99.71 ms
+ds4:   attn_kv         5120x512     699 rows: t4 1.43 t48 0.93 t6804 1.00 t7604 0.97 t6808 1.26 ms
+ds4:   attn_kv         5120x512    2048 rows: t4 4.76 t48 2.68 t6804 3.17 t7604 2.95 t6808 3.84 ms
+tiles    0 combination(s) differ from the single-row arithmetic -> PASS
+ds4: memory budget: peak 69.53 GiB allocated of 80.00 GiB; 0 slab(s) given back, 0 allocation(s) refused, cache growth stopped 0 time(s)
+ds4: expert directory: 0 pinned hits, 0 cache hits, 5910 loads; 0 address mismatches, 0 missing with a non-zero slot, 0 selected and missing; 0 pinned experts given back to the budget
