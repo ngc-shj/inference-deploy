@@ -1,0 +1,20 @@
+missing record m4ab-abba-i/0*-mb.prov
+baseline arms: 0 of 4
+gpurun-abbai.prov: not rc 0 at pressure level 1
+records: STALE - the items below do not describe 6749f9548d5f6ab59d713dbee53978f3712dc70d
+PASS 1  no Metal 3 queue created in 8 census lines (pathsI, inI)
+PASS 2  g_batch_cb: 0 references
+PASS 3  DS4Encoder / DS4MTL4Encoder: 0 references
+PASS 4  DS4M4Ctx; prod: ds4:   Metal 4 a token: 17.92 contexts in 17.92 command buffers (0.00 split); 1571.4 nodes
+PASS 5  DS4M4Ctx holds 6 of 6: allocator, command buffer, argument table, scratch, residency set, feedback
+PASS 6  global argument tables: 0
+PASS 7  every binding states its range in 7 census lines; ranges carry a generation
+PASS 8  prod: barriers 1143.7 from the graph, 35.8 queue
+PASS 9  every context cut in 4 parts, encoded on worker threads, commit:count: - state hashes equal the baseline's
+PASS 10  full table and resident layer removed (0 references, fa step matches); timeline on MTL4CounterHeap matches
+PASS 11  prod, native and fallback batch, disk KV, vision, timeline, ledger match (8); self-tests: 21 passing lines, 0 failing, 0 not run; failure and reopen paths
+PASS 12  Metal 3 execution 0 in every census; Metal 3 work under Metal 4: 0
+PASS 13  ids, every logit and the saved KV/carry state equal the frozen baseline's in all 8 cases; in-process ids on the clean oracle (3/3)
+PASS 14  2048 tokens, 3 prompts, 2 sessions, 3 consecutive requests; long prompt at caches 10268 4096 5400: baseline ids, logits and state, the 699-row tail as 699 token-major steps in each; 4-session budget
+FAIL 15  ABBA m4ab-abba-i, b on 6749f9548d5f6ab59d713dbee53978f3712dc70d: 8 valid arms, same text and token ids in all; token-major prefill-tail steps in b arms ?; none
+14 of 15

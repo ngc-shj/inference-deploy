@@ -1,0 +1,6 @@
+command env DS4_BIN=/Users/noguchi/ghq/github.com/antirez/ds4-v41-m4native ./m4paths.sh pI prod nat fb kv vision fa exec tl lg
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-04 12:31:10 ds4-server 0 tests 0 pressure level 1 wired 4.29 GiB free 90% swap 0.21 GiB
+pid 75735 process group 75735
+rc 0 peak wired 81.25 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 68.74 GiB, peak Metal 68.00 GiB
+after 2026-10-04 12:53:11 ds4-server 0 tests 0 pressure level 1 wired 3.41 GiB free 89% swap 0.21 GiB

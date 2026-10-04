@@ -1,0 +1,52 @@
+== prod
+m4-pI-prod.json vs co-mainref2.json: 7 compared, 0 differ []
+ds4: Metal 4 bindings with no stated length: 0 at 0 call sites
+ds4: backend request Metal 3 command execution after Metal 4 selection: 0 (refused 0); Metal 3 queues created before selection 0, after 0; full expert address table uses 0
+== native batch
+m4b-pI-nat.json vs m4b-nat-m3.json: 3 compared, 0 differ []
+ids identical
+ds4: Metal 4 bindings with no stated length: 0 at 0 call sites
+ds4: backend request Metal 3 command execution after Metal 4 selection: 0 (refused 0); Metal 3 queues created before selection 0, after 0; full expert address table uses 0
+== fallback batch
+m4b-pI-fb.json vs m4b-fb-m3.json: 3 compared, 0 differ []
+ids identical
+ds4: Metal 4 bindings with no stated length: 0 at 0 call sites
+ds4: backend request Metal 3 command execution after Metal 4 selection: 0 (refused 0); Metal 3 queues created before selection 0, after 0; full expert address table uses 0
+== disk kv
+kv bytes identical
+ids identical
+1004 12:44:17 ds4-server: kv cache hit text tokens=2128 text=9850 quant=2 key=to
+ds4: Metal 4 bindings with no stated length: 0 at 0 call sites
+ds4: backend request Metal 3 command execution after Metal 4 selection: 0 (refused 0); Metal 3 queues created before selection 0, after 0; full expert address table uses 0
+== vision
+m4v-pI-v.json vs m4v-v-m3.json: 4 compared, 0 differ []
+ids identical
+ds4: Metal 4 bindings with no stated length: 0 at 0 call sites
+ds4: backend request Metal 3 command execution after Metal 4 selection: 0 (refused 0); Metal 3 queues created before selection 0, after 0; full expert address table uses 0
+== full address table formally removed
+m4b-pI-fa.json vs m4b-nat-m3.json: 3 compared, 0 differ []
+ids identical
+ds4: Metal 4 bindings with no stated length: 0 at 0 call sites
+ds4: backend request Metal 3 command execution after Metal 4 selection: 0 (refused 0); Metal 3 queues created before selection 0, after 0; full expert address table uses 0
+== executor
+candidate token ids: 108, hash ee17f87455d1628f
+frozen    token ids: 108, hash ee17f87455d1628f
+self-tests: 21 passing lines, 0 failing, 0 not run
+ds4: Metal 4 bindings with no stated length: 0 at 0 call sites
+ds4: backend request Metal 3 command execution after Metal 4 selection: 0 (refused 0); Metal 3 queues created before selection 0, after 0; full expert address table uses 0
+== timeline
+m4-pI-tl.json vs co-mainref2.json: 1 compared, 0 differ []
+E lines 182930 B lines 7084
+E 1 99 0 0 0.00 0.00 0x1002bf270 1 0x0x0 0x0x0 copy
+== ledger
+m4-pI-lg.json vs co-mainref2.json: 1 compared, 0 differ []
+ledger bytes 4804742
+# ds4 decode ledger v1 pid=18257 timebase=125/3
+# cb_lookups=0 probes=0 mean=0.00 max=0 rehashes=0 enc_overflow=0
+# records=28594 dropped=0 cbs=7084 encoders=7084
+# TB  tok t_ns pos                      token begin
+# TE  tok t_ns pos                      token end
+# CC  cb tok lay t_ns role queue origin command buffer created
+# CM  cb tok lay t_ns n_encoders        committed
+# CD  cb tok lay t_ns 
+ALL-DONE
