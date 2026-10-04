@@ -1,0 +1,6 @@
+command bash -c cd /Users/noguchi/ghq/github.com/antirez/ds4-v41-m4native && ./tests/test_deepseek41_iq2group 50
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-04 16:34:00 ds4-server 0 tests 0 pressure level 1 wired 4.30 GiB free 87% swap 0.21 GiB
+pid 73082 process group 73082
+rc 0 peak wired 4.43 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 0.01 GiB, peak Metal 0 GiB
+after 2026-10-04 16:34:03 ds4-server 0 tests 0 pressure level 1 wired 4.43 GiB free 87% swap 0.21 GiB

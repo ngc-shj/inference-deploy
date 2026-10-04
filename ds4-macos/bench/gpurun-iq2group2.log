@@ -1,0 +1,10 @@
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+128 experts x  1 rows: single 2.729 ms (21.3 us a pair), M=4 4.060 ms (31.7 us a pair), x0.67; 0 float(s) differ
+128 experts x  2 rows: single 3.840 ms (15.0 us a pair), M=4 4.265 ms (16.7 us a pair), x0.90; 0 float(s) differ
+128 experts x  4 rows: single 6.243 ms (12.2 us a pair), M=4 4.442 ms (8.7 us a pair), x1.41; 0 float(s) differ
+128 experts x  8 rows: single 11.168 ms (10.9 us a pair), M=4 8.626 ms (8.4 us a pair), x1.29; 0 float(s) differ
+128 experts x 11 rows: single 14.968 ms (10.6 us a pair), M=4 12.683 ms (9.0 us a pair), x1.18; 0 float(s) differ
+128 experts x 16 rows: single 20.958 ms (10.2 us a pair), M=4 17.055 ms (8.3 us a pair), x1.23; 0 float(s) differ
+PASS: bit-identical in every case
