@@ -1,0 +1,256 @@
+diff --git a/ds4_metal.m b/ds4_metal.m
+index 65c7f0c..3832805 100644
+--- a/ds4_metal.m
++++ b/ds4_metal.m
+@@ -36553,6 +36553,12 @@ static int ds4_gpu_encode_mul_mv_id_pair(
+ 
+ void ds4_gpu_moe_expert_major_override(int mode) { g_moe_em_force = mode; }
+ 
++/* The expert-major kernel's form: 0 kernel_mul_mv_addr_iq2_xxs_em_swiglu_f32,
++ * NSG * 10 + RB the staged-activation em2 (24, 44, 84, 42). */
++static int g_moe_em2;
++void ds4_test_moe_em2(int code);
++void ds4_test_moe_em2(int code) { g_moe_em2 = code; }
++
+ /* Test hook: encode a wide step's routed gate/up this many times. The repeats
+  * rewrite the same values, so the output does not change and the difference
+  * in wall time is what the dispatch costs in place. */
+@@ -36646,10 +36652,17 @@ static int ds4_gpu_encode_mul_mv_addr_iq2_em_swiglu(
+     if (!ds4_gpu_encode_moe_expert_worklist(cb, (uint32_t)args->nei1,
+                                             (uint32_t)args->nei0, n_expert, pairs,
+                                             args->nbi1, ids, ids_off)) return 0;
++    /* g_moe_em2 = NSG * 10 + RB: the staged-activation form. */
++    char em2_name[64];
++    if (g_moe_em2)
++        snprintf(em2_name, sizeof(em2_name), "kernel_mul_mv_addr_iq2_xxs_em2_swiglu_f32_s%d_r%d",
++                 g_moe_em2 / 10, g_moe_em2 % 10);
+     id<MTLComputePipelineState> pipeline =
+-        ds4_gpu_get_pipeline("kernel_mul_mv_addr_iq2_xxs_em_swiglu_f32");
++        ds4_gpu_get_pipeline(g_moe_em2 ? em2_name : "kernel_mul_mv_addr_iq2_xxs_em_swiglu_f32");
+     if (!pipeline) return 0;
+-    const NSUInteger nsg = 2;
++    const NSUInteger nsg = g_moe_em2 ? (NSUInteger)(g_moe_em2 / 10) : 2u;
++    if (g_moe_em2)
++        threadgroup_bytes = 256u * 8u + 128u + 112u + (NSUInteger)(g_moe_em2 % 10) * 1024u * sizeof(float);
+     const NSUInteger rows_per_group = (NSUInteger)args->nr0 * nsg;
+     const NSUInteger row_groups =
+         ((NSUInteger)args->ne01 + rows_per_group - 1u) / rows_per_group;
+diff --git a/metal/moe.metal b/metal/moe.metal
+index 653adf0..03f898a 100644
+--- a/metal/moe.metal
++++ b/metal/moe.metal
+@@ -4237,6 +4237,190 @@ kernel void kernel_mul_mv_addr_iq2_xxs_em_swiglu_f32(
+     (void)ids;
+ }
+ 
++// kernel_mul_mv_addr_iq2_xxs_em_swiglu_f32 with NSG simdgroups and the pair
++// block's activations staged in threadgroup memory. em re-read every pair's
++// activation from device memory for each output row, four times the traffic
++// the pair kernel's register copy costs; here each K step of a block of RB
++// pairs is copied once - the 32 lanes' blocks of 32 values, a contiguous
++// 1024 floats a pair - and every row and simdgroup reads it from there.
++// Simdgroups own different output rows and each lane still walks the whole K,
++// so NSG enters no output's arithmetic: the values, their order and the sums
++// are em's, which are the pair kernel's.
++template<short NSG, short RB>
++kernel void kernel_mul_mv_addr_iq2_xxs_em2_swiglu_f32(
++        constant ds4_metal_args_mul_mv_id & args,
++        constant ds4_metal_dsv4_moe_swiglu_weight_args & act,
++        device const uint64_t * gate_addrs,
++        device const uint64_t * up_addrs,
++        device const char * src1,
++        device       char * dst_gate,
++        device       char * dst_up,
++        device       char * dst_mid,
++        device const char * ids,
++        device const char * weights,
++        device const uint32_t * counts,
++        device const uint32_t * lists,
++        constant uint32_t & max_rows,
++        threadgroup  char * shmem [[threadgroup(0)]],
++        uint3  tgpig[[threadgroup_position_in_grid]],
++        ushort tiitg[[thread_index_in_threadgroup]],
++        ushort tiisg[[thread_index_in_simdgroup]],
++        ushort sgitg[[simdgroup_index_in_threadgroup]]) {
++    const uint expert = tgpig.z;
++    if (expert >= (uint)args.ne02 || expert >= 384u) return;
++    const uint n_here = counts[expert];
++    if (!n_here) return;
++    const uint64_t gate_addr = gate_addrs[expert];
++    const uint64_t up_addr = up_addrs[expert];
++    if (gate_addr == 0 || up_addr == 0) return;
++
++    const int nb = args.ne00 / QK_K;
++    const int first_row = (tgpig.x * NSG + sgitg) * N_R0_IQ2_XXS;
++    const int nb32 = nb * (QK_K / 32);
++
++    threadgroup uint64_t *svalues = (threadgroup uint64_t *)(shmem);
++    threadgroup uint8_t  *ssigns  = (threadgroup uint8_t *)(svalues + 256);
++    threadgroup float *ys = (threadgroup float *)(shmem + 256 * 8 + 128 + 112);
++    const uint tid = 32 * sgitg + tiisg;
++    {
++        for (uint i = tid; i < 256; i += 32u * NSG) svalues[i] = ds4_metal_iq2xxs_grid[i];
++        for (uint i = tid; i < 128; i += 32u * NSG) ssigns[i] = ds4_metal_ksigns_iq2xs[i];
++        threadgroup_barrier(mem_flags::mem_threadgroup);
++    }
++
++    device const block_iq2_xxs *xg0 =
++        (device const block_iq2_xxs *)(reinterpret_cast<device const char *>(gate_addr) +
++                                       (uint64_t)first_row * args.nb01);
++    device const block_iq2_xxs *xu0 =
++        (device const block_iq2_xxs *)(reinterpret_cast<device const char *>(up_addr) +
++                                       (uint64_t)first_row * args.nb01);
++
++    const int ix = tiisg;
++    const float c = act.clamp_value;
++
++    for (uint base = 0; base < n_here; base += RB) {
++        const uint rb = min((uint)RB, n_here - base);
++        uint pair_ix[RB];
++        device const float *ybase[RB];
++        for (uint r = 0; r < RB; r++) {
++            const uint p = lists[expert * max_rows + base + (r < rb ? r : 0)];
++            pair_ix[r] = p;
++            const uint tok = p / (uint)args.nei0;
++            const uint slot = p % (uint)args.nei0;
++            const int64_t i11 = (int64_t)(slot % (uint)args.ne11);
++            ybase[r] = (device const float *)(src1 + i11 * args.nb11 + (int64_t)tok * args.nb12);
++        }
++
++        float sumg[N_R0_IQ2_XXS][RB];
++        float sumu[N_R0_IQ2_XXS][RB];
++        for (short row = 0; row < N_R0_IQ2_XXS; row++)
++            for (uint r = 0; r < RB; r++) { sumg[row][r] = 0.f; sumu[row][r] = 0.f; }
++
++        for (int step = 0; step * 32 < nb32; step++) {
++            const int ib32 = ix + step * 32;
++            threadgroup_barrier(mem_flags::mem_threadgroup);
++            for (uint t = tid; t < RB * 1024u; t += 32u * NSG) {
++                const uint r = t / 1024u, k = t % 1024u;
++                const uint e = (uint)step * 1024u + k;
++                ys[t] = r < rb && e < (uint)args.ne00 ? ybase[r][e] : 0.0f;
++            }
++            threadgroup_barrier(mem_flags::mem_threadgroup);
++            if (ib32 >= nb32) continue;
++            const int ibl = ib32 / (QK_K / 32);
++            const int ib  = ib32 % (QK_K / 32);
++            device const uint16_t *qg = (xg0 + ibl)->qs + 4 * ib;
++            device const uint16_t *qu = (xu0 + ibl)->qs + 4 * ib;
++            device const half *dhg = &(xg0 + ibl)->d;
++            device const half *dhu = &(xu0 + ibl)->d;
++            const uint yoff = 32 * (uint)ib32;
++
++            for (short row = 0; row < N_R0_IQ2_XXS; row++) {
++                device const uint8_t *aux8g = (device const uint8_t *)qg;
++                device const uint8_t *aux8u = (device const uint8_t *)qu;
++                const uint32_t aux32g = qg[2] | (qg[3] << 16);
++                const uint32_t aux32u = qu[2] | (qu[3] << 16);
++                const float dg = (float)dhg[0] * (0.5f + (aux32g >> 28));
++                const float du = (float)dhu[0] * (0.5f + (aux32u >> 28));
++
++                float wg[32];
++                float wu[32];
++                for (short l = 0; l < 4; ++l) {
++                    const threadgroup uint8_t *gridg = (const threadgroup uint8_t *)(svalues + aux8g[l]);
++                    const threadgroup uint8_t *gridu = (const threadgroup uint8_t *)(svalues + aux8u[l]);
++                    const uint8_t signg = ssigns[(aux32g >> 7 * l) & 127];
++                    const uint8_t signu = ssigns[(aux32u >> 7 * l) & 127];
++                    for (short j = 0; j < 8; ++j) {
++                        wg[8 * l + j] = (float)gridg[j] * (signg & ds4_metal_kmask_iq2xs[j] ? -1.f : 1.f);
++                        wu[8 * l + j] = (float)gridu[j] * (signu & ds4_metal_kmask_iq2xs[j] ? -1.f : 1.f);
++                    }
++                }
++                for (uint r = 0; r < rb; r++) {
++                    threadgroup const float *y = ys + r * 1024u + 32u * (uint)ix;
++                    float sg = 0;
++                    float su = 0;
++                    for (short l = 0; l < 4; ++l)
++                        for (short j = 0; j < 8; ++j) {
++                            const float v = y[8 * l + j];
++                            sg += v * wg[8 * l + j];
++                            su += v * wu[8 * l + j];
++                        }
++                    sumg[row][r] += dg * sg;
++                    sumu[row][r] += du * su;
++                }
++
++                dhg += args.nb01 / 2;
++                dhu += args.nb01 / 2;
++                qg  += args.nb01 / 2;
++                qu  += args.nb01 / 2;
++            }
++        }
++
++        for (uint r = 0; r < rb; r++) {
++            const uint p = pair_ix[r];
++            const uint tok = p / (uint)args.nei0;
++            const uint slot = p % (uint)args.nei0;
++            /* The addr path's own convention: the slot indexes the output. */
++            device float *gate_f32 = (device float *)(dst_gate +
++                ((uint64_t)slot * args.ne0 + (uint64_t)tok * args.ne1 * args.ne0) * sizeof(float));
++            device float *up_f32 = (device float *)(dst_up +
++                ((uint64_t)slot * args.ne0 + (uint64_t)tok * args.ne1 * args.ne0) * sizeof(float));
++            device float *mid_f32 = (device float *)(dst_mid + (uint64_t)p * act.mid_row_stride);
++            device const float *route_w = (device const float *)(weights + (uint64_t)p * act.weight_stride);
++            const float route_weight = route_w[0];
++            float4 reduced_gate;
++            float4 reduced_up;
++            for (int row = 0; row < N_R0_IQ2_XXS; ++row) {
++                reduced_gate[row] = simd_sum(sumg[row][r]);
++                reduced_up[row] = simd_sum(sumu[row][r]);
++            }
++            if (tiisg < N_R0_IQ2_XXS && first_row + tiisg < args.ne0) {
++                const uint out_row = first_row + tiisg;
++                const float gate = reduced_gate[tiisg] * 0.25f;
++                const float up = reduced_up[tiisg] * 0.25f;
++                float g = gate;
++                float u = up;
++                if (c > 1.0e-6f) {
++                    g = min(g, c);
++                    u = clamp(u, -c, c);
++                }
++                gate_f32[out_row] = gate;
++                up_f32[out_row] = up;
++                const float silu = g / (1.0f + exp(-g));
++                mid_f32[out_row] = silu * u * route_weight;
++            }
++        }
++    }
++
++    (void)tiitg;
++    (void)ids;
++}
++
++typedef decltype(kernel_mul_mv_addr_iq2_xxs_em2_swiglu_f32<4, 4>) em2_swiglu_t;
++template [[host_name("kernel_mul_mv_addr_iq2_xxs_em2_swiglu_f32_s2_r4")]] kernel em2_swiglu_t kernel_mul_mv_addr_iq2_xxs_em2_swiglu_f32<2, 4>;
++template [[host_name("kernel_mul_mv_addr_iq2_xxs_em2_swiglu_f32_s4_r4")]] kernel em2_swiglu_t kernel_mul_mv_addr_iq2_xxs_em2_swiglu_f32<4, 4>;
++template [[host_name("kernel_mul_mv_addr_iq2_xxs_em2_swiglu_f32_s8_r4")]] kernel em2_swiglu_t kernel_mul_mv_addr_iq2_xxs_em2_swiglu_f32<8, 4>;
++template [[host_name("kernel_mul_mv_addr_iq2_xxs_em2_swiglu_f32_s4_r2")]] kernel em2_swiglu_t kernel_mul_mv_addr_iq2_xxs_em2_swiglu_f32<4, 2>;
++
+ kernel void kernel_mul_mv_id_iq2_xxs_pair_swiglu_pack2_overlap_f32(
+         constant ds4_metal_args_mul_mv_id & args,
+         constant ds4_metal_dsv4_moe_swiglu_weight_args & act,
+diff --git a/tests/test_deepseek41_tailab.c b/tests/test_deepseek41_tailab.c
+index 1684f65..762ead6 100644
+--- a/tests/test_deepseek41_tailab.c
++++ b/tests/test_deepseek41_tailab.c
+@@ -133,6 +133,9 @@ static uint32_t g_app_n, g_app_m;
+ /* "pkg" (with "full"): the package of exact changes as one arm - A with the
+  * every-block selection and the attention row tiles, B with neither. */
+ static int g_pkg;
++/* "em2:CODE": the expert-major arm ("em") takes the staged-activation kernel,
++ * NSG * 10 + RB. */
++void ds4_test_moe_em2(int code) __attribute__((weak));
+ /* "drop:<pagecache tool>": arm B starts with the model file dropped from the
+  * file cache, outside the timed span - what the arm's reads cost from the SSD. */
+ static const char *g_drop_tool;
+@@ -333,6 +336,9 @@ int main(int argc, char **argv) {
+             if (!ds4_test_v41_attn_rows || !ds4_test_v41_attn_rows_check ||
+                 !ds4_test_v41_attn_rows_counts || !ds4_gpu_dsv41_compare_counts) return 2;
+             g_attn = argv[a][4] == 'c' ? 2 : 1;
++        } else if (strncmp(argv[a], "em2:", 4) == 0) {
++            if (!ds4_test_moe_em2) return 2;
++            ds4_test_moe_em2(atoi(argv[a] + 4));
+         } else if (strcmp(argv[a], "pkg") == 0) {
+             if (!ds4_test_v41_every_block || !ds4_test_v41_attn_rows) return 2;
+             g_pkg = 1;
