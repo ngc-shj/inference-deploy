@@ -1,0 +1,6 @@
+command ./m4tailab.sh tidx 1 10268 full tidx cool:90
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-05 20:38:32 ds4-server 0 tests 0 pressure level 1 wired 4.69 GiB free 82% swap 0.16 GiB
+pid 6547 process group 6547
+rc 0 peak wired 80.61 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 62.61 GiB, peak Metal 59.00 GiB
+after 2026-10-05 20:52:16 ds4-server 0 tests 0 pressure level 1 wired 4.26 GiB free 82% swap 0.16 GiB

@@ -1,0 +1,173 @@
+diff --git a/ds4.c b/ds4.c
+index 42f08ac..137d542 100644
+--- a/ds4.c
++++ b/ds4.c
+@@ -43495,7 +43495,7 @@ static bool ds41_attention_block_pre_all(ds41_gpu_graph *g, const ds4_model *m,
+ 
+ static bool ds41_attention_block_pre(ds41_gpu_graph *g, const ds4_model *m,
+                                      const ds4_layer_weights *l, uint32_t il,
+-                                     ds4_gpu_tensor *raw, uint32_t slot) {
++                                     ds4_gpu_tensor *raw, uint32_t slot, bool select) {
+     const uint32_t pos = g->pos;
+     const uint32_t heads = DS4_N_HEAD / g->tp_world;
+     return ds41_rope(g->q, heads, DS4_N_HEAD_DIM, il, pos, false) &&
+@@ -43506,7 +43506,7 @@ static bool ds41_attention_block_pre(ds41_gpu_graph *g, const ds4_model *m,
+            /* The indexer belongs on this side too: it writes index_scores,
+             * index_packed and the block score buffers, all still shared, so
+             * leaving it among the reads keeps them a chain. */
+-           ds41_attention_select_published(g, m, l, il, false);
++           (!select || ds41_attention_select_published(g, m, l, il, false));
+ }
+ 
+ static bool ds41_moe_partial(ds41_gpu_graph *g, const ds4_model *m,
+@@ -44494,6 +44494,16 @@ static bool ds41_attention_publish_batch(ds41_gpu_graph *g, ds41_prefill_row *b,
+  * time; test hook ds4_test_v41_topk_batch(0) keeps every row a call. */
+ static uint64_t g_ds41_topk_rows[2];
+ static int g_ds41_topk_batch_off;
++/* Block rows whose indexer selection went through ds41_index_batch after the
++ * block's writes; ds4_test_v41_tail_index(0) selects a row at a time. */
++static uint64_t g_ds41_tail_index_rows;
++static int g_ds41_tail_index_off, g_ds41_tail_index_check;
++void ds4_test_v41_tail_index_check(int on);
++void ds4_test_v41_tail_index_check(int on) { g_ds41_tail_index_check = on; }
++void ds4_test_v41_tail_index(int on);
++void ds4_test_v41_tail_index(int on) { g_ds41_tail_index_off = !on; }
++uint64_t ds4_test_v41_tail_index_rows(void);
++uint64_t ds4_test_v41_tail_index_rows(void) { return g_ds41_tail_index_rows; }
+ void ds4_test_v41_topk_batch(int on);
+ void ds4_test_v41_topk_batch(int on) { g_ds41_topk_batch_off = !on; }
+ void ds4_test_v41_topk_rows(unsigned long long out[2]);
+@@ -48408,7 +48418,14 @@ static DS4_MAYBE_UNUSED bool ds41_graph_step_batch_logits(ds41_gpu_graph *const
+                                                       positions[0], rows);
+                 if (ok && ds41_index_source(il))
+                     ok = ds41_index_batch(g, model, l, il, rows);
+-            } else
++            } else {
++            /* One session's consecutive rows at an index layer: the selection
++             * batched after the loop instead of a row at a time inside it. */
++            bool tail_index = !g_ds41_tail_index_off && ds41_index_source(il) &&
++                              g->pos == positions[0] && count >= 2 && g->tp_world == 1 &&
++                              !g->image_count;
++            for (int i = 1; tail_index && i < count; i++)
++                tail_index = graphs[i] == graphs[0];
+             for (int i = 0; ok && i < count; i++) {
+                 ds41_gpu_graph row = *graphs[i];
+                 row.pos = positions[i];
+@@ -48418,7 +48435,43 @@ static DS4_MAYBE_UNUSED bool ds41_graph_step_batch_logits(ds41_gpu_graph *const
+                 row.q = queries[i];
+                 row.heads = heads[i];
+                 ok = ds41_attention_block_pre(&row, model, l, il, g->raw_prefill,
+-                                              previous + (uint32_t)i);
++                                              previous + (uint32_t)i, !tail_index);
++            }
++            /* The indexer's selection for the whole block after its writes:
++             * row t reads compressed and index rows below its own n_comp,
++             * which no later row writes, so the batch sees what the row loop
++             * saw; ds41_index_batch is the prefix's exact batch path. */
++            if (ok && tail_index) {
++                ok = ds41_index_batch(g, model, l, il, rows);
++                g_ds41_tail_index_rows += rows;
++            }
++            /* ds4_test_v41_tail_index_check(1): the rows' own selection after
++             * the batch's, over the same rows, and every selected id compared
++             * (compare slot 10). */
++            if (ok && tail_index && g_ds41_tail_index_check) {
++                static ds4_gpu_tensor *sel_shadow;
++                static uint64_t sel_shadow_bytes;
++                const uint64_t sel_bytes = (uint64_t)rows * DS4_N_INDEXER_TOP_K * sizeof(int32_t);
++                if (sel_shadow_bytes < sel_bytes) {
++                    ds4_gpu_tensor_free(sel_shadow);
++                    sel_shadow = ds4_gpu_tensor_alloc(sel_bytes);
++                    sel_shadow_bytes = sel_shadow ? sel_bytes : 0;
++                }
++                ok = sel_shadow && ds4_gpu_tensor_copy(sel_shadow, 0, active.selected_comp, 0,
++                                                       sel_bytes) != 0;
++                for (int i = 0; ok && i < count; i++) {
++                    ds41_gpu_graph row = *graphs[i];
++                    row.pos = positions[i];
++#define DS41_SEL_ROW(name, width) row.name = g->rows_view[i].name;
++                    DS41_PREFILL_ROWS(DS41_SEL_ROW)
++#undef DS41_SEL_ROW
++                    row.q = queries[i];
++                    row.heads = heads[i];
++                    ok = ds41_attention_select_published(&row, model, l, il, false);
++                }
++                if (ok) ok = ds4_gpu_dsv41_words_compare(active.selected_comp, sel_shadow,
++                                 (uint32_t)(sel_bytes / 4u), 10) != 0;
++            }
+             }
+             /* Reads, still serial, and the reason is one level down rather
+              * than here. ds4_gpu_attention_decode_heads_tensor is not a
+diff --git a/tests/test_deepseek41_tailab.c b/tests/test_deepseek41_tailab.c
+index 1684f65..1e89ce6 100644
+--- a/tests/test_deepseek41_tailab.c
++++ b/tests/test_deepseek41_tailab.c
+@@ -133,6 +133,13 @@ static uint32_t g_app_n, g_app_m;
+ /* "pkg" (with "full"): the package of exact changes as one arm - A with the
+  * every-block selection and the attention row tiles, B with neither. */
+ static int g_pkg;
++/* "tidx" (with "full"): arm B selects the tail's indexer keys a row at a
++ * time, A after the block's writes in the batch path. "tidxchk": every arm
++ * also selects a row at a time after the batch and compares every id. */
++void ds4_test_v41_tail_index(int on) __attribute__((weak));
++void ds4_test_v41_tail_index_check(int on) __attribute__((weak));
++uint64_t ds4_test_v41_tail_index_rows(void) __attribute__((weak));
++static int g_tidx;
+ /* "drop:<pagecache tool>": arm B starts with the model file dropped from the
+  * file cache, outside the timed span - what the arm's reads cost from the SSD. */
+ static const char *g_drop_tool;
+@@ -190,6 +197,15 @@ static int run_arm(ds4_session **sp, const ds4_session_snapshot *snap, const ds4
+     if (g_f32) ds4_test_v41_f32_reps(b ? 2u : 1u);
+     if (g_topk1) ds4_test_v41_topk_batch(!b);
+     if (g_pkg) { ds4_test_v41_every_block(!b); ds4_test_v41_attn_rows(!b); }
++    uint32_t tx0[16] = {0};
++    unsigned long long tk_t0[3] = {0};
++    const uint64_t tr_t0 = g_tidx ? ds4_test_v41_tail_index_rows() : 0;
++    if (g_tidx) {
++        ds4_test_v41_tail_index(g_tidx == 2 || !b);
++        ds4_test_v41_tail_index_check(g_tidx == 2);
++        ds4_gpu_dsv41_compare_counts(tx0);
++        ds4_test_topk_counts(tk_t0);
++    }
+     unsigned long long pk_eb0[6] = {0}, pk_ar0[2] = {0};
+     if (g_pkg) { ds4_test_v41_every_block_counts(pk_eb0); ds4_test_v41_attn_rows_counts(pk_ar0); }
+     if (g_eb) ds4_test_v41_every_block(!b);
+@@ -218,7 +234,7 @@ static int run_arm(ds4_session **sp, const ds4_session_snapshot *snap, const ds4
+     }
+     if (g_benv_name[0]) { if (b) setenv(g_benv_name, g_benv_value, 1); else unsetenv(g_benv_name); }
+     if (g_rows[0] && ds4_test_v41_tail_rows) ds4_test_v41_tail_rows(g_rows[b]);
+-    else if (!g_em && !g_prev && !g_q8 && !g_gu2 && !g_drop_tool && !g_il && !g_f32 && !g_pabl && !g_topk1 && !g_eb && !g_attn && !g_pkg && ds4_test_v41_token_major_tail) ds4_test_v41_token_major_tail(b);
++    else if (!g_em && !g_prev && !g_q8 && !g_gu2 && !g_drop_tool && !g_il && !g_f32 && !g_pabl && !g_topk1 && !g_eb && !g_attn && !g_pkg && !g_tidx && ds4_test_v41_token_major_tail) ds4_test_v41_token_major_tail(b);
+     ds4_session *s = *sp;
+     uint64_t h0, m0, e0, h1, m1, e1;
+     const uint64_t em0 = ds4_gpu_moe_expert_major_dispatches ? ds4_gpu_moe_expert_major_dispatches() : 0;
+@@ -263,6 +279,18 @@ static int run_arm(ds4_session **sp, const ds4_session_snapshot *snap, const ds4
+         printf("attn     arm %c: %llu rows tiled, %llu a row; heads words differing %u\n",
+                b ? 'B' : 'A', ar1[0] - ar0[0], ar1[1] - ar0[1], ac1[11] - ac0[11]);
+     }
++    if (g_tidx) {
++        uint32_t tx1[16];
++        unsigned long long tk_t1[3];
++        ds4_gpu_dsv41_compare_counts(tx1);
++        ds4_test_topk_counts(tk_t1);
++        ds4_test_v41_tail_index(1);
++        ds4_test_v41_tail_index_check(0);
++        printf("tidx     arm %c: %llu tail rows selected in the batch; %llu top-k calls, %llu "
++               "sort dispatches; selected ids differing %u\n", b ? 'B' : 'A',
++               (unsigned long long)(ds4_test_v41_tail_index_rows() - tr_t0),
++               tk_t1[0] - tk_t0[0], tk_t1[1] - tk_t0[1], tx1[10] - tx0[10]);
++    }
+     if (g_pkg) {
+         unsigned long long eb1[6], ar1[2];
+         ds4_test_v41_every_block_counts(eb1);
+@@ -333,6 +361,10 @@ int main(int argc, char **argv) {
+             if (!ds4_test_v41_attn_rows || !ds4_test_v41_attn_rows_check ||
+                 !ds4_test_v41_attn_rows_counts || !ds4_gpu_dsv41_compare_counts) return 2;
+             g_attn = argv[a][4] == 'c' ? 2 : 1;
++        } else if (strcmp(argv[a], "tidx") == 0 || strcmp(argv[a], "tidxchk") == 0) {
++            if (!ds4_test_v41_tail_index || !ds4_test_v41_tail_index_check ||
++                !ds4_test_v41_tail_index_rows || !ds4_gpu_dsv41_compare_counts) return 2;
++            g_tidx = argv[a][4] == 'c' ? 2 : 1;
+         } else if (strcmp(argv[a], "pkg") == 0) {
+             if (!ds4_test_v41_every_block || !ds4_test_v41_attn_rows) return 2;
+             g_pkg = 1;
