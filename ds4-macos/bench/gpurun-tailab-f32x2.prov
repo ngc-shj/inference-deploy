@@ -1,0 +1,6 @@
+command ./m4tailab.sh f32x2 1 10268 full f32x2
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-05 12:36:34 ds4-server 0 tests 0 pressure level 1 wired 4.14 GiB free 90% swap 0.20 GiB
+pid 71841 process group 71841
+rc 0 peak wired 82.99 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 62.64 GiB, peak Metal 59.00 GiB
+after 2026-10-05 12:41:47 ds4-server 0 tests 0 pressure level 1 wired 4.59 GiB free 85% swap 0.20 GiB
