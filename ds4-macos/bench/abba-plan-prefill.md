@@ -68,3 +68,17 @@ candidate: performance work continues on it, and this plan is amended again
 with the final commit before its arms run. What did complete on 7cfffd8 is
 kept as the baseline's evidence - the long prompt at caches 4096, 5400 and
 10268, each with the frozen oracle's ids, logits and state.
+
+## Third amendment before any arm (2026-10-05)
+
+The candidate is 9e1c62e: the layer-interleaved prefill (98811c5), the
+batched indexer top-k (93364a3), the every-block selection and the
+attention row tiles (9e7255d), and test hooks. Every other improvement
+evaluated since 7cfffd8 is recorded and not in it. The final regression is
+run R (regR.out, m4accept.sh R), the decode ABBA abba-r.
+
+Cold time to first token: arm a is m4capab.sh with ARM_MODE="prev q8nr2
+base" - the 32-row batched tail, the two-output Q8_0 tile, and every prefill
+path added since off - in the candidate's binary; it reproduces the frozen
+oracle (capab-R-base). Arm b is the candidate's production. Arms are named
+W-<n>-<old|new>. Every other rule above stands.
