@@ -19,3 +19,27 @@ capab-*.f32
 capbin/
 # Built by hand from pagecache.c.
 pagecache
+# Per-run output of the m4*/gpurun/tailab/capab harnesses. Runs a result or a
+# decision cites are committed one by one with `git add -f`; the rest stay on
+# disk only.
+*.log
+*.txt
+*.prov
+*.json
+*.samples
+*.ids
+*.out
+*.rev
+*.path
+*.summary
+*.timeline
+*.hashes
+*.ledger
+*.gate
+*.nohup
+*.footprint
+*.bin
+m4ab-*/
+m4kv-*.kvdir/
+traces/
+traces-*/
