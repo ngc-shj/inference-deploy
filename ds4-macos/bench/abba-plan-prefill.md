@@ -71,7 +71,7 @@ kept as the baseline's evidence - the long prompt at caches 4096, 5400 and
 
 ## Third amendment before any arm (2026-10-05)
 
-The candidate is 9e1c62e: the layer-interleaved prefill (98811c5), the
+The candidate is 625b3a7: the layer-interleaved prefill (98811c5), the
 batched indexer top-k (93364a3), the every-block selection and the
 attention row tiles (9e7255d), and test hooks. Every other improvement
 evaluated since 7cfffd8 is recorded and not in it. The final regression is
