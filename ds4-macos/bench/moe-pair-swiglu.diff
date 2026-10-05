@@ -1,0 +1,433 @@
+diff --git a/ds4_metal.m b/ds4_metal.m
+index 82e2663..24f535a 100644
+--- a/ds4_metal.m
++++ b/ds4_metal.m
+@@ -36515,6 +36515,20 @@ static int ds4_gpu_encode_mul_mv_id_pair(
+ 
+ void ds4_gpu_moe_expert_major_override(int mode) { g_moe_em_force = mode; }
+ 
++/* Packed routed gate and up in one dispatch (kernel_mul_mm_id_mpp_packed_pair):
++ * 1 production, 0 the two dispatches, 2 the pair and then the two dispatches
++ * into shadow buffers, compared word for word (ds4_gpu_dsv41_compare_counts
++ * slots 12 and 13). The count is of routed layers that took the pair. */
++static int g_moe_pair_mode = 1;
++static uint64_t g_moe_pair_layers;
++void ds4_test_moe_packed_pair(int mode);
++void ds4_test_moe_packed_pair(int mode) { g_moe_pair_mode = mode; }
++uint64_t ds4_test_moe_packed_pair_layers(void);
++uint64_t ds4_test_moe_packed_pair_layers(void) { return g_moe_pair_layers; }
++static int ds4_gpu_encode_words_compare_buffers(DS4Cmd *cb, id<MTLBuffer> a, NSUInteger a_off,
++                                                id<MTLBuffer> b, NSUInteger b_off,
++                                                uint32_t n_words, uint32_t slot);
++
+ /* Test hook: encode a wide step's routed gate/up this many times. The repeats
+  * rewrite the same values, so the output does not change and the difference
+  * in wall time is what the dispatch costs in place. */
+@@ -38304,6 +38318,50 @@ static int ds4_gpu_encode_mul_mm_id_mapped_tile_resources(
+     return 1;
+ }
+ 
++/* kernel_mul_mm_id_mpp_packed_pair: the two dispatches' bindings, gate's and
++ * up's weights and outputs side by side, over the same work map and grid. */
++static int ds4_gpu_encode_mul_mm_id_packed_pair(
++        DS4Cmd *cb, id<MTLComputePipelineState> pipeline,
++        const ds4_gpu_mul_mm_id_args *mm_args,
++        id<MTLBuffer> gate_w, NSUInteger gate_w_off,
++        id<MTLBuffer> up_w, NSUInteger up_w_off,
++        id<MTLBuffer> gate_dst, NSUInteger gate_dst_off,
++        id<MTLBuffer> up_dst, NSUInteger up_dst_off,
++        const ds4_gpu_dsv4_moe_swiglu_weight_args *act) {
++    if (!cb || !pipeline || !mm_args || !gate_w || !up_w || !gate_dst || !up_dst ||
++        !g_moe_id_map_buffer || !g_moe_packed_rhs_buffer ||
++        mm_args->ne00 <= 0 || mm_args->ne0 <= 0 ||
++        mm_args->ne20 <= 0 || mm_args->ne21 <= 0 || mm_args->ne02 <= 0) return 0;
++    const NSUInteger tpe_bytes = (NSUInteger)mm_args->ne02 * sizeof(int32_t);
++    const NSUInteger hids_bytes = (NSUInteger)mm_args->ne02 * (NSUInteger)mm_args->ne21 * sizeof(int32_t);
++    const NSUInteger work_offset = (tpe_bytes + hids_bytes + 7u) & ~7u;
++    const uint64_t pair_rows = (uint64_t)(uint32_t)mm_args->ne20 * (uint32_t)mm_args->ne21;
++    const uint64_t work_cap = (pair_rows + 31u * (uint32_t)mm_args->ne02 + 31u) / 32u;
++    if (g_moe_id_map_bytes < work_offset + 8u + (NSUInteger)work_cap * 2u * sizeof(uint32_t))
++        return 0;
++    NSUInteger idmap_ids_at = 0, idmap_work_at = 0;
++    const NSUInteger idmap_total = ds4_moe_id_map_layout(mm_args->ne02, mm_args->ne20, mm_args->ne21,
++                                                         &idmap_ids_at, &idmap_work_at);
++    DS4Enc *enc = ds4_gpu_compute_encoder(cb);
++    ds4_enc_pso(enc, pipeline);
++    ds4_enc_bytes(enc, mm_args, sizeof(*mm_args), 0);
++    ds4_enc_buf(enc, gate_w, gate_w_off, 1);
++    ds4_enc_buf(enc, up_w, up_w_off, 2);
++    ds4_enc_buf_n(enc, g_moe_packed_rhs_buffer, 0, ds4_moe_packed_rhs_bytes(mm_args), 3);
++    ds4_enc_buf_n(enc, g_moe_id_map_buffer, 0, idmap_ids_at, 4);
++    ds4_enc_buf_n(enc, g_moe_id_map_buffer, tpe_bytes, idmap_work_at - tpe_bytes, 5);
++    ds4_enc_buf(enc, gate_dst, gate_dst_off, 6);
++    ds4_enc_buf(enc, up_dst, up_dst_off, 7);
++    ds4_enc_buf_n(enc, g_moe_id_map_buffer, work_offset, idmap_total - work_offset, 8);
++    ds4_gpu_dsv4_moe_swiglu_weight_args none = {0};
++    ds4_enc_bytes(enc, act ? act : &none, sizeof(none), 9);
++    ds4_enc_tgmem(enc, 16384u, 0);
++    ds4_gpu_dispatch(enc, MTLSizeMake((NSUInteger)work_cap, ((NSUInteger)mm_args->ne0 + 63u) / 64u, 1),
++                     MTLSizeMake(128, 1, 1));
++    ds4_gpu_end_compute_encoder(cb, enc);
++    return 1;
++}
++
+ static int ds4_gpu_encode_mul_mm_id_mapped_tile(
+         DS4Cmd *cb, id<MTLComputePipelineState> pipeline,
+         const ds4_gpu_mul_mm_id_args *args,
+@@ -49032,6 +49090,11 @@ int ds4_gpu_routed_moe_batch_tensor(
+             n_total_expert == 384u && expert_in_dim == 5120u && expert_mid_dim == 2304u &&
+             gate_type == DS4_METAL_TENSOR_IQ2_XXS && down_type == DS4_METAL_TENSOR_Q2_K &&
+             !getenv("DS4_METAL_DISABLE_V41_PACKED_M32N128");
++        /* Gate and up in one dispatch where both are the 64 x 32 packed
++         * kernel over mapped weights. */
++        const bool packed_pair = use_packed_mpp && !packed_m32n128 && g_moe_pair_mode &&
++            gate_type == DS4_METAL_TENSOR_IQ2_XXS && !use_iq2_cached_batch;
++        bool pair_swiglu_done = false;
+         /* Tiny verification and session batches reuse the fused decode kernels.
+          * V4.1 needs scalar reduction order before its BF16/router boundaries
+          * through eight rows, for both routed recipes. Larger prefills retain
+@@ -49856,6 +49919,69 @@ int ds4_gpu_routed_moe_batch_tensor(
+                                                                    weightsbuf,
+                                                                    ds4_gpu_tensor_offset(weights));
+                 DS4_METAL_PROFILE_MOE_STAGE("gate_up_fused");
++            } else if (ok && packed_pair) {
++                /* With the fused activation, the pair's epilogue is the SwiGLU
++                 * and mid is written here; the activation pass below is skipped. */
++                const bool pair_mid_f16 = use_mm_id && !g_quality_mode &&
++                    !use_q4_batch_expert_table && request_mid_f16;
++                pair_swiglu_done = !g_quality_mode && !use_q4_batch_expert_table &&
++                    getenv("DS4_METAL_MOE_WRITE_CLAMPED_ACT") == NULL;
++                const ds4_gpu_dsv4_moe_swiglu_weight_args pair_act = {
++                    .width = expert_mid_dim,
++                    .rows = pair_rows,
++                    .gate_row_stride = (uint64_t)expert_mid_dim * sizeof(float),
++                    .up_row_stride = (uint64_t)expert_mid_dim * sizeof(float),
++                    .mid_row_stride = (uint64_t)expert_mid_dim *
++                        (pair_mid_f16 ? sizeof(uint16_t) : sizeof(float)),
++                    .weight_stride = sizeof(float),
++                    .write_clamped = 0,
++                    .clamp_value = clamp,
++                };
++                id<MTLComputePipelineState> pair_pipeline = ds4_gpu_get_pipeline(
++                    !pair_swiglu_done ? "kernel_mul_mm_id_iq2_xxs_mpp_packed_pair" :
++                    pair_mid_f16 ? "kernel_mul_mm_id_iq2_xxs_mpp_packed_pair_swiglu_f16" :
++                                   "kernel_mul_mm_id_iq2_xxs_mpp_packed_pair_swiglu");
++                ok = pair_pipeline && ds4_gpu_encode_mul_mm_id_packed_pair(cb, pair_pipeline,
++                        &gate_mm_args, gate_buf, (NSUInteger)gate_inner, up_buf, (NSUInteger)up_inner,
++                        pair_swiglu_done ? midbuf : gatebuf,
++                        pair_swiglu_done ? ds4_gpu_tensor_offset(mid) : ds4_gpu_tensor_offset(gate),
++                        pair_swiglu_done ? weightsbuf : upbuf,
++                        pair_swiglu_done ? ds4_gpu_tensor_offset(weights) : ds4_gpu_tensor_offset(up),
++                        &pair_act);
++                if (ok) g_moe_pair_layers++;
++                if (ok && g_moe_pair_mode == 2) {
++                    /* The two dispatches and the activation pass into shadows,
++                     * then every word of what the pair wrote compared. */
++                    static id<MTLBuffer> shadow_g, shadow_u, shadow_m;
++                    const NSUInteger out_bytes = (NSUInteger)pair_rows * expert_mid_dim * sizeof(float);
++                    if (!shadow_g || shadow_g.length < out_bytes) {
++                        shadow_g = [g_device newBufferWithLength:out_bytes options:MTLResourceStorageModeShared];
++                        shadow_u = [g_device newBufferWithLength:out_bytes options:MTLResourceStorageModeShared];
++                        shadow_m = [g_device newBufferWithLength:out_bytes options:MTLResourceStorageModeShared];
++                    }
++                    ok = shadow_g && shadow_u && shadow_m &&
++                        ds4_gpu_encode_mul_mm_id_mapped_tile_resources(cb, gate_mm_pipeline,
++                            &gate_mm_args, gate_buf, (NSUInteger)gate_inner, g_moe_packed_rhs_buffer, 0,
++                            shadow_g, 0, 8192u, NULL, 0, 0, nil, 64u) &&
++                        ds4_gpu_encode_mul_mm_id_mapped_tile_resources(cb, up_mm_pipeline,
++                            &gate_mm_args, up_buf, (NSUInteger)up_inner, g_moe_packed_rhs_buffer, 0,
++                            shadow_u, 0, 8192u, NULL, 0, 1, nil, 64u);
++                    if (ok && pair_swiglu_done) {
++                        const uint32_t mid_words = (uint32_t)((uint64_t)pair_rows * expert_mid_dim *
++                            (pair_mid_f16 ? 2u : 4u) / 4u);
++                        ok = ds4_gpu_encode_moe_swiglu_weight(cb, shadow_g, 0, shadow_u, 0,
++                                shadow_m, 0, weightsbuf, ds4_gpu_tensor_offset(weights),
++                                expert_mid_dim, pair_rows, clamp, pair_mid_f16) &&
++                            ds4_gpu_encode_words_compare_buffers(cb, midbuf, ds4_gpu_tensor_offset(mid),
++                                shadow_m, 0, mid_words, 14u);
++                    } else if (ok) {
++                        ok = ds4_gpu_encode_words_compare_buffers(cb, gatebuf, ds4_gpu_tensor_offset(gate),
++                                shadow_g, 0, (uint32_t)(out_bytes / 4u), 12u) &&
++                            ds4_gpu_encode_words_compare_buffers(cb, upbuf, ds4_gpu_tensor_offset(up),
++                                shadow_u, 0, (uint32_t)(out_bytes / 4u), 13u);
++                    }
++                }
++                DS4_METAL_PROFILE_MOE_STAGE("gate_up_pair");
+             } else if (ok) {
+                 ok = ds4_gpu_encode_mul_mm_id_mapped_tile_resources(cb,
+                                                            gate_mm_pipeline,
+@@ -49872,7 +49998,7 @@ int ds4_gpu_routed_moe_batch_tensor(
+                                                            packed_m32n128 ? 32u : 64u);
+                 DS4_METAL_PROFILE_MOE_STAGE("gate");
+             }
+-            if (ok && !use_mm_id_pair_swiglu) {
++            if (ok && !use_mm_id_pair_swiglu && !packed_pair) {
+                 ok = ds4_gpu_encode_mul_mm_id_mapped_tile_resources(cb,
+                                                    up_mm_pipeline,
+                                                    &gate_mm_args,
+@@ -50051,6 +50177,8 @@ int ds4_gpu_routed_moe_batch_tensor(
+             /* The address-table pair kernel already wrote weighted SwiGLU rows into mid. */
+         } else if (ok && use_q4_batch_expert_table) {
+             /* The table pair kernel already wrote weighted SwiGLU rows into mid. */
++        } else if (ok && pair_swiglu_done) {
++            /* The packed gate/up pair's epilogue already wrote weighted SwiGLU rows into mid. */
+         } else if (ok && use_mm_id_pair_swiglu) {
+             /* The fused batch mm_id pair kernel already wrote weighted f16 SwiGLU rows into mid. */
+         } else if (ok && use_tiny_pair_swiglu) {
+@@ -57013,6 +57141,31 @@ int ds4_gpu_dsv41_words_compare(const ds4_gpu_tensor *a, const ds4_gpu_tensor *b
+     return ds4_gpu_dsv41_compare_row(a, 0, b, n_words, slot);
+ }
+ 
++static int ds4_gpu_encode_words_compare_buffers(DS4Cmd *cb, id<MTLBuffer> a, NSUInteger a_off,
++                                                id<MTLBuffer> b, NSUInteger b_off,
++                                                uint32_t n_words, uint32_t slot) {
++    if (!cb || !a || !b || slot >= 16u || !n_words) return 0;
++    if (!g_dsv41_cmp_counts) {
++        g_dsv41_cmp_counts = [g_device newBufferWithLength:16u * sizeof(uint32_t)
++                                                   options:MTLResourceStorageModeShared];
++        if (!g_dsv41_cmp_counts) return 0;
++        memset([g_dsv41_cmp_counts contents], 0, 16u * sizeof(uint32_t));
++    }
++    id<MTLComputePipelineState> pipe = ds4_gpu_get_pipeline("kernel_dsv41_words_compare");
++    if (!pipe) return 0;
++    DS4Enc *enc = ds4_gpu_compute_encoder(cb);
++    ds4_enc_pso(enc, pipe);
++    ds4_enc_buf(enc, a, a_off, 0);
++    ds4_enc_buf(enc, b, b_off, 1);
++    ds4_enc_bytes(enc, &n_words, sizeof(n_words), 2);
++    ds4_enc_bytes(enc, &slot, sizeof(slot), 3);
++    ds4_enc_buf(enc, g_dsv41_cmp_counts, 0, 4);
++    g_dsv41_cmp_calls++;
++    ds4_gpu_dispatch(enc, MTLSizeMake((n_words + 255u) / 256u, 1, 1), MTLSizeMake(256, 1, 1));
++    ds4_gpu_end_compute_encoder(cb, enc);
++    return 1;
++}
++
+ void ds4_gpu_dsv41_compare_counts(uint32_t out[16]) {
+     memset(out, 0, 16u * sizeof(uint32_t));
+     if (g_dsv41_cmp_counts) memcpy(out, [g_dsv41_cmp_counts contents], 16u * sizeof(uint32_t));
+diff --git a/metal/moe.metal b/metal/moe.metal
+index 653adf0..a005a10 100644
+--- a/metal/moe.metal
++++ b/metal/moe.metal
+@@ -9872,6 +9872,155 @@ template [[host_name("kernel_mul_mm_id_mxfp4_mpp_packed")]] kernel mm_id_packed_
+ template [[host_name("kernel_mul_mm_id_iq2_xxs_mpp_packed_m32n128")]] kernel mm_id_packed_t kernel_mul_mm_id_mpp_packed<block_iq2_xxs, QK_NL, dequantize_iq2_xxs, 32, 128>;
+ template [[host_name("kernel_mul_mm_id_q2_K_mpp_packed_m32n128")]] kernel mm_id_packed_t kernel_mul_mm_id_mpp_packed<block_q2_K, QK_NL, dequantize_q2_K, 32, 128>;
+ 
++// kernel_mul_mm_id_mpp_packed for gate and up at once: one threadgroup, one
++// activation tile a K step for both. Each matrix keeps its own accumulator,
++// fed by the same matmul2d descriptor over the same K steps in the same order
++// as its own dispatch would, and each output lands where that dispatch puts
++// it, so gate and up are the two dispatches' words.
++//
++// With SWIGLU the epilogue is kernel_dsv4_moe_swiglu_weight(_f16) instead of
++// the two stores: each (row, output) takes its gate and up words as those
++// stores would have left them and the same clamp, SiLU, product and route
++// weight, in the same order, into mid - dst_gate - and nothing else is
++// written.
++template<typename block_q, short nl,
++         void (*dequantize_func)(device const block_q *, short, thread half4x4 &),
++         bool SWIGLU, bool MID_F16, int TileM = 64, int TileN = 32>
++kernel void kernel_mul_mm_id_mpp_packed_pair(
++        constant ds4_metal_args_mul_mm_id &args,
++        device const char *src0_gate,
++        device const char *src0_up,
++        device const half *src1,
++        device const uint *counts,
++        device const int *ids,
++        device float *dst_gate,
++        device float *dst_up,
++        device const uint *work,
++        constant ds4_metal_dsv4_moe_swiglu_weight_args &act,
++        threadgroup char *shmem [[threadgroup(0)]],
++        uint2 group [[threadgroup_position_in_grid]],
++        ushort tid [[thread_index_in_threadgroup]]) {
++    constexpr int M = TileM, N = TileN, K = 32;
++    if (group.x >= work[0]) return;
++    const uint2 item = ((device const uint2 *)(work + 2))[group.x];
++    if (item.y % N) return;
++    const int expert = item.x, r0 = group.y*M, r1 = item.y;
++    const int nr0 = min(M, args.ne0 - r0);
++    const int nr1 = min(N, (int)counts[expert] - r1);
++    if (nr0 <= 0 || nr1 <= 0) return;
++    if (!ds4_tp_owns_expert(expert, args.ne02, args.tp_rank, args.tp_world)) {
++        for (int i = tid; i < nr1*nr0; i += 128) {
++            const int id = ids[expert*args.ne21 + r1 + i/nr0];
++            const uint64_t row = (uint64_t)(id/args.ne20)*args.ne1 + (id%args.ne20);
++            const uint64_t at = row*args.ne0 + r0 + i%nr0;
++            if (!SWIGLU) {
++                dst_gate[at] = 0;
++                dst_up[at] = 0;
++            } else if (MID_F16) {
++                ((device half *)((device char *)dst_gate + row * act.mid_row_stride))[r0 + i%nr0] = 0;
++            } else {
++                ((device float *)((device char *)dst_gate + row * act.mid_row_stride))[r0 + i%nr0] = 0;
++            }
++        }
++        return;
++    }
++
++    threadgroup half *sg = (threadgroup half *)shmem;
++    threadgroup half *su = sg + 2*M*K;
++    auto tG0 = tensor(sg, dextents<int32_t, 2>(K, M));
++    auto tG1 = tensor(sg + M*K, dextents<int32_t, 2>(K, M));
++    auto tU0 = tensor(su, dextents<int32_t, 2>(K, M));
++    auto tU1 = tensor(su + M*K, dextents<int32_t, 2>(K, M));
++    device const uint *offsets = (device const uint *)src1;
++    device half *rhs = (device half *)(offsets + ((args.ne02 + 31u) & ~31u));
++    auto tB = tensor(rhs + (uint64_t)(offsets[expert] + r1)*args.ne00,
++                     dextents<int32_t, 2>(args.ne00, nr1));
++    matmul2d<matmul2d_descriptor(N, M, K, false, true, false,
++                                matmul2d_descriptor::mode::multiply_accumulate),
++             execution_simdgroups<4>> mm;
++    auto acc_g = mm.template get_destination_cooperative_tensor<decltype(tB), decltype(tG0), float>();
++    auto acc_u = mm.template get_destination_cooperative_tensor<decltype(tB), decltype(tU0), float>();
++    for (uint16_t i = 0; i < acc_g.get_capacity(); ++i)
++        if (acc_g.is_valid_element(i)) acc_g[i] = 0;
++    for (uint16_t i = 0; i < acc_u.get_capacity(); ++i)
++        if (acc_u.is_valid_element(i)) acc_u[i] = 0;
++
++    auto stage = [&](device const char *src0, int k, threadgroup half *tile) {
++        if (tid >= M*2) return;
++        const int row = min((int)tid/2, nr0 - 1);
++        const int col = k + 16*(tid%2);
++        device const block_q *w = (device const block_q *)(src0 +
++            (uint64_t)(expert - args.tp_expert_base)*args.nb02 +
++            (r0 + row)*args.nb01);
++        half4x4 values;
++        dequantize_func(w + col/(16*nl), (col/16)%nl, values);
++        *((threadgroup half4x4 *)(tile + (tid/2)*K + 16*(tid%2))) = values;
++    };
++    stage(src0_gate, 0, sg);
++    stage(src0_up, 0, su);
++    threadgroup_barrier(mem_flags::mem_threadgroup);
++    uint buf = 0;
++    for (int k = 0; k < args.ne00; k += K) {
++        auto b = tB.slice(k, 0);
++        auto ag = (buf ? tG1 : tG0).slice(0, 0);
++        auto au = (buf ? tU1 : tU0).slice(0, 0);
++        mm.run(b, ag, acc_g);
++        mm.run(b, au, acc_u);
++        if (k + K < args.ne00) {
++            buf ^= 1;
++            stage(src0_gate, k + K, sg + buf*M*K);
++            stage(src0_up, k + K, su + buf*M*K);
++        }
++        threadgroup_barrier(mem_flags::mem_threadgroup);
++    }
++    auto tC = tensor((threadgroup float *)shmem, dextents<int32_t, 2>(M, N));
++    if (SWIGLU) {
++        auto tC2 = tensor((threadgroup float *)shmem + M*N, dextents<int32_t, 2>(M, N));
++        acc_g.store(tC);
++        acc_u.store(tC2);
++        threadgroup_barrier(mem_flags::mem_threadgroup);
++        const float c = act.clamp_value;
++        for (int i = tid; i < nr1*nr0; i += 128) {
++            const int id = ids[expert*args.ne21 + r1 + i/nr0];
++            const uint64_t row = (uint64_t)(id/args.ne20)*args.ne1 + (id%args.ne20);
++            const int col = r0 + i%nr0;
++            float g = ((threadgroup float *)shmem)[(i/nr0)*M + i%nr0];
++            float u = ((threadgroup float *)shmem)[M*N + (i/nr0)*M + i%nr0];
++            const float route_weight = *(device const float *)((device const char *)dst_up +
++                row * act.weight_stride);
++            if (c > 1.0e-6f) {
++                g = min(g, c);
++                u = clamp(u, -c, c);
++            }
++            const float silu = g / (1.0f + exp(-g));
++            if (MID_F16)
++                ((device half *)((device char *)dst_gate + row * act.mid_row_stride))[col] =
++                    (half)(silu * u * route_weight);
++            else
++                ((device float *)((device char *)dst_gate + row * act.mid_row_stride))[col] =
++                    silu * u * route_weight;
++        }
++        return;
++    }
++    for (int which = 0; which < 2; which++) {
++        if (which == 0) acc_g.store(tC); else acc_u.store(tC);
++        threadgroup_barrier(mem_flags::mem_threadgroup);
++        device float *dst = which == 0 ? dst_gate : dst_up;
++        for (int i = tid; i < nr1*nr0; i += 128) {
++            const int id = ids[expert*args.ne21 + r1 + i/nr0];
++            dst[(uint64_t)(id/args.ne20)*args.ne1*args.ne0 +
++                (id%args.ne20)*args.ne0 + r0 + i%nr0] =
++                ((threadgroup float *)shmem)[(i/nr0)*M + i%nr0];
++        }
++        threadgroup_barrier(mem_flags::mem_threadgroup);
++    }
++}
++
++typedef decltype(kernel_mul_mm_id_mpp_packed_pair<block_iq2_xxs, QK_NL, dequantize_iq2_xxs, false, false>) mm_id_packed_pair_t;
++template [[host_name("kernel_mul_mm_id_iq2_xxs_mpp_packed_pair")]] kernel mm_id_packed_pair_t kernel_mul_mm_id_mpp_packed_pair<block_iq2_xxs, QK_NL, dequantize_iq2_xxs, false, false>;
++template [[host_name("kernel_mul_mm_id_iq2_xxs_mpp_packed_pair_swiglu")]] kernel mm_id_packed_pair_t kernel_mul_mm_id_mpp_packed_pair<block_iq2_xxs, QK_NL, dequantize_iq2_xxs, true, false>;
++template [[host_name("kernel_mul_mm_id_iq2_xxs_mpp_packed_pair_swiglu_f16")]] kernel mm_id_packed_pair_t kernel_mul_mm_id_mpp_packed_pair<block_iq2_xxs, QK_NL, dequantize_iq2_xxs, true, true>;
++
+ // Routed-expert grouped matmul on the Metal4 TensorOps/MPP pipeline. The
+ // barrier after mm.run prevents the next K iteration from replacing staged
+ // tiles while the cooperative matmul still reads them.
+diff --git a/tests/test_deepseek41_tailab.c b/tests/test_deepseek41_tailab.c
+index 447a375..1804207 100644
+--- a/tests/test_deepseek41_tailab.c
++++ b/tests/test_deepseek41_tailab.c
+@@ -112,6 +112,13 @@ static unsigned g_cool;
+ void ds4_test_v41_topk_batch(int on) __attribute__((weak));
+ void ds4_test_v41_topk_rows(unsigned long long out[2]) __attribute__((weak));
+ static int g_topk1;
++/* "pair" (with "full"): arm B runs the packed routed gate and up as two
++ * dispatches, A as one. "paircheck": every arm also runs the two into
++ * shadows and compares each word, printing the differing count. */
++void ds4_test_moe_packed_pair(int mode) __attribute__((weak));
++uint64_t ds4_test_moe_packed_pair_layers(void) __attribute__((weak));
++void ds4_gpu_dsv41_compare_counts(uint32_t out[16]) __attribute__((weak));
++static int g_pair;
+ /* "drop:<pagecache tool>": arm B starts with the model file dropped from the
+  * file cache, outside the timed span - what the arm's reads cost from the SSD. */
+ static const char *g_drop_tool;
+@@ -168,6 +175,10 @@ static int run_arm(ds4_session **sp, const ds4_session_snapshot *snap, const ds4
+     if (g_il) ds4_test_v41_interleave(!b);
+     if (g_f32) ds4_test_v41_f32_reps(b ? 2u : 1u);
+     if (g_topk1) ds4_test_v41_topk_batch(!b);
++    if (g_pair) ds4_test_moe_packed_pair(g_pair == 2 ? 2 : !b);
++    uint32_t pc0[16] = {0};
++    const uint64_t pl0 = g_pair ? ds4_test_moe_packed_pair_layers() : 0;
++    if (g_pair) ds4_gpu_dsv41_compare_counts(pc0);
+     unsigned long long tk0[3] = {0}, tr0[2] = {0};
+     if (g_topk1) { ds4_test_topk_counts(tk0); ds4_test_v41_topk_rows(tr0); }
+     if (g_pabl) ds4_test_v41_pabl(g_pabl, g_pabl_runs++ == 0 ? 1 : b ? 3 : 2);
+@@ -183,7 +194,7 @@ static int run_arm(ds4_session **sp, const ds4_session_snapshot *snap, const ds4
+     }
+     if (g_benv_name[0]) { if (b) setenv(g_benv_name, g_benv_value, 1); else unsetenv(g_benv_name); }
+     if (g_rows[0] && ds4_test_v41_tail_rows) ds4_test_v41_tail_rows(g_rows[b]);
+-    else if (!g_em && !g_prev && !g_q8 && !g_gu2 && !g_drop_tool && !g_il && !g_f32 && !g_pabl && !g_topk1 && ds4_test_v41_token_major_tail) ds4_test_v41_token_major_tail(b);
++    else if (!g_em && !g_prev && !g_q8 && !g_gu2 && !g_drop_tool && !g_il && !g_f32 && !g_pabl && !g_topk1 && !g_pair && ds4_test_v41_token_major_tail) ds4_test_v41_token_major_tail(b);
+     ds4_session *s = *sp;
+     uint64_t h0, m0, e0, h1, m1, e1;
+     const uint64_t em0 = ds4_gpu_moe_expert_major_dispatches ? ds4_gpu_moe_expert_major_dispatches() : 0;
+@@ -208,6 +219,15 @@ static int run_arm(ds4_session **sp, const ds4_session_snapshot *snap, const ds4
+     if (g_gu2) ds4_test_moe_gateup_reps(1);
+     if (g_il) ds4_test_v41_interleave(1);
+     if (g_f32) ds4_test_v41_f32_reps(1);
++    if (g_pair) {
++        uint32_t pc1[16];
++        ds4_gpu_dsv41_compare_counts(pc1);
++        ds4_test_moe_packed_pair(1);
++        printf("pair     arm %c: %llu routed layer chunks paired; words differing gate %u, up %u, "
++               "mid %u (%u compares)\n", b ? 'B' : 'A',
++               (unsigned long long)(ds4_test_moe_packed_pair_layers() - pl0),
++               pc1[12] - pc0[12], pc1[13] - pc0[13], pc1[14] - pc0[14], pc1[15] - pc0[15]);
++    }
+     if (g_topk1) {
+         unsigned long long tk1[3], tr1[2];
+         ds4_test_topk_counts(tk1); ds4_test_v41_topk_rows(tr1);
+@@ -254,6 +274,10 @@ int main(int argc, char **argv) {
+             if (!g_pabl) return 2;
+         } else if (strncmp(argv[a], "cool:", 5) == 0) {
+             g_cool = (unsigned)atoi(argv[a] + 5);
++        } else if (strcmp(argv[a], "pair") == 0 || strcmp(argv[a], "paircheck") == 0) {
++            if (!ds4_test_moe_packed_pair || !ds4_test_moe_packed_pair_layers ||
++                !ds4_gpu_dsv41_compare_counts) return 2;
++            g_pair = argv[a][4] ? 2 : 1;
+         } else if (strcmp(argv[a], "topk1") == 0) {
+             if (!ds4_test_v41_topk_batch || !ds4_test_v41_topk_rows || !ds4_test_topk_counts)
+                 return 2;

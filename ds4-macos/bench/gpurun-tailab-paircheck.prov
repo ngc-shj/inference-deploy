@@ -1,0 +1,6 @@
+command ./m4tailab.sh paircheck 0 10268 full paircheck
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-05 18:19:29 ds4-server 0 tests 0 pressure level 1 wired 4.38 GiB free 87% swap 0.19 GiB
+pid 37072 process group 37072
+rc 0 peak wired 80.12 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 62.85 GiB, peak Metal 59.00 GiB
+after 2026-10-05 18:21:38 ds4-server 0 tests 0 pressure level 1 wired 20.14 GiB free 71% swap 0.19 GiB
