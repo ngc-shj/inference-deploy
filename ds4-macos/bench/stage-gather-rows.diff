@@ -1,0 +1,290 @@
+diff --git a/ds4.c b/ds4.c
+index 42f08ac..601a98c 100644
+--- a/ds4.c
++++ b/ds4.c
+@@ -41387,6 +41387,10 @@ static int g_ds41_exact_rows_scope;
+ #define DS41_ATTN_TILE 32
+ static uint64_t g_ds41_attn_rows[2];
+ static int g_ds41_attn_rows_off, g_ds41_attn_rows_check;
++/* ds4_test_v41_gather_rows(0): the block attention's KV gathers a row at a time. */
++static int g_ds41_gather_rows_off;
++void ds4_test_v41_gather_rows(int on);
++void ds4_test_v41_gather_rows(int on) { g_ds41_gather_rows_off = !on; }
+ void ds4_test_v41_attn_rows_check(int on);
+ void ds4_test_v41_attn_rows_check(int on) { g_ds41_attn_rows_check = on; }
+ void ds4_test_v41_attn_rows(int on);
+@@ -48492,11 +48496,29 @@ static DS4_MAYBE_UNUSED bool ds41_graph_step_batch_logits(ds41_gpu_graph *const
+                                 "concurrent section %s\n", rows,
+                                 sec ? "open" : "declined"); }
+ #define DS41_LEVEL_BREAK() do { if (sec) (void)ds4_gpu_concurrent_section_barrier(); } while (0)
+-                    for (int i = 0; ok && i < count; i++) {
++                    /* Rows that select the full DS4_N_INDEXER_TOP_K keep their
++                     * ids and their gathers contiguous, so a run of them is one
++                     * gather of the run's ids; a narrower row is its own. */
++                    for (int i = 0; ok && i < count;) {
+                         const uint32_t nc = (positions[i] + 1u) / ratio_l;
+                         const uint32_t att = nc < DS4_N_INDEXER_TOP_K ? nc : DS4_N_INDEXER_TOP_K;
+-                        ok = ds4_gpu_dsv41_gather_kv(gathers[i], g->compressed[owner_l],
+-                                g->rows_view[i].selected_comp, nc, att) != 0;
++                        int n = 1;
++                        if (att == DS4_N_INDEXER_TOP_K && !g_ds41_gather_rows_off)
++                            while (i + n < count) n++;
++                        if (n > 1) {
++                            const uint32_t nc_last = (positions[i + n - 1] + 1u) / ratio_l;
++                            ds4_gpu_tensor *ids = ds41_view(g, g->batch.selected_comp,
++                                (uint64_t)i * DS4_N_INDEXER_TOP_K * sizeof(int32_t),
++                                (uint64_t)n * DS4_N_INDEXER_TOP_K * sizeof(int32_t));
++                            ds4_gpu_tensor *out = ds41_view(g, sel_kv, (uint64_t)i * gather_bytes,
++                                (uint64_t)n * gather_bytes);
++                            ok = ids && out && ds4_gpu_dsv41_gather_kv_rows(out,
++                                g->compressed[owner_l], ids, nc_last, att, (uint32_t)n) != 0;
++                        } else {
++                            ok = ds4_gpu_dsv41_gather_kv(gathers[i], g->compressed[owner_l],
++                                    g->rows_view[i].selected_comp, nc, att) != 0;
++                        }
++                        i += n;
+                     }
+                     DS41_LEVEL_BREAK();
+                     /* One dispatch for the block's K queries instead of K
+diff --git a/ds4_deepseek41_gpu.h b/ds4_deepseek41_gpu.h
+index 739d3b0..815c479 100644
+--- a/ds4_deepseek41_gpu.h
++++ b/ds4_deepseek41_gpu.h
+@@ -361,6 +361,9 @@ int ds4_gpu_dsv41_carry_copy(ds4_gpu_tensor *packed, uint32_t row_offset,
+                             ds4_gpu_tensor *plain, uint32_t width, uint32_t rows,
+                             uint32_t format, bool pack);
+ /* Batched F16 projections with the same arithmetic as individual matvecs. */
++int ds4_gpu_dsv41_gather_kv_rows(ds4_gpu_tensor *out, const ds4_gpu_tensor *source,
++                                 const ds4_gpu_tensor *ids, uint32_t source_rows,
++                                 uint32_t selected, uint32_t rows);
+ int ds4_gpu_dsv41_mask_visible_zero(ds4_gpu_tensor *mask, uint32_t width, uint32_t rows,
+                                     uint32_t start, uint32_t ratio, uint32_t mask_stride);
+ int ds4_gpu_dsv41_projection_rows(ds4_gpu_tensor *out,
+diff --git a/ds4_metal.m b/ds4_metal.m
+index 65c7f0c..cecc8c0 100644
+--- a/ds4_metal.m
++++ b/ds4_metal.m
+@@ -33374,6 +33374,14 @@ static int ds4_gpu_encode_flash_attention_prefill_raw_heads(
+  * KV source DAG - are refused for a tile, and the caller takes rows singly. */
+ static uint32_t g_flash_rows = 1;
+ static uint64_t g_flash_comp_row_stride;
++/* Row tiles staged in one dispatch; ds4_test_flash_stage_rows(0) stages a
++ * tile's rows one at a time. */
++static int g_flash_stage_rows_off;
++static uint64_t g_flash_stage_rows_tiles;
++void ds4_test_flash_stage_rows(int on);
++void ds4_test_flash_stage_rows(int on) { g_flash_stage_rows_off = !on; }
++uint64_t ds4_test_flash_stage_rows_tiles(void);
++uint64_t ds4_test_flash_stage_rows_tiles(void) { return g_flash_stage_rows_tiles; }
+ 
+ static int ds4_gpu_encode_flash_attention_gathered_heads(
+         DS4Cmd *  cb,
+@@ -33616,7 +33624,36 @@ static int ds4_gpu_encode_flash_attention_gathered_heads(
+     }
+ 
+     bool pad_fused = false;
+-    for (uint32_t r = 0; do_stage && r < tile; r++) {
++    /* A tile with F32 compressed keys and a raw window that does not wrap
++     * stages in one dispatch: the per-row path below is two contiguous
++     * F32 -> F16 copies a row, and this is the same conversion a row at a
++     * time on the grid's Y axis. */
++    bool staged_tile = false;
++    if (do_stage && tile > 1u && !comp_kv_f16 && !dag && !g_flash_stage_rows_off &&
++        raw_start + tile - 1u + n_raw <= raw_cap && head_dim % 4u == 0u &&
++        kv_stride % sizeof(uint16_t) == 0u && g_flash_comp_row_stride % sizeof(float) == 0u) {
++        id<MTLComputePipelineState> stage_pipeline =
++            ds4_gpu_get_pipeline("kernel_dsv41_kv_stage_rows_f16");
++        if (stage_pipeline) {
++            const uint32_t sargs[7] = { n_raw, n_comp, raw_start, tile,
++                                        (uint32_t)(kv_stride / sizeof(uint16_t)),
++                                        (uint32_t)(g_flash_comp_row_stride / sizeof(float)),
++                                        head_dim };
++            const NSUInteger vecs = (NSUInteger)n_keys * (head_dim / 4u);
++            const NSUInteger tw = MIN(vecs, 256u);
++            DS4Enc *enc = ds4_gpu_compute_encoder(cb);
++            ds4_enc_pso(enc, stage_pipeline);
++            ds4_enc_bytes(enc, sargs, sizeof(sargs), 0);
++            ds4_enc_buf(enc, rawbuf, ds4_gpu_tensor_offset(raw_kv), 1);
++            ds4_enc_buf(enc, compbuf, ds4_gpu_tensor_offset(comp_kv), 2);
++            ds4_enc_buf_n(enc, g_flash_attn_kv_buffer, kv_off, kv_stride * tile, 3);
++            ds4_gpu_dispatch(enc, MTLSizeMake((vecs + tw - 1u) / tw, tile, 1), MTLSizeMake(tw, 1, 1));
++            ds4_gpu_end_compute_encoder(cb, enc);
++            staged_tile = true;
++            g_flash_stage_rows_tiles++;
++        }
++    }
++    for (uint32_t r = 0; do_stage && !staged_tile && r < tile; r++) {
+         if (!ds4_gpu_encode_flash_kv_stage_f16(
+             cb,
+             rawbuf,
+@@ -54392,6 +54429,46 @@ int ds4_gpu_dsv41_gather_kv(ds4_gpu_tensor *out, const ds4_gpu_tensor *source,
+     }
+ }
+ 
++/* ds4_gpu_dsv41_gather_kv over `rows` block rows at once, each with
++ * `selected` ids (the rows' ids and outputs contiguous): one get_rows of
++ * rows * selected rows, the same copy a row's call makes. */
++int ds4_gpu_dsv41_gather_kv_rows(ds4_gpu_tensor *out, const ds4_gpu_tensor *source,
++                                 const ds4_gpu_tensor *ids, uint32_t source_rows,
++                                 uint32_t selected, uint32_t rows) {
++    if (!rows || !selected || selected > 512u || rows > UINT32_MAX / selected) return 0;
++    const uint32_t total = selected * rows;
++    if (!source_rows || selected > source_rows ||
++        !dsv41_tensor_has_floats(source, (uint64_t)source_rows * 512u) ||
++        !dsv41_tensor_has_floats(out, (uint64_t)total * 512u) ||
++        !dsv41_tensor_has_floats(ids, total)) return 0;
++    if (!g_initialized && !ds4_gpu_init()) return 0;
++    @autoreleasepool {
++        const uint64_t row_bytes = 512u * sizeof(float);
++        const ds4_gpu_get_rows_args args = {
++            .ne00t = 512, .ne00 = 512, .nb01 = row_bytes,
++            .nb02 = (uint64_t)source_rows * row_bytes,
++            .nb03 = (uint64_t)source_rows * row_bytes,
++            .ne10 = (int32_t)total, .nb10 = sizeof(int32_t),
++            .nb11 = (uint64_t)total * sizeof(int32_t),
++            .nb12 = (uint64_t)total * sizeof(int32_t),
++            .nb1 = row_bytes, .nb2 = (uint64_t)total * row_bytes,
++            .nb3 = (uint64_t)total * row_bytes,
++        };
++        int owned = 0;
++        DS4Cmd *cb = ds4_gpu_command_buffer(&owned);
++        DS4Enc *enc = cb ? ds4_gpu_compute_encoder(cb) : nil;
++        if (!enc) return 0;
++        ds4_enc_pso(enc, g_get_rows_f32_pipeline);
++        ds4_enc_bytes(enc, &args, sizeof(args), 0);
++        const ds4_gpu_tensor *inputs[] = {source, ids, out};
++        for (NSUInteger i = 0; i < 3; i++)
++            ds4_enc_buf_n(enc, ds4_gpu_tensor_buffer(inputs[i]), ds4_gpu_tensor_offset(inputs[i]), ds4_tensor_tail(inputs[i], ds4_gpu_tensor_offset(inputs[i])), i + 1);
++        ds4_gpu_dispatch(enc, MTLSizeMake(2u * (NSUInteger)total, 1, 1), MTLSizeMake(256, 1, 1));
++        ds4_gpu_end_compute_encoder(cb, enc);
++        return ds4_gpu_finish_command_buffer(cb, owned, "V4.1 sparse KV gather rows");
++    }
++}
++
+ void ds4_gpu_set_glm_mtp_verify_mode(bool enabled) {
+     (void)enabled;
+ }
+diff --git a/metal/dsv41.metal b/metal/dsv41.metal
+index 374a454..528718f 100644
+--- a/metal/dsv41.metal
++++ b/metal/dsv41.metal
+@@ -635,6 +635,35 @@ kernel void kernel_dsv41_mask_visible_zero(
+     mask[(ulong)index.y * args.mask_stride + index.x] = 0.0f;
+ }
+ 
++// A row tile's flash KV staging in one dispatch: row r's slot (slot_halves
++// apart) takes the raw keys from raw_start + r, n_raw of them, then its own
++// compressed keys (comp_floats apart), each converted to half as
++// kernel_cpy_contig_f32_f16_4 converts it. The raw window must not wrap.
++struct ds4_metal_args_dsv41_kv_stage_rows {
++    uint n_raw, n_comp, raw_start, rows;
++    uint slot_halves, comp_floats, dim;
++};
++
++kernel void kernel_dsv41_kv_stage_rows_f16(
++        constant ds4_metal_args_dsv41_kv_stage_rows &args,
++        device const float *raw,
++        device const float *comp,
++        device half *dst,
++        uint2 tg_ [[threadgroup_position_in_grid]], uint2 tid_ [[thread_position_in_threadgroup]], uint2 ntg_ [[threads_per_threadgroup]]) {
++    const uint2 index = tg_ * ntg_ + tid_; /* through the threadgroup: see kernel_swiglu_flat_f32 */
++    const uint row = index.y;
++    const uint per_key = args.dim / 4u;
++    if (row >= args.rows || index.x >= (args.n_raw + args.n_comp) * per_key) return;
++    const uint key = index.x / per_key, d4 = index.x % per_key;
++    device const float4 *src = key < args.n_raw
++        ? (device const float4 *)(raw + (ulong)(args.raw_start + row + key) * args.dim) + d4
++        : (device const float4 *)(comp + (ulong)row * args.comp_floats +
++                                  (ulong)(key - args.n_raw) * args.dim) + d4;
++    const float4 value = float4(*(device const packed_float4 *)src);
++    *((device packed_half4 *)(dst + (ulong)row * args.slot_halves + (ulong)key * args.dim) + d4) =
++        packed_half4(half4(value));
++}
++
+ struct ds4_metal_args_dsv41_carry {
+     uint width, rows, words, format, pack;
+ };
+diff --git a/tests/test_deepseek41_tailab.c b/tests/test_deepseek41_tailab.c
+index 1684f65..ff2164b 100644
+--- a/tests/test_deepseek41_tailab.c
++++ b/tests/test_deepseek41_tailab.c
+@@ -125,6 +125,7 @@ void ds4_test_v41_attn_rows_check(int on) __attribute__((weak));
+ void ds4_test_v41_attn_rows_counts(unsigned long long out[2]) __attribute__((weak));
+ void ds4_gpu_dsv41_compare_counts(uint32_t out[16]) __attribute__((weak));
+ static int g_attn;
++uint64_t ds4_test_flash_stage_rows_tiles(void) __attribute__((weak));
+ /* "append:N:M": sync the prompt's first N tokens, then append the next M with
+  * the attention check on - an append at a short position, where rows have
+  * different compressed key counts - print the rows and the differing words,
+@@ -133,6 +134,11 @@ static uint32_t g_app_n, g_app_m;
+ /* "pkg" (with "full"): the package of exact changes as one arm - A with the
+  * every-block selection and the attention row tiles, B with neither. */
+ static int g_pkg;
++/* "stg" (with "full"): arm B stages a tile's KV and gathers a row at a time,
++ * A one dispatch a tile and one gather a run. */
++void ds4_test_flash_stage_rows(int on) __attribute__((weak));
++void ds4_test_v41_gather_rows(int on) __attribute__((weak));
++static int g_stg;
+ /* "drop:<pagecache tool>": arm B starts with the model file dropped from the
+  * file cache, outside the timed span - what the arm's reads cost from the SSD. */
+ static const char *g_drop_tool;
+@@ -190,6 +196,8 @@ static int run_arm(ds4_session **sp, const ds4_session_snapshot *snap, const ds4
+     if (g_f32) ds4_test_v41_f32_reps(b ? 2u : 1u);
+     if (g_topk1) ds4_test_v41_topk_batch(!b);
+     if (g_pkg) { ds4_test_v41_every_block(!b); ds4_test_v41_attn_rows(!b); }
++    if (g_stg) { ds4_test_flash_stage_rows(!b); ds4_test_v41_gather_rows(!b); }
++    const unsigned long long st0 = g_stg ? ds4_test_flash_stage_rows_tiles() : 0;
+     unsigned long long pk_eb0[6] = {0}, pk_ar0[2] = {0};
+     if (g_pkg) { ds4_test_v41_every_block_counts(pk_eb0); ds4_test_v41_attn_rows_counts(pk_ar0); }
+     if (g_eb) ds4_test_v41_every_block(!b);
+@@ -218,7 +226,7 @@ static int run_arm(ds4_session **sp, const ds4_session_snapshot *snap, const ds4
+     }
+     if (g_benv_name[0]) { if (b) setenv(g_benv_name, g_benv_value, 1); else unsetenv(g_benv_name); }
+     if (g_rows[0] && ds4_test_v41_tail_rows) ds4_test_v41_tail_rows(g_rows[b]);
+-    else if (!g_em && !g_prev && !g_q8 && !g_gu2 && !g_drop_tool && !g_il && !g_f32 && !g_pabl && !g_topk1 && !g_eb && !g_attn && !g_pkg && ds4_test_v41_token_major_tail) ds4_test_v41_token_major_tail(b);
++    else if (!g_em && !g_prev && !g_q8 && !g_gu2 && !g_drop_tool && !g_il && !g_f32 && !g_pabl && !g_topk1 && !g_eb && !g_attn && !g_pkg && !g_stg && ds4_test_v41_token_major_tail) ds4_test_v41_token_major_tail(b);
+     ds4_session *s = *sp;
+     uint64_t h0, m0, e0, h1, m1, e1;
+     const uint64_t em0 = ds4_gpu_moe_expert_major_dispatches ? ds4_gpu_moe_expert_major_dispatches() : 0;
+@@ -260,8 +268,16 @@ static int run_arm(ds4_session **sp, const ds4_session_snapshot *snap, const ds4
+         ds4_gpu_dsv41_compare_counts(ac1);
+         ds4_test_v41_attn_rows(1);
+         ds4_test_v41_attn_rows_check(0);
+-        printf("attn     arm %c: %llu rows tiled, %llu a row; heads words differing %u\n",
+-               b ? 'B' : 'A', ar1[0] - ar0[0], ar1[1] - ar0[1], ac1[11] - ac0[11]);
++        printf("attn     arm %c: %llu rows tiled, %llu a row; heads words differing %u; "
++               "%llu tiles staged at once (cumulative)\n",
++               b ? 'B' : 'A', ar1[0] - ar0[0], ar1[1] - ar0[1], ac1[11] - ac0[11],
++               ds4_test_flash_stage_rows_tiles ? (unsigned long long)ds4_test_flash_stage_rows_tiles() : 0ull);
++    }
++    if (g_stg) {
++        printf("stg      arm %c: %llu tiles staged at once\n", b ? 'B' : 'A',
++               (unsigned long long)ds4_test_flash_stage_rows_tiles() - st0);
++        ds4_test_flash_stage_rows(1);
++        ds4_test_v41_gather_rows(1);
+     }
+     if (g_pkg) {
+         unsigned long long eb1[6], ar1[2];
+@@ -333,6 +349,10 @@ int main(int argc, char **argv) {
+             if (!ds4_test_v41_attn_rows || !ds4_test_v41_attn_rows_check ||
+                 !ds4_test_v41_attn_rows_counts || !ds4_gpu_dsv41_compare_counts) return 2;
+             g_attn = argv[a][4] == 'c' ? 2 : 1;
++        } else if (strcmp(argv[a], "stg") == 0) {
++            if (!ds4_test_flash_stage_rows || !ds4_test_v41_gather_rows ||
++                !ds4_test_flash_stage_rows_tiles) return 2;
++            g_stg = 1;
+         } else if (strcmp(argv[a], "pkg") == 0) {
+             if (!ds4_test_v41_every_block || !ds4_test_v41_attn_rows) return 2;
+             g_pkg = 1;
+@@ -425,8 +445,10 @@ int main(int argc, char **argv) {
+         ds4_test_v41_attn_rows_check(0);
+         ds4_test_v41_attn_rows_counts(r1);
+         ds4_gpu_dsv41_compare_counts(c1);
+-        printf("append   %u then %u tokens: %llu rows tiled, %llu a row; heads words differing %u%s\n",
++        printf("append   %u then %u tokens: %llu rows tiled, %llu a row; heads words differing %u; "
++               "%llu tiles staged at once%s\n",
+                g_app_n, g_app_m, r1[0] - r0[0], r1[1] - r0[1], c1[11] - c0[11],
++               ds4_test_flash_stage_rows_tiles ? (unsigned long long)ds4_test_flash_stage_rows_tiles() : 0ull,
+                ok ? "" : " (sync failed)");
+         ds4_tokens_free(&head); ds4_tokens_free(&both);
+         return ok && c1[11] == c0[11] ? 0 : 1;
