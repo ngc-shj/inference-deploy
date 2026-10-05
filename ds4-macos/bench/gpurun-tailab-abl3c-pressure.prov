@@ -1,0 +1,8 @@
+command ./m4tailab.sh abl3c 0 10268 full abl3 cool:150
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-05 14:14:26 ds4-server 0 tests 0 pressure level 1 wired 5.25 GiB free 86% swap 0.19 GiB
+pid 86998 process group 86998
+ORPHANS: 1 process(es) left in the group after the command exited (rc 143)
+ASKED TO STOP (SIGTERM to the group) at wired 79.17 GiB pressure 2 swap+ 0.00 GiB
+rc 143 peak wired 79.66 GiB, peak pressure level 2, peak swap growth 0 GiB, peak group footprint 69.67 GiB, peak Metal 66.00 GiB
+after 2026-10-05 14:22:02 ds4-server 0 tests 0 pressure level 1 wired 4.56 GiB free 84% swap 0.19 GiB

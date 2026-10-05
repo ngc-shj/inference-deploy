@@ -1,0 +1,1 @@
+prefix   4096 rows layer-major in 24.305 s (cold), 5.93 ms a row; tail 699 rows; B = token-major; arms prefill the whole prompt
