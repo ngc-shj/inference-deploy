@@ -1,0 +1,562 @@
+ds4: abort gate on for the first 40 layers
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: V4.1 SSD cache fitted from 10268 to 6679 experts for context/runtime headroom
+ds4: Metal backend: Metal 4
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: metal SSD streaming cache target 61.91 GiB; effective 61.91 GiB = 7.12 GiB prefill headroom + 54.79 GiB dynamic cache (5911 experts, 9.49 MiB each)
+ds4: Metal SSD static weights locked 9.37 GiB; pageable 0.00 GiB
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: expert cache prewarmed from the built-in V4.1 hotlist: 5910 experts (0 failed), 54.78 GiB in 6.04 s; stopped where the cache was full
+ds4: memory: KV 0.06 GiB (raw 0.01 + compressed 0.05) + buffers 3.30 GiB + resident model 9.37 GiB + expert cache 54.79 GiB + prefill expert reserve 7.12 GiB = 74.64 GiB planned
+ds4: memory detail: ctx=8192 prefill_cap=4096 raw_kv_rows=128 compressed_kv_rows=8193 backend=metal
+ds4: V4.1 executor ABI 3, arena align 256, rev da69deb87099, built Oct  5 2026 17:27:33
+ds4: V4.1 static context buffers 3435.75 MiB (ctx=8192), Engram disk-only
+ds4: expert cache lent the prefill headroom for decode: 5911 -> 6679 experts
+prefix   4096 rows layer-major in 25.313 s (cold), 6.18 ms a row; tail 699 rows; B = token-major
+ds4: V4.1 K-block effective configuration: rows=699 exact_vocab=0 head_tile=0 dense_tile=4 block_kv=1 block_levels=1 block_attn_k=0 block_attn_raw=0 block_low_batch=0 block_attn=0 batch_fuse=0 batch_attn_out=1 batch_stream_experts=1 row_gather=1 moe_expert_major=0 block_txn=0 row_logits_readback=0
+ds4: V4.1 block-local KV delta, 699 rows over 127 prefix keys
+ds4: V4.1 batch attn_output_b hoisted out of the per-row loop (699 rows)
+ds4: V4.1 routed gate/up encode: ds4_gpu_encode_mul_mv_addr_iq2_pair_swiglu
+ds4: V4.1 block attention by level, 699 rows, concurrent section open
+ds4: V4.1 batch step rows=699 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 prefill tail at position 4096 ran 699 rows as 1 batch steps
+ds4: expert cache lent the prefill headroom for decode: 5911 -> 6679 experts
+touched  the tail used 9604 distinct experts of 15360 (89.0 GiB at 9.49 MiB each); 4545 loads, 4545 misses
+ds4: shared/routed FFN overlap ran, mode 1
+ds4:   decode path so far: 64 single-row steps (45.0 ms each inside the graph over the last 64), 1 K-row verification steps over 699 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1398 nodes attended one at a time
+ds4: gate over tokens 1-64: 20.47 command buffers, 9.48 aborts, 240.0 expert ids accounted, 104.71 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.14 + commit-to-done 29.30 + repair-load 9.95 + accounting 0.03 + tail 0.00 = 40.43 of a 44.67 ms wall, residual 4.25
+ds4:   GPU busy 452.64 ms of the token's wall (the union of its buffers' spans), idle -407.96 ms
+ds4:   1348.9 gated dispatches a token, 8.4 of them behind an abort; 315.5 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 9.98 segments used, 9.00 dropped, 3.95 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 167.91 attempted, 167.91 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 33.92 command buffers sent, 9743.9 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 33.92 contexts in 35.98 command buffers (0.69 split); 10852.7 nodes = 9743.9 dispatches + 1108.7 copies; barriers 5191.0 from the graph, 72.0 queue; engine asked for 98.5 barriers and 359.6 section ends, neither encoded; 25825.0 buffer and 10218.7 constant bindings (819493 B), 0.0 with no stated length; 33.92 blocking waits, 455.04 ms
+ds4:   expert cache over the last 64 tokens: 2810.42 hits, 239.84 misses, 147.48 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 103.38 genuinely absent
+ds4:   of the repair a token: readahead 28.61 ms, slot preparation 39.23 ms, reads 36.22 ms, install 0.21 ms, over 168.83 loads
+ds4:   Engram rows written at step start in 64 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 128 single-row steps (46.2 ms each inside the graph over the last 64), 1 K-row verification steps over 699 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1398 nodes attended one at a time
+ds4: gate over tokens 65-128: 21.84 command buffers, 11.53 aborts, 240.0 expert ids accounted, 129.63 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.28 + commit-to-done 28.87 + repair-load 11.68 + accounting 0.03 + tail 0.00 = 41.86 of a 45.51 ms wall, residual 3.66
+ds4:   GPU busy 29.19 ms of the token's wall (the union of its buffers' spans), idle 16.32 ms
+ds4:   1363.2 gated dispatches a token, 10.8 of them behind an abort; 385.2 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 9.31 segments used, 10.91 dropped, 3.36 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 186.38 attempted, 186.38 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 32.75 command buffers sent, 2767.1 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 32.75 contexts in 32.75 command buffers (0.00 split); 2885.3 nodes = 2767.1 dispatches + 118.2 copies; barriers 2060.8 from the graph, 65.5 queue; engine asked for 101.9 barriers and 394.0 section ends, neither encoded; 11306.2 buffer and 3190.8 constant bindings (284294 B), 0.0 with no stated length; 32.75 blocking waits, 27.56 ms
+ds4:   expert cache over the last 64 tokens: 239.80 hits, 13.66 misses, 13.66 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 13.66 genuinely absent
+ds4:   of the repair a token: readahead 5.72 ms, slot preparation 0.50 ms, reads 5.25 ms, install 0.03 ms, over 13.66 loads
+ds4:   Engram rows written at step start in 128 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 192 single-row steps (51.0 ms each inside the graph over the last 64), 1 K-row verification steps over 699 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1398 nodes attended one at a time
+ds4: gate over tokens 129-192: 22.55 command buffers, 13.19 aborts, 240.0 expert ids accounted, 153.80 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.47 + commit-to-done 29.73 + repair-load 15.41 + accounting 0.04 + tail 0.00 = 46.65 of a 50.47 ms wall, residual 3.82
+ds4:   GPU busy 29.57 ms of the token's wall (the union of its buffers' spans), idle 20.90 ms
+ds4:   1347.6 gated dispatches a token, 8.9 of them behind an abort; 433.9 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.36 segments used, 12.67 dropped, 3.49 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 201.03 attempted, 201.03 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 35.22 command buffers sent, 2963.0 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 35.22 contexts in 35.22 command buffers (0.00 split); 3099.8 nodes = 2963.0 dispatches + 136.8 copies; barriers 2204.6 from the graph, 70.4 queue; engine asked for 108.4 barriers and 424.1 section ends, neither encoded; 12113.5 buffer and 3419.2 constant bindings (304472 B), 0.0 with no stated length; 35.22 blocking waits, 28.27 ms
+ds4:   expert cache over the last 64 tokens: 239.94 hits, 16.20 misses, 16.20 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 16.20 genuinely absent
+ds4:   of the repair a token: readahead 7.54 ms, slot preparation 0.59 ms, reads 7.02 ms, install 0.03 ms, over 16.20 loads
+ds4:   Engram rows written at step start in 192 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 256 single-row steps (55.7 ms each inside the graph over the last 64), 1 K-row verification steps over 699 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1398 nodes attended one at a time
+ds4: gate over tokens 193-256: 22.81 command buffers, 13.48 aborts, 240.0 expert ids accounted, 155.43 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.55 + commit-to-done 31.09 + repair-load 18.32 + accounting 0.03 + tail 0.00 = 51.00 of a 54.96 ms wall, residual 3.97
+ds4:   GPU busy 30.83 ms of the token's wall (the union of its buffers' spans), idle 24.13 ms
+ds4:   1348.2 gated dispatches a token, 9.8 of them behind an abort; 446.1 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.33 segments used, 12.84 dropped, 3.61 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 202.53 attempted, 202.53 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 35.66 command buffers sent, 2980.5 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 35.66 contexts in 35.66 command buffers (0.00 split); 3120.7 nodes = 2980.5 dispatches + 140.1 copies; barriers 2218.8 from the graph, 71.3 queue; engine asked for 109.0 barriers and 427.2 section ends, neither encoded; 12185.5 buffer and 3439.7 constant bindings (306394 B), 0.0 with no stated length; 35.66 blocking waits, 29.60 ms
+ds4:   expert cache over the last 64 tokens: 239.95 hits, 16.38 misses, 16.38 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 16.38 genuinely absent
+ds4:   of the repair a token: readahead 8.60 ms, slot preparation 0.63 ms, reads 8.82 ms, install 0.03 ms, over 16.38 loads
+ds4:   Engram rows written at step start in 256 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 320 single-row steps (54.3 ms each inside the graph over the last 64), 1 K-row verification steps over 699 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1398 nodes attended one at a time
+ds4: gate over tokens 257-320: 23.12 command buffers, 13.62 aborts, 240.0 expert ids accounted, 159.88 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.50 + commit-to-done 30.79 + repair-load 17.27 + accounting 0.03 + tail 0.00 = 49.60 of a 53.51 ms wall, residual 3.90
+ds4:   GPU busy 30.54 ms of the token's wall (the union of its buffers' spans), idle 22.97 ms
+ds4:   1374.0 gated dispatches a token, 13.6 of them behind an abort; 445.3 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.50 segments used, 12.84 dropped, 3.56 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 204.75 attempted, 204.75 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 35.97 command buffers sent, 3013.0 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 35.97 contexts in 35.97 command buffers (0.00 split); 3154.6 nodes = 3013.0 dispatches + 141.6 copies; barriers 2241.7 from the graph, 71.9 queue; engine asked for 110.1 barriers and 431.8 section ends, neither encoded; 12319.3 buffer and 3477.3 constant bindings (309598 B), 0.0 with no stated length; 35.97 blocking waits, 29.31 ms
+ds4:   expert cache over the last 64 tokens: 239.91 hits, 16.84 misses, 16.84 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 16.84 genuinely absent
+ds4:   of the repair a token: readahead 8.96 ms, slot preparation 0.61 ms, reads 7.42 ms, install 0.03 ms, over 16.84 loads
+ds4:   Engram rows written at step start in 320 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 384 single-row steps (60.2 ms each inside the graph over the last 64), 1 K-row verification steps over 699 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1398 nodes attended one at a time
+ds4: gate over tokens 321-384: 24.17 command buffers, 15.47 aborts, 240.0 expert ids accounted, 184.36 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.92 + commit-to-done 31.08 + repair-load 21.99 + accounting 0.03 + tail 0.00 = 55.03 of a 59.69 ms wall, residual 4.66
+ds4:   GPU busy 30.77 ms of the token's wall (the union of its buffers' spans), idle 28.92 ms
+ds4:   1359.6 gated dispatches a token, 18.7 of them behind an abort; 500.6 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 7.70 segments used, 14.52 dropped, 4.24 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 219.28 attempted, 219.28 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 38.69 command buffers sent, 3204.1 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 38.69 contexts in 38.69 command buffers (0.00 split); 3362.3 nodes = 3204.1 dispatches + 158.2 copies; barriers 2383.3 from the graph, 77.4 queue; engine asked for 116.4 barriers and 461.8 section ends, neither encoded; 13107.9 buffer and 3700.2 constant bindings (329627 B), 0.0 with no stated length; 38.69 blocking waits, 29.25 ms
+ds4:   expert cache over the last 64 tokens: 239.94 hits, 19.42 misses, 19.42 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 19.42 genuinely absent
+ds4:   of the repair a token: readahead 12.03 ms, slot preparation 0.79 ms, reads 8.81 ms, install 0.04 ms, over 19.42 loads
+ds4:   Engram rows written at step start in 384 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 448 single-row steps (56.1 ms each inside the graph over the last 64), 1 K-row verification steps over 699 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1398 nodes attended one at a time
+ds4: gate over tokens 385-448: 23.27 command buffers, 14.11 aborts, 240.0 expert ids accounted, 168.78 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.89 + commit-to-done 29.71 + repair-load 18.82 + accounting 0.03 + tail 0.00 = 50.46 of a 55.32 ms wall, residual 4.86
+ds4:   GPU busy 30.08 ms of the token's wall (the union of its buffers' spans), idle 25.24 ms
+ds4:   1362.7 gated dispatches a token, 12.2 of them behind an abort; 464.2 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.16 segments used, 13.30 dropped, 4.48 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 208.69 attempted, 208.69 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 36.56 command buffers sent, 3069.4 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 36.56 contexts in 36.56 command buffers (0.00 split); 3216.0 nodes = 3069.4 dispatches + 146.7 copies; barriers 2284.1 from the graph, 73.1 queue; engine asked for 111.7 barriers and 439.8 section ends, neither encoded; 12543.2 buffer and 3542.4 constant bindings (315417 B), 0.0 with no stated length; 36.56 blocking waits, 27.90 ms
+ds4:   expert cache over the last 64 tokens: 239.88 hits, 17.78 misses, 17.78 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 17.78 genuinely absent
+ds4:   of the repair a token: readahead 9.94 ms, slot preparation 0.82 ms, reads 7.70 ms, install 0.04 ms, over 17.78 loads
+ds4:   Engram rows written at step start in 448 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 512 single-row steps (55.4 ms each inside the graph over the last 64), 1 K-row verification steps over 699 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1398 nodes attended one at a time
+ds4: gate over tokens 449-512: 22.94 command buffers, 13.19 aborts, 240.0 expert ids accounted, 155.73 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.51 + commit-to-done 30.49 + repair-load 18.57 + accounting 0.03 + tail 0.00 = 50.60 of a 54.58 ms wall, residual 3.98
+ds4:   GPU busy 30.42 ms of the token's wall (the union of its buffers' spans), idle 24.15 ms
+ds4:   1364.4 gated dispatches a token, 11.2 of them behind an abort; 430.2 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.75 segments used, 12.48 dropped, 3.63 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 200.56 attempted, 200.56 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 35.42 command buffers sent, 2955.6 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 35.42 contexts in 35.42 command buffers (0.00 split); 3093.5 nodes = 2955.6 dispatches + 137.9 copies; barriers 2200.4 from the graph, 70.8 queue; engine asked for 108.3 barriers and 423.4 section ends, neither encoded; 12083.8 buffer and 3410.4 constant bindings (303777 B), 0.0 with no stated length; 35.42 blocking waits, 29.03 ms
+ds4:   expert cache over the last 64 tokens: 239.98 hits, 16.41 misses, 16.41 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 16.41 genuinely absent
+ds4:   of the repair a token: readahead 9.96 ms, slot preparation 0.58 ms, reads 7.74 ms, install 0.03 ms, over 16.41 loads
+ds4:   Engram rows written at step start in 512 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 576 single-row steps (54.2 ms each inside the graph over the last 64), 1 K-row verification steps over 699 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1398 nodes attended one at a time
+ds4: gate over tokens 513-576: 22.53 command buffers, 12.89 aborts, 240.0 expert ids accounted, 148.46 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.54 + commit-to-done 30.40 + repair-load 17.23 + accounting 0.04 + tail 0.00 = 49.20 of a 53.25 ms wall, residual 4.05
+ds4:   GPU busy 30.34 ms of the token's wall (the union of its buffers' spans), idle 22.91 ms
+ds4:   1354.2 gated dispatches a token, 8.9 of them behind an abort; 427.4 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.64 segments used, 12.33 dropped, 3.72 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 198.50 attempted, 198.50 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 34.86 command buffers sent, 2936.4 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 34.86 contexts in 34.86 command buffers (0.00 split); 3071.8 nodes = 2936.4 dispatches + 135.4 copies; barriers 2186.1 from the graph, 69.7 queue; engine asked for 107.3 barriers and 419.0 section ends, neither encoded; 11992.5 buffer and 3386.9 constant bindings (301596 B), 0.0 with no stated length; 34.86 blocking waits, 28.89 ms
+ds4:   expert cache over the last 64 tokens: 239.97 hits, 15.64 misses, 15.64 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 15.64 genuinely absent
+ds4:   of the repair a token: readahead 9.48 ms, slot preparation 0.62 ms, reads 6.87 ms, install 0.03 ms, over 15.64 loads
+ds4:   Engram rows written at step start in 576 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 640 single-row steps (56.2 ms each inside the graph over the last 64), 1 K-row verification steps over 699 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1398 nodes attended one at a time
+ds4: gate over tokens 577-640: 22.59 command buffers, 12.84 aborts, 240.0 expert ids accounted, 155.43 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.52 + commit-to-done 31.50 + repair-load 18.75 + accounting 0.04 + tail 0.00 = 51.80 of a 55.83 ms wall, residual 4.03
+ds4:   GPU busy 31.32 ms of the token's wall (the union of its buffers' spans), idle 24.51 ms
+ds4:   1361.4 gated dispatches a token, 9.8 of them behind an abort; 420.8 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.75 segments used, 12.08 dropped, 3.70 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 195.91 attempted, 195.91 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 34.67 command buffers sent, 2883.1 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 34.67 contexts in 34.67 command buffers (0.00 split); 3019.2 nodes = 2883.1 dispatches + 136.1 copies; barriers 2145.8 from the graph, 69.3 queue; engine asked for 105.9 barriers and 413.6 section ends, neither encoded; 11795.4 buffer and 3327.3 constant bindings (296437 B), 0.0 with no stated length; 34.67 blocking waits, 30.02 ms
+ds4:   expert cache over the last 64 tokens: 239.95 hits, 16.38 misses, 16.38 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 16.38 genuinely absent
+ds4:   of the repair a token: readahead 10.51 ms, slot preparation 0.59 ms, reads 7.33 ms, install 0.03 ms, over 16.38 loads
+ds4:   Engram rows written at step start in 640 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4: V4.1 prefill tail of 699 rows at position 4096 ran 699 token-major steps
+ds4: expert cache lent the prefill headroom for decode: 5911 -> 6679 experts
+host     A: drain 6.01, prepare 3.63 (load prepare 0.00, pread 0.00, install 0.00, slot buffers 0.00, readahead 0.00, reuse scan 0.00) s
+host     B: drain 0.00, prepare 0.00 (load prepare 0.00, pread 0.00, install 0.00, slot buffers 0.00, readahead 0.00, reuse scan 0.00) s
+warm-up  A 16.711 s, B 38.194 s; reference logits dd695094752a1c7e state d721dfb78fb413ae
+ds4: V4.1 batch step rows=699 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 prefill tail at position 4096 ran 699 rows as 1 batch steps
+ds4: expert cache lent the prefill headroom for decode: 5911 -> 6679 experts
+round 0 A  32.417 s  logits dd695094752a1c7e state d721dfb78fb413ae same | hits 160823 misses 6937 loads 6937 evictions 6937, expert-major dispatches 0
+ds4:   decode path so far: 704 single-row steps (68.1 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 641-704: 25.70 command buffers, 17.61 aborts, 240.0 expert ids accounted, 228.85 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 2.01 + commit-to-done 35.36 + repair-load 24.15 + accounting 0.04 + tail 0.00 = 61.56 of a 66.86 ms wall, residual 5.31
+ds4:   GPU busy 387.22 ms of the token's wall (the union of its buffers' spans), idle -320.36 ms
+ds4:   1382.4 gated dispatches a token, 15.9 of them behind an abort; 570.2 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 7.09 segments used, 16.80 dropped, 4.81 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 241.84 attempted, 241.84 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 43.81 command buffers sent, 9454.5 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 43.81 contexts in 45.69 command buffers (0.62 split); 10212.8 nodes = 9454.5 dispatches + 758.3 copies; barriers 4567.5 from the graph, 91.4 queue; engine asked for 132.2 barriers and 509.9 section ends, neither encoded; 26904.7 buffer and 10011.7 constant bindings (809236 B), 0.0 with no stated length; 43.81 blocking waits, 390.83 ms
+ds4:   expert cache over the last 64 tokens: 2752.75 hits, 132.50 misses, 132.50 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 24.11 genuinely absent
+ds4:   of the repair a token: readahead 12.82 ms, slot preparation 0.72 ms, reads 10.09 ms, install 0.04 ms, over 24.11 loads
+ds4:   Engram rows written at step start in 704 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 768 single-row steps (90.1 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 705-768: 19.95 command buffers, 8.89 aborts, 240.0 expert ids accounted, 97.29 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.25 + commit-to-done 71.00 + repair-load 13.17 + accounting 0.05 + tail 0.00 = 85.47 of a 89.77 ms wall, residual 4.31
+ds4:   GPU busy 71.34 ms of the token's wall (the union of its buffers' spans), idle 18.43 ms
+ds4:   1340.2 gated dispatches a token, 4.7 of them behind an abort; 294.6 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 10.06 segments used, 8.55 dropped, 3.77 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 162.72 attempted, 162.72 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 28.50 command buffers sent, 2448.3 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 28.50 contexts in 28.50 command buffers (0.00 split); 2546.0 nodes = 2448.3 dispatches + 97.7 copies; barriers 1824.7 from the graph, 57.0 queue; engine asked for 91.1 barriers and 345.0 section ends, neither encoded; 9993.0 buffer and 2819.7 constant bindings (251226 B), 0.0 with no stated length; 28.50 blocking waits, 69.81 ms
+ds4:   expert cache over the last 64 tokens: 237.44 hits, 10.25 misses, 10.25 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 10.25 genuinely absent
+ds4:   of the repair a token: readahead 7.67 ms, slot preparation 0.53 ms, reads 4.80 ms, install 0.03 ms, over 10.25 loads
+ds4:   Engram rows written at step start in 768 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 832 single-row steps (89.0 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 769-832: 22.62 command buffers, 13.03 aborts, 240.0 expert ids accounted, 149.06 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.85 + commit-to-done 61.17 + repair-load 19.59 + accounting 0.05 + tail 0.00 = 82.65 of a 87.88 ms wall, residual 5.24
+ds4:   GPU busy 61.24 ms of the token's wall (the union of its buffers' spans), idle 26.64 ms
+ds4:   1357.4 gated dispatches a token, 7.0 of them behind an abort; 437.2 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.59 segments used, 12.70 dropped, 4.51 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 202.31 attempted, 202.31 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 35.33 command buffers sent, 2994.2 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 35.33 contexts in 35.33 command buffers (0.00 split); 3126.6 nodes = 2994.2 dispatches + 132.4 copies; barriers 2229.9 from the graph, 70.7 queue; engine asked for 109.4 barriers and 426.9 section ends, neither encoded; 12230.7 buffer and 3453.6 constant bindings (307697 B), 0.0 with no stated length; 35.33 blocking waits, 59.62 ms
+ds4:   expert cache over the last 64 tokens: 239.94 hits, 15.70 misses, 15.70 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 15.70 genuinely absent
+ds4:   of the repair a token: readahead 11.41 ms, slot preparation 0.77 ms, reads 7.10 ms, install 0.04 ms, over 15.70 loads
+ds4:   Engram rows written at step start in 832 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 896 single-row steps (87.6 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 833-896: 22.88 command buffers, 13.62 aborts, 240.0 expert ids accounted, 160.48 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 2.10 + commit-to-done 55.22 + repair-load 23.85 + accounting 0.04 + tail 0.00 = 81.21 of a 86.82 ms wall, residual 5.62
+ds4:   GPU busy 54.98 ms of the token's wall (the union of its buffers' spans), idle 31.84 ms
+ds4:   1351.9 gated dispatches a token, 11.7 of them behind an abort; 443.7 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.25 segments used, 12.95 dropped, 4.97 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 203.81 attempted, 203.81 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 35.83 command buffers sent, 2997.4 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 35.83 contexts in 35.83 command buffers (0.00 split); 3138.8 nodes = 2997.4 dispatches + 141.4 copies; barriers 2230.0 from the graph, 71.7 queue; engine asked for 109.5 barriers and 429.8 section ends, neither encoded; 12255.0 buffer and 3459.5 constant bindings (308052 B), 0.0 with no stated length; 35.83 blocking waits, 53.47 ms
+ds4:   expert cache over the last 64 tokens: 239.86 hits, 16.91 misses, 16.91 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 16.91 genuinely absent
+ds4:   of the repair a token: readahead 14.03 ms, slot preparation 0.81 ms, reads 8.60 ms, install 0.04 ms, over 16.91 loads
+ds4:   Engram rows written at step start in 896 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 960 single-row steps (87.8 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 897-960: 22.80 command buffers, 13.45 aborts, 240.0 expert ids accounted, 155.73 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 2.47 + commit-to-done 53.96 + repair-load 23.76 + accounting 0.04 + tail 0.00 = 80.23 of a 86.79 ms wall, residual 6.56
+ds4:   GPU busy 53.45 ms of the token's wall (the union of its buffers' spans), idle 33.34 ms
+ds4:   1347.6 gated dispatches a token, 10.3 of them behind an abort; 446.4 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.34 segments used, 12.83 dropped, 5.84 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 202.22 attempted, 202.22 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 35.62 command buffers sent, 2975.2 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 35.62 contexts in 35.62 command buffers (0.00 split); 3114.2 nodes = 2975.2 dispatches + 139.0 copies; barriers 2214.8 from the graph, 71.2 queue; engine asked for 108.8 barriers and 426.6 section ends, neither encoded; 12165.6 buffer and 3433.7 constant bindings (305847 B), 0.0 with no stated length; 35.62 blocking waits, 52.04 ms
+ds4:   expert cache over the last 64 tokens: 239.95 hits, 16.41 misses, 16.41 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 16.41 genuinely absent
+ds4:   of the repair a token: readahead 14.24 ms, slot preparation 1.08 ms, reads 8.01 ms, install 0.05 ms, over 16.41 loads
+ds4:   Engram rows written at step start in 960 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 1024 single-row steps (92.0 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 961-1024: 23.31 command buffers, 13.92 aborts, 240.0 expert ids accounted, 162.55 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 3.45 + commit-to-done 49.32 + repair-load 29.45 + accounting 0.05 + tail 0.00 = 82.27 of a 90.88 ms wall, residual 8.61
+ds4:   GPU busy 47.50 ms of the token's wall (the union of its buffers' spans), idle 43.38 ms
+ds4:   1377.9 gated dispatches a token, 14.1 of them behind an abort; 453.5 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.39 segments used, 13.11 dropped, 7.94 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 207.62 attempted, 207.62 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 36.42 command buffers sent, 3052.5 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 36.42 contexts in 36.42 command buffers (0.00 split); 3196.5 nodes = 3052.5 dispatches + 143.9 copies; barriers 2270.9 from the graph, 72.8 queue; engine asked for 111.4 barriers and 437.8 section ends, neither encoded; 12481.5 buffer and 3523.3 constant bindings (313701 B), 0.0 with no stated length; 36.42 blocking waits, 46.37 ms
+ds4:   expert cache over the last 64 tokens: 239.91 hits, 17.12 misses, 17.12 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 17.12 genuinely absent
+ds4:   of the repair a token: readahead 18.42 ms, slot preparation 1.38 ms, reads 9.08 ms, install 0.08 ms, over 17.12 loads
+ds4:   Engram rows written at step start in 1024 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 1088 single-row steps (128.6 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 1025-1088: 24.03 command buffers, 15.17 aborts, 240.0 expert ids accounted, 180.50 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 6.22 + commit-to-done 53.99 + repair-load 51.30 + accounting 0.06 + tail 0.00 = 111.57 of a 126.70 ms wall, residual 15.13
+ds4:   GPU busy 41.99 ms of the token's wall (the union of its buffers' spans), idle 84.71 ms
+ds4:   1364.0 gated dispatches a token, 19.2 of them behind an abort; 492.5 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 7.86 segments used, 14.20 dropped, 11.87 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 216.81 attempted, 216.81 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 38.23 command buffers sent, 3172.6 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 38.23 contexts in 38.23 command buffers (0.00 split); 3328.8 nodes = 3172.6 dispatches + 156.2 copies; barriers 2360.4 from the graph, 76.5 queue; engine asked for 115.3 barriers and 456.7 section ends, neither encoded; 12975.8 buffer and 3663.2 constant bindings (326340 B), 0.0 with no stated length; 38.23 blocking waits, 48.83 ms
+ds4:   expert cache over the last 64 tokens: 239.95 hits, 19.02 misses, 19.02 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 19.02 genuinely absent
+ds4:   of the repair a token: readahead 26.44 ms, slot preparation 2.26 ms, reads 21.70 ms, install 0.21 ms, over 19.02 loads
+ds4:   Engram rows written at step start in 1088 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 1152 single-row steps (110.0 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 1089-1152: 23.14 command buffers, 13.95 aborts, 240.0 expert ids accounted, 165.96 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 5.36 + commit-to-done 49.27 + repair-load 40.12 + accounting 0.06 + tail 0.00 = 94.81 of a 107.66 ms wall, residual 12.85
+ds4:   GPU busy 43.95 ms of the token's wall (the union of its buffers' spans), idle 63.71 ms
+ds4:   1357.5 gated dispatches a token, 12.2 of them behind an abort; 459.4 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.19 segments used, 13.14 dropped, 11.40 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 206.78 attempted, 206.78 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 36.28 command buffers sent, 3042.3 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 36.28 contexts in 36.28 command buffers (0.00 split); 3187.5 nodes = 3042.3 dispatches + 145.2 copies; barriers 2263.9 from the graph, 72.6 queue; engine asked for 110.8 barriers and 435.9 section ends, neither encoded; 12432.4 buffer and 3511.0 constant bindings (312630 B), 0.0 with no stated length; 36.28 blocking waits, 44.73 ms
+ds4:   expert cache over the last 64 tokens: 239.88 hits, 17.48 misses, 17.48 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 17.48 genuinely absent
+ds4:   of the repair a token: readahead 23.02 ms, slot preparation 1.83 ms, reads 14.51 ms, install 0.12 ms, over 17.48 loads
+ds4:   Engram rows written at step start in 1152 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 1216 single-row steps (93.9 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 1153-1216: 23.05 command buffers, 13.34 aborts, 240.0 expert ids accounted, 158.25 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 4.31 + commit-to-done 43.90 + repair-load 34.16 + accounting 0.05 + tail 0.00 = 82.42 of a 93.08 ms wall, residual 10.66
+ds4:   GPU busy 41.22 ms of the token's wall (the union of its buffers' spans), idle 51.85 ms
+ds4:   1365.4 gated dispatches a token, 11.2 of them behind an abort; 436.0 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.70 segments used, 12.66 dropped, 9.85 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 202.34 attempted, 202.34 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 35.70 command buffers sent, 2981.5 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 35.70 contexts in 35.70 command buffers (0.00 split); 3120.9 nodes = 2981.5 dispatches + 139.5 copies; barriers 2219.7 from the graph, 71.4 queue; engine asked for 109.2 barriers and 427.0 section ends, neither encoded; 12188.4 buffer and 3440.3 constant bindings (306429 B), 0.0 with no stated length; 35.70 blocking waits, 40.28 ms
+ds4:   expert cache over the last 64 tokens: 239.98 hits, 16.67 misses, 16.67 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 16.67 genuinely absent
+ds4:   of the repair a token: readahead 22.31 ms, slot preparation 1.53 ms, reads 9.65 ms, install 0.10 ms, over 16.67 loads
+ds4:   Engram rows written at step start in 1216 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 1280 single-row steps (81.7 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 1217-1280: 22.52 command buffers, 12.81 aborts, 240.0 expert ids accounted, 147.87 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 3.10 + commit-to-done 42.95 + repair-load 26.21 + accounting 0.05 + tail 0.00 = 72.31 of a 80.55 ms wall, residual 8.24
+ds4:   GPU busy 41.55 ms of the token's wall (the union of its buffers' spans), idle 39.00 ms
+ds4:   1355.8 gated dispatches a token, 8.0 of them behind an abort; 423.8 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.70 segments used, 12.27 dropped, 7.71 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 197.69 attempted, 197.69 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 34.78 command buffers sent, 2924.0 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 34.78 contexts in 34.78 command buffers (0.00 split); 3058.7 nodes = 2924.0 dispatches + 134.7 copies; barriers 2176.7 from the graph, 69.6 queue; engine asked for 107.0 barriers and 417.3 section ends, neither encoded; 11943.7 buffer and 3372.6 constant bindings (300319 B), 0.0 with no stated length; 34.78 blocking waits, 40.29 ms
+ds4:   expert cache over the last 64 tokens: 239.97 hits, 15.58 misses, 15.58 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 15.58 genuinely absent
+ds4:   of the repair a token: readahead 16.29 ms, slot preparation 1.19 ms, reads 8.22 ms, install 0.06 ms, over 15.58 loads
+ds4:   Engram rows written at step start in 1280 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 1344 single-row steps (80.8 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 1281-1344: 22.84 command buffers, 13.20 aborts, 240.0 expert ids accounted, 159.14 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 2.52 + commit-to-done 45.12 + repair-load 24.87 + accounting 0.04 + tail 0.00 = 72.55 of a 79.21 ms wall, residual 6.66
+ds4:   GPU busy 44.18 ms of the token's wall (the union of its buffers' spans), idle 35.04 ms
+ds4:   1366.5 gated dispatches a token, 11.7 of them behind an abort; 431.5 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.64 segments used, 12.39 dropped, 6.21 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 199.47 attempted, 199.47 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 35.23 command buffers sent, 2931.4 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 35.23 contexts in 35.23 command buffers (0.00 split); 3070.6 nodes = 2931.4 dispatches + 139.2 copies; barriers 2181.4 from the graph, 70.5 queue; engine asked for 107.6 barriers and 421.0 section ends, neither encoded; 11995.0 buffer and 3383.6 constant bindings (301448 B), 0.0 with no stated length; 35.23 blocking waits, 42.93 ms
+ds4:   expert cache over the last 64 tokens: 239.95 hits, 16.77 misses, 16.77 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 16.77 genuinely absent
+ds4:   of the repair a token: readahead 15.46 ms, slot preparation 1.03 ms, reads 7.87 ms, install 0.05 ms, over 16.77 loads
+ds4:   Engram rows written at step start in 1344 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4: V4.1 prefill tail of 699 rows at position 4096 ran 699 token-major steps
+ds4: expert cache lent the prefill headroom for decode: 5911 -> 6679 experts
+round 0 B  65.623 s  logits dd695094752a1c7e state d721dfb78fb413ae same | hits 167550 misses 11802 loads 11802 evictions 11802, expert-major dispatches 0
+ds4:   decode path so far: 1408 single-row steps (90.2 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 1345-1408: 25.97 command buffers, 18.17 aborts, 240.0 expert ids accounted, 235.82 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 3.03 + commit-to-done 44.93 + repair-load 33.12 + accounting 0.04 + tail 0.00 = 81.12 of a 88.76 ms wall, residual 7.63
+ds4:   GPU busy 41.92 ms of the token's wall (the union of its buffers' spans), idle 46.83 ms
+ds4:   1380.1 gated dispatches a token, 15.5 of them behind an abort; 588.8 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 6.80 segments used, 17.33 dropped, 6.98 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 245.75 attempted, 245.75 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 43.31 command buffers sent, 3574.7 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 43.31 contexts in 43.31 command buffers (0.00 split); 3760.9 nodes = 3574.7 dispatches + 186.2 copies; barriers 2657.9 from the graph, 86.6 queue; engine asked for 128.8 barriers and 516.6 section ends, neither encoded; 14617.9 buffer and 4129.6 constant bindings (367653 B), 0.0 with no stated length; 43.31 blocking waits, 42.49 ms
+ds4:   expert cache over the last 64 tokens: 239.94 hits, 24.84 misses, 24.84 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 24.84 genuinely absent
+ds4:   of the repair a token: readahead 20.30 ms, slot preparation 1.06 ms, reads 10.99 ms, install 0.07 ms, over 24.84 loads
+ds4:   Engram rows written at step start in 1408 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 1472 single-row steps (77.6 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 1409-1472: 24.45 command buffers, 16.09 aborts, 240.0 expert ids accounted, 198.59 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.86 + commit-to-done 47.16 + repair-load 23.58 + accounting 0.04 + tail 0.00 = 72.64 of a 77.38 ms wall, residual 4.74
+ds4:   GPU busy 46.28 ms of the token's wall (the union of its buffers' spans), idle 31.10 ms
+ds4:   1358.3 gated dispatches a token, 16.4 of them behind an abort; 520.6 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 7.36 segments used, 15.22 dropped, 4.11 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 225.97 attempted, 225.97 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 39.67 command buffers sent, 3299.9 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 39.67 contexts in 39.67 command buffers (0.00 split); 3465.1 nodes = 3299.9 dispatches + 165.2 copies; barriers 2453.8 from the graph, 79.3 queue; engine asked for 119.5 barriers and 475.5 section ends, neither encoded; 13495.8 buffer and 3811.0 constant bindings (339280 B), 0.0 with no stated length; 39.67 blocking waits, 45.46 ms
+ds4:   expert cache over the last 64 tokens: 239.95 hits, 20.92 misses, 20.92 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 20.92 genuinely absent
+ds4:   of the repair a token: readahead 13.44 ms, slot preparation 0.74 ms, reads 8.97 ms, install 0.04 ms, over 20.92 loads
+ds4:   Engram rows written at step start in 1472 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 1536 single-row steps (74.2 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 1473-1536: 24.58 command buffers, 16.28 aborts, 240.0 expert ids accounted, 195.48 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.94 + commit-to-done 42.92 + repair-load 23.51 + accounting 0.04 + tail 0.00 = 68.41 of a 73.18 ms wall, residual 4.77
+ds4:   GPU busy 42.25 ms of the token's wall (the union of its buffers' spans), idle 30.93 ms
+ds4:   1357.1 gated dispatches a token, 9.8 of them behind an abort; 534.4 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 7.30 segments used, 15.59 dropped, 4.19 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 229.03 attempted, 229.03 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 40.17 command buffers sent, 3346.3 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 40.17 contexts in 40.17 command buffers (0.00 split); 3511.0 nodes = 3346.3 dispatches + 164.8 copies; barriers 2489.4 from the graph, 80.3 queue; engine asked for 121.1 barriers and 482.0 section ends, neither encoded; 13683.8 buffer and 3864.4 constant bindings (344096 B), 0.0 with no stated length; 40.17 blocking waits, 41.16 ms
+ds4:   expert cache over the last 64 tokens: 239.88 hits, 20.59 misses, 20.59 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 20.59 genuinely absent
+ds4:   of the repair a token: readahead 13.41 ms, slot preparation 0.78 ms, reads 8.91 ms, install 0.04 ms, over 20.59 loads
+ds4:   Engram rows written at step start in 1536 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 1600 single-row steps (70.8 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 1537-1600: 22.95 command buffers, 13.81 aborts, 240.0 expert ids accounted, 162.41 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.79 + commit-to-done 42.09 + repair-load 21.13 + accounting 0.04 + tail 0.00 = 65.05 of a 69.78 ms wall, residual 4.73
+ds4:   GPU busy 41.89 ms of the token's wall (the union of its buffers' spans), idle 27.89 ms
+ds4:   1345.7 gated dispatches a token, 12.7 of them behind an abort; 448.7 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.14 segments used, 13.09 dropped, 4.26 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 204.88 attempted, 204.88 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 36.05 command buffers sent, 3010.2 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 36.05 contexts in 36.05 command buffers (0.00 split); 3153.1 nodes = 3010.2 dispatches + 142.9 copies; barriers 2239.3 from the graph, 72.1 queue; engine asked for 109.9 barriers and 432.0 section ends, neither encoded; 12307.9 buffer and 3474.5 constant bindings (309389 B), 0.0 with no stated length; 36.05 blocking waits, 40.43 ms
+ds4:   expert cache over the last 64 tokens: 239.95 hits, 17.11 misses, 17.11 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 17.11 genuinely absent
+ds4:   of the repair a token: readahead 12.33 ms, slot preparation 0.71 ms, reads 7.75 ms, install 0.04 ms, over 17.11 loads
+ds4:   Engram rows written at step start in 1600 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 1664 single-row steps (69.6 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 1601-1664: 23.00 command buffers, 13.61 aborts, 240.0 expert ids accounted, 158.10 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.96 + commit-to-done 41.46 + repair-load 20.13 + accounting 0.04 + tail 0.00 = 63.59 of a 68.79 ms wall, residual 5.20
+ds4:   GPU busy 41.36 ms of the token's wall (the union of its buffers' spans), idle 27.44 ms
+ds4:   1356.6 gated dispatches a token, 8.4 of them behind an abort; 451.4 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.39 segments used, 13.02 dropped, 4.74 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 204.78 attempted, 204.78 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 36.02 command buffers sent, 3014.6 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 36.02 contexts in 36.02 command buffers (0.00 split); 3156.0 nodes = 3014.6 dispatches + 141.5 copies; barriers 2244.2 from the graph, 72.0 queue; engine asked for 110.2 barriers and 432.0 section ends, neither encoded; 12324.4 buffer and 3478.9 constant bindings (309864 B), 0.0 with no stated length; 36.02 blocking waits, 39.69 ms
+ds4:   expert cache over the last 64 tokens: 239.94 hits, 16.66 misses, 16.66 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 16.66 genuinely absent
+ds4:   of the repair a token: readahead 11.75 ms, slot preparation 0.77 ms, reads 7.25 ms, install 0.04 ms, over 16.66 loads
+ds4:   Engram rows written at step start in 1664 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 1728 single-row steps (68.8 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 1665-1728: 23.14 command buffers, 13.69 aborts, 240.0 expert ids accounted, 160.33 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.93 + commit-to-done 39.68 + repair-load 21.40 + accounting 0.04 + tail 0.00 = 63.05 of a 68.21 ms wall, residual 5.16
+ds4:   GPU busy 39.68 ms of the token's wall (the union of its buffers' spans), idle 28.53 ms
+ds4:   1375.4 gated dispatches a token, 15.9 of them behind an abort; 445.1 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.45 segments used, 12.86 dropped, 4.73 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 204.91 attempted, 204.91 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 36.00 command buffers sent, 3013.8 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 36.00 contexts in 36.00 command buffers (0.00 split); 3155.4 nodes = 3013.8 dispatches + 141.7 copies; barriers 2242.0 from the graph, 72.0 queue; engine asked for 110.1 barriers and 432.1 section ends, neither encoded; 12323.3 buffer and 3478.3 constant bindings (309709 B), 0.0 with no stated length; 36.00 blocking waits, 37.94 ms
+ds4:   expert cache over the last 64 tokens: 239.92 hits, 16.89 misses, 16.89 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 16.89 genuinely absent
+ds4:   of the repair a token: readahead 11.36 ms, slot preparation 0.73 ms, reads 8.95 ms, install 0.04 ms, over 16.89 loads
+ds4:   Engram rows written at step start in 1728 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 1792 single-row steps (72.9 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 1729-1792: 23.88 command buffers, 15.09 aborts, 240.0 expert ids accounted, 178.87 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 2.35 + commit-to-done 39.34 + repair-load 24.23 + accounting 0.04 + tail 0.00 = 65.95 of a 71.85 ms wall, residual 5.90
+ds4:   GPU busy 38.70 ms of the token's wall (the union of its buffers' spans), idle 33.15 ms
+ds4:   1354.1 gated dispatches a token, 17.8 of them behind an abort; 491.4 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 7.78 segments used, 14.17 dropped, 5.43 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 216.22 attempted, 216.22 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 38.05 command buffers sent, 3164.2 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 38.05 contexts in 38.05 command buffers (0.00 split); 3319.1 nodes = 3164.2 dispatches + 154.9 copies; barriers 2354.0 from the graph, 76.1 queue; engine asked for 115.0 barriers and 455.4 section ends, neither encoded; 12941.8 buffer and 3653.6 constant bindings (325472 B), 0.0 with no stated length; 38.05 blocking waits, 37.26 ms
+ds4:   expert cache over the last 64 tokens: 239.92 hits, 18.84 misses, 18.84 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 18.84 genuinely absent
+ds4:   of the repair a token: readahead 14.82 ms, slot preparation 0.93 ms, reads 8.01 ms, install 0.05 ms, over 18.84 loads
+ds4:   Engram rows written at step start in 1792 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 1856 single-row steps (70.0 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 1793-1856: 23.19 command buffers, 14.02 aborts, 240.0 expert ids accounted, 167.60 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 2.20 + commit-to-done 39.18 + repair-load 22.36 + accounting 0.04 + tail 0.00 = 63.77 of a 69.52 ms wall, residual 5.74
+ds4:   GPU busy 38.96 ms of the token's wall (the union of its buffers' spans), idle 30.56 ms
+ds4:   1361.1 gated dispatches a token, 11.7 of them behind an abort; 461.3 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.17 segments used, 13.23 dropped, 5.30 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 207.78 attempted, 207.78 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 36.42 command buffers sent, 3057.2 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 36.42 contexts in 36.42 command buffers (0.00 split); 3202.7 nodes = 3057.2 dispatches + 145.5 copies; barriers 2275.2 from the graph, 72.8 queue; engine asked for 111.3 barriers and 438.0 section ends, neither encoded; 12493.1 buffer and 3528.2 constant bindings (314163 B), 0.0 with no stated length; 36.42 blocking waits, 37.25 ms
+ds4:   expert cache over the last 64 tokens: 239.89 hits, 17.66 misses, 17.66 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 17.66 genuinely absent
+ds4:   of the repair a token: readahead 12.26 ms, slot preparation 0.84 ms, reads 8.83 ms, install 0.05 ms, over 17.66 loads
+ds4:   Engram rows written at step start in 1856 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 1920 single-row steps (69.4 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 1857-1920: 22.97 command buffers, 13.11 aborts, 240.0 expert ids accounted, 153.51 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 2.10 + commit-to-done 38.75 + repair-load 21.53 + accounting 0.04 + tail 0.00 = 62.41 of a 68.11 ms wall, residual 5.69
+ds4:   GPU busy 38.84 ms of the token's wall (the union of its buffers' spans), idle 29.27 ms
+ds4:   1367.2 gated dispatches a token, 10.8 of them behind an abort; 428.6 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.86 segments used, 12.41 dropped, 5.27 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 200.09 attempted, 200.09 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 35.38 command buffers sent, 2950.5 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 35.38 contexts in 35.38 command buffers (0.00 split); 3087.8 nodes = 2950.5 dispatches + 137.3 copies; barriers 2196.7 from the graph, 70.8 queue; engine asked for 108.2 barriers and 422.5 section ends, neither encoded; 12061.3 buffer and 3404.2 constant bindings (303225 B), 0.0 with no stated length; 35.38 blocking waits, 36.84 ms
+ds4:   expert cache over the last 64 tokens: 239.98 hits, 16.17 misses, 16.17 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 16.17 genuinely absent
+ds4:   of the repair a token: readahead 12.88 ms, slot preparation 0.84 ms, reads 7.43 ms, install 0.04 ms, over 16.17 loads
+ds4:   Engram rows written at step start in 1920 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 1984 single-row steps (68.4 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 1921-1984: 22.48 command buffers, 12.80 aborts, 240.0 expert ids accounted, 148.76 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 2.36 + commit-to-done 37.31 + repair-load 21.31 + accounting 0.04 + tail 0.00 = 61.01 of a 67.39 ms wall, residual 6.38
+ds4:   GPU busy 37.57 ms of the token's wall (the union of its buffers' spans), idle 29.82 ms
+ds4:   1353.2 gated dispatches a token, 9.4 of them behind an abort; 421.9 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.69 segments used, 12.20 dropped, 5.87 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 197.06 attempted, 197.06 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 34.69 command buffers sent, 2914.5 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 34.69 contexts in 34.69 command buffers (0.00 split); 3049.1 nodes = 2914.5 dispatches + 134.7 copies; barriers 2169.5 from the graph, 69.4 queue; engine asked for 106.6 barriers and 416.0 section ends, neither encoded; 11904.4 buffer and 3361.6 constant bindings (299334 B), 0.0 with no stated length; 34.69 blocking waits, 35.36 ms
+ds4:   expert cache over the last 64 tokens: 239.97 hits, 15.67 misses, 15.67 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 15.67 genuinely absent
+ds4:   of the repair a token: readahead 12.30 ms, slot preparation 1.02 ms, reads 7.54 ms, install 0.05 ms, over 15.67 loads
+ds4:   Engram rows written at step start in 1984 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4:   decode path so far: 2048 single-row steps (73.2 ms each inside the graph over the last 64), 2 K-row verification steps over 1398 positions, 0 batch-fusion sites taken; candidate K 32:2
+ds4:   host row loop: 2796 nodes attended one at a time
+ds4: gate over tokens 1985-2048: 23.02 command buffers, 13.48 aborts, 240.0 expert ids accounted, 163.44 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 2.61 + commit-to-done 36.53 + repair-load 26.34 + accounting 0.04 + tail 0.00 = 65.53 of a 72.43 ms wall, residual 6.90
+ds4:   GPU busy 35.71 ms of the token's wall (the union of its buffers' spans), idle 36.73 ms
+ds4:   1365.8 gated dispatches a token, 11.7 of them behind an abort; 442.1 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 8.53 segments used, 12.67 dropped, 6.42 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 202.16 attempted, 202.16 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 35.69 command buffers sent, 2969.0 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 35.69 contexts in 35.69 command buffers (0.00 split); 3111.1 nodes = 2969.0 dispatches + 142.1 copies; barriers 2209.4 from the graph, 71.4 queue; engine asked for 108.8 barriers and 426.5 section ends, neither encoded; 12147.7 buffer and 3427.2 constant bindings (305334 B), 0.0 with no stated length; 35.69 blocking waits, 34.31 ms
+ds4:   expert cache over the last 64 tokens: 239.94 hits, 17.22 misses, 17.22 evictions a token; 5911 of 5911 entries live (100.0%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 17.22 genuinely absent
+ds4:   of the repair a token: readahead 15.44 ms, slot preparation 1.08 ms, reads 9.26 ms, install 0.06 ms, over 17.22 loads
+ds4:   Engram rows written at step start in 2048 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+ds4: V4.1 prefill tail of 699 rows at position 4096 ran 699 token-major steps
+ds4: expert cache lent the prefill headroom for decode: 5911 -> 6679 experts
+round 0 B  50.781 s  logits dd695094752a1c7e state d721dfb78fb413ae same | hits 167715 misses 12875 loads 12875 evictions 12875, expert-major dispatches 0
+ds4: V4.1 batch step rows=699 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 prefill tail at position 4096 ran 699 rows as 1 batch steps
+ds4: expert cache lent the prefill headroom for decode: 5911 -> 6679 experts
+round 0 A  23.700 s  logits dd695094752a1c7e state d721dfb78fb413ae same | hits 160723 misses 7037 loads 7037 evictions 7037, expert-major dispatches 0
+tail     A mean 28.058 s, B mean 58.202 s, B - A +30.144 s over 1 rounds; 0 arm(s) differing from the reference -> PASS
+ds4: memory budget: peak 71.49 GiB allocated of 80.00 GiB; 0 slab(s) given back, 0 allocation(s) refused, cache growth stopped 0 time(s)
+ds4: expert directory: 0 pinned hits, 10293 cache hits, 65012 loads; 0 address mismatches, 0 missing with a non-zero slot, 0 selected and missing; 0 pinned experts given back to the budget
