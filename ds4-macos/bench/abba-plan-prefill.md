@@ -82,3 +82,24 @@ base" - the 32-row batched tail, the two-output Q8_0 tile, and every prefill
 path added since off - in the candidate's binary; it reproduces the frozen
 oracle (capab-R-base). Arm b is the candidate's production. Arms are named
 W-<n>-<old|new>. Every other rule above stands.
+
+## Fourth amendment before any arm (2026-10-06)
+
+625b3a7 passed regression items 1-14 (run R) and was kept as a checkpoint;
+its chain was stopped before the ABBA for the prefix backend work. The
+candidate is now the engine sources of 68a559a: 625b3a7 plus the paired
+prefix routed experts (both 2048-row chunks of a layer in one dispatch).
+The tree under test is 84909ac, which adds to it only the capacity test's
+switch for the pairing in "base" and a line counting paired layers. The
+final regression is run S (regS.out, m4accept.sh S), the decode ABBA
+abba-s, the cold arms V-<n>-<old|new>, in the order and with the cooling
+of run R.
+
+The candidate is fixed only if all of these hold: 15 of 15; cold time to
+first token shorter than the baseline arm in both blocks (old/new means of
+each block of four); no decode regression in the ABBA; every arm's ids,
+logits and saved state the frozen oracle's; every new arm printing 40 paired
+prefix layers and every old arm 0; every run at pressure level 1, unstopped,
+with no residency or memory anomaly. If the cold time to first token is not
+shorter in both blocks, the pairing is taken out and 625b3a7 stays the
+baseline.
