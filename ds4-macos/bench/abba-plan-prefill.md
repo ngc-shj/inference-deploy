@@ -159,3 +159,19 @@ oracle identity, cold time to first token (absolute and saved), no decode
 regression, 40 of 40 superbatched layers and 0 in the old arms, no
 token-major tail fallback, pressure level 1 within the 80 GiB budget, and
 15 of 15. No code or plan changes while it runs.
+
+## abe4ceb withdrawn (2026-10-06)
+
+Run X's item 13 failed (the short prompt's two sessions disagree from
+evaluation 1298), so abe4ceb is not adopted. The tag
+ds4-v41-metal4-prefill-superbatch-exact-production - tag object
+8682b376aefcb757a74ba602220b277a95951700, on commit
+abe4ceb594ca7141e239c4f561ba9d97fb9265d7, pushed to fork after decD - is
+deleted from fork and from the local tree: its name says exact production,
+which run X did not show. A fixed candidate gets a tag of a new name. The
+cause is investigated first: the two-session test alternated on abe4ceb and
+625b3a7 at the same cache, prewarm and order; on a reproduction, per-layer
+state hashes near evaluation 1298, then the first differing layer's
+selection, addresses, slab slots, generations and load completion, the
+weight bytes resident against just loaded, and the cache/residency state a
+session leaves for the next.
