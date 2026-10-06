@@ -1,0 +1,25 @@
+== D-1-on rc 0 peak wired 79.89 GiB, peak pressure level 1, peak swap growth 0 GiB, peak g 
+   decode   2048 steps in 126.224 s, 61.63 ms a token (logits copied and written ea | superbatch 40 prefix layers ran both chunks' row-independent steps at once superbatch 0 layers during the decode 
+   b579b2dbeb4e890d 07af8c54b9d963ee 70e45286402e3820 | others over 100%: 0 of       18 samples
+/private/tmp/claude-501/-Users-noguchi-ghq-github-com-ngc-shj-inference-deploy/1f25695b-61e4-4e05-996e-07996a0d6038/scratchpad/decD.sh: line 5: 17518 Terminated: 15          ( while true; do
+    echo "$(date +%T) $(ps -Ao pcpu,comm -r | grep -v test_deepseek | sed -n 2,3p | cut -c1-60 | tr '\n' '|')" >> $L; sleep 10;
+done )
+== D-2-off rc 0 peak wired 81.27 GiB, peak pressure level 1, peak swap growth 0 GiB, peak g 
+   decode   2048 steps in 222.677 s, 108.73 ms a token (logits copied and written e | superbatch 0 prefix layers ran both chunks' row-independent steps at once superbatch 0 layers during the decode 
+   b579b2dbeb4e890d 07af8c54b9d963ee 70e45286402e3820 | others over 100%: 0 of       32 samples
+/private/tmp/claude-501/-Users-noguchi-ghq-github-com-ngc-shj-inference-deploy/1f25695b-61e4-4e05-996e-07996a0d6038/scratchpad/decD.sh: line 5: 23613 Terminated: 15          ( while true; do
+    echo "$(date +%T) $(ps -Ao pcpu,comm -r | grep -v test_deepseek | sed -n 2,3p | cut -c1-60 | tr '\n' '|')" >> $L; sleep 10;
+done )
+== D-3-off rc 0 peak wired 82.90 GiB, peak pressure level 1, peak swap growth 0 GiB, peak g 
+   decode   2048 steps in 174.801 s, 85.35 ms a token (logits copied and written ea | superbatch 0 prefix layers ran both chunks' row-independent steps at once superbatch 0 layers during the decode 
+   b579b2dbeb4e890d 07af8c54b9d963ee 70e45286402e3820 | others over 100%: 1 of       26 samples
+/private/tmp/claude-501/-Users-noguchi-ghq-github-com-ngc-shj-inference-deploy/1f25695b-61e4-4e05-996e-07996a0d6038/scratchpad/decD.sh: line 5: 33807 Terminated: 15          ( while true; do
+    echo "$(date +%T) $(ps -Ao pcpu,comm -r | grep -v test_deepseek | sed -n 2,3p | cut -c1-60 | tr '\n' '|')" >> $L; sleep 10;
+done )
+== D-4-on rc 0 peak wired 79.78 GiB, peak pressure level 1, peak swap growth 0 GiB, peak g 
+   decode   2048 steps in 159.112 s, 77.69 ms a token (logits copied and written ea | superbatch 40 prefix layers ran both chunks' row-independent steps at once superbatch 0 layers during the decode 
+   b579b2dbeb4e890d 07af8c54b9d963ee 70e45286402e3820 | others over 100%: 0 of       24 samples
+/private/tmp/claude-501/-Users-noguchi-ghq-github-com-ngc-shj-inference-deploy/1f25695b-61e4-4e05-996e-07996a0d6038/scratchpad/decD.sh: line 23: 42395 Terminated: 15          ( while true; do
+    echo "$(date +%T) $(ps -Ao pcpu,comm -r | grep -v test_deepseek | sed -n 2,3p | cut -c1-60 | tr '\n' '|')" >> $L; sleep 10;
+done )
+ALL-DONE

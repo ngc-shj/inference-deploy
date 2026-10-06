@@ -1,0 +1,26 @@
+12:24:09  10.8 /System/Library/PrivateFrameworks/SkyLight.framework/R|  5.0 /usr/libexec/sysmond|
+12:24:19  12.7 /System/Library/PrivateFrameworks/SkyLight.framework/R|  2.2 /Applications/Visual Studio Code.app/Contents/Framewor|
+12:24:29  15.1 /System/Library/PrivateFrameworks/SkyLight.framework/R|  4.8 /Applications/Visual Studio Code.app/Contents/Framewor|
+12:24:39 158.2 /Applications/Visual Studio Code.app/Contents/Framewor| 71.5 /Applications/Visual Studio Code.app/Contents/Framewor|
+12:24:49  16.1 /System/Library/Frameworks/CoreServices.framework/Vers| 14.7 /System/Library/PrivateFrameworks/SkyLight.framework/R|
+12:24:59   9.8 /System/Library/PrivateFrameworks/SkyLight.framework/R|  8.5 /usr/libexec/runningboardd|
+12:25:09  17.0 /System/Library/PrivateFrameworks/SkyLight.framework/R|  6.8 /Applications/Microsoft Edge.app/Contents/MacOS/Micros|
+12:25:19  77.2 /Applications/Visual Studio Code.app/Contents/Framewor| 28.7 /Applications/Visual Studio Code.app/Contents/Framewor|
+12:25:29  16.3 /System/Library/PrivateFrameworks/SkyLight.framework/R|  8.6 /usr/libexec/corebrightnessd|
+12:25:39  39.4 /usr/sbin/spindump|  8.6 /usr/libexec/ContinuityCaptureAgent|
+12:25:49  69.0 /Applications/Visual Studio Code.app/Contents/Framewor| 50.5 footprint|
+12:25:59   4.0 /System/Library/PrivateFrameworks/SkyLight.framework/R|  2.3 /Applications/Visual Studio Code.app/Contents/Framewor|
+12:26:09  17.4 /usr/libexec/sysmond|  9.2 /System/Applications/Utilities/Activity Monitor.app/Co|
+12:26:19   7.6 /sbin/launchd|  4.0 /System/Library/PrivateFrameworks/SkyLight.framework/R|
+12:26:29  10.7 /System/Library/Frameworks/CoreServices.framework/Vers|  4.9 /System/Library/PrivateFrameworks/BackgroundTaskManage|
+12:26:40   3.7 /System/Library/CoreServices/Finder.app/Contents/MacOS|  1.7 /Applications/Screen InStyle.app/Contents/MacOS/Screen|
+12:26:50   6.6 /usr/libexec/ContinuityCaptureAgent|  3.3 /sbin/launchd|
+12:27:00   3.4 /System/Library/Frameworks/CoreServices.framework/Vers|  1.5 /Applications/Screen InStyle.app/Contents/MacOS/Screen|
+12:27:10   2.4 /System/Library/CoreServices/Finder.app/Contents/MacOS|  2.0 /Applications/Screen InStyle.app/Contents/MacOS/Screen|
+12:27:20   2.2 /sbin/launchd|  1.8 /System/Library/CoreServices/Finder.app/Contents/MacOS|
+12:27:30   5.4 /usr/libexec/airportd|  1.9 /System/Library/PrivateFrameworks/SkyLight.framework/R|
+12:27:40   2.6 /Applications/iTerm.app/Contents/MacOS/iTerm2|  1.6 /Applications/Screen InStyle.app/Contents/MacOS/Screen|
+12:27:50   7.9 /usr/libexec/sysmond|  5.1 /System/Applications/Utilities/Activity Monitor.app/Co|
+12:28:00   2.3 /Applications/iTerm.app/Contents/MacOS/iTerm2|  1.4 /System/Library/PrivateFrameworks/SkyLight.framework/R|
+12:28:10  90.0 /Applications/Visual Studio Code.app/Contents/Framewor|  1.7 /System/Library/PrivateFrameworks/BackgroundTaskManage|
+12:28:20   9.2 /Applications/Visual Studio Code.app/Contents/Framewor|  1.5 /Applications/Screen InStyle.app/Contents/MacOS/Screen|

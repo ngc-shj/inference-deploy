@@ -1,0 +1,2 @@
+prefill  4795 tokens in 72.228 s (cold, this process's first)
+capacity 10268 experts: prompt 4795 tokens, 2049 evaluations written, ids b579b2dbeb4e890d, logits 07af8c54b9d963ee, state 70e45286402e3820 (54833952 bytes)

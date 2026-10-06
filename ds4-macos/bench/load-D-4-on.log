@@ -1,0 +1,24 @@
+12:28:26   5.1 /usr/libexec/sysmond|  2.7 /usr/libexec/ContinuityCaptureAgent|
+12:28:36  14.8 /System/Library/PrivateFrameworks/SkyLight.framework/R|  6.6 /usr/libexec/duetexpertd|
+12:28:46   4.2 /System/Library/PrivateFrameworks/SkyLight.framework/R|  1.4 /Applications/Screen InStyle.app/Contents/MacOS/Screen|
+12:28:56  49.7 /usr/libexec/duetexpertd| 44.9 /System/Library/PrivateFrameworks/SkyLight.framework/R|
+12:29:06  42.1 /System/Library/PrivateFrameworks/SkyLight.framework/R| 28.8 /Applications/Microsoft Edge.app/Contents/Frameworks/M|
+12:29:16  42.0 /System/Library/PrivateFrameworks/SkyLight.framework/R| 26.4 /Applications/Microsoft Edge.app/Contents/Frameworks/M|
+12:29:26  43.4 /System/Library/PrivateFrameworks/SkyLight.framework/R| 27.6 /Applications/Microsoft Edge.app/Contents/Frameworks/M|
+12:29:36  43.3 /System/Library/PrivateFrameworks/SkyLight.framework/R| 26.8 /Applications/Microsoft Edge.app/Contents/Frameworks/M|
+12:29:46  42.0 /System/Library/PrivateFrameworks/SkyLight.framework/R| 22.6 /Applications/Microsoft Edge.app/Contents/Frameworks/M|
+12:29:56  45.4 /System/Library/PrivateFrameworks/SkyLight.framework/R| 29.4 /Applications/Microsoft Edge.app/Contents/Frameworks/M|
+12:30:06  44.8 /System/Library/PrivateFrameworks/SkyLight.framework/R| 31.4 /Applications/Microsoft Edge.app/Contents/Frameworks/M|
+12:30:17  52.1 /System/Library/PrivateFrameworks/SkyLight.framework/R| 36.7 /Applications/Microsoft Edge.app/Contents/Frameworks/M|
+12:30:27  45.1 /System/Library/PrivateFrameworks/SkyLight.framework/R| 25.2 /Applications/Microsoft Edge.app/Contents/Frameworks/M|
+12:30:37  45.5 /System/Library/PrivateFrameworks/SkyLight.framework/R| 25.3 /Applications/Microsoft Edge.app/Contents/Frameworks/M|
+12:30:47  44.4 /System/Library/PrivateFrameworks/SkyLight.framework/R| 23.9 /Applications/Microsoft Edge.app/Contents/Frameworks/M|
+12:30:57  42.3 /System/Library/PrivateFrameworks/SkyLight.framework/R| 21.4 /Applications/Microsoft Edge.app/Contents/Frameworks/M|
+12:31:07  72.6 footprint| 16.8 /Applications/Microsoft Edge.app/Contents/Frameworks/M|
+12:31:17  37.5 footprint|  1.6 /usr/sbin/coreaudiod|
+12:31:27  41.3 /System/Library/PrivateFrameworks/SkyLight.framework/R|  5.8 /System/Library/CoreServices/WindowManager.app/Content|
+12:31:37  41.7 /Applications/Microsoft Edge.app/Contents/Frameworks/M| 20.6 /System/Library/PrivateFrameworks/SkyLight.framework/R|
+12:31:47  15.8 /System/Library/PrivateFrameworks/SkyLight.framework/R| 12.5 /Applications/Microsoft Edge.app/Contents/Frameworks/M|
+12:31:57   5.1 /System/Applications/Utilities/Activity Monitor.app/Co|  4.2 /usr/libexec/ContinuityCaptureAgent|
+12:32:07  13.5 footprint|  4.0 /System/Applications/Utilities/Activity Monitor.app/Co|
+12:32:17  42.9 footprint|  5.1 /Users/noguchi/.vscode/extensions/anthropic.claude-cod|
