@@ -1,0 +1,6 @@
+command ./m4capab.sh X-long5400 /Users/noguchi/ghq/github.com/antirez/ds4-v41-m4native 5400 256
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-06 13:30:41 ds4-server 0 tests 0 pressure level 1 wired 4.56 GiB free 85% swap 0.15 GiB
+pid 7697 process group 7697
+rc 0 peak wired 75.26 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 58.03 GiB, peak Metal 54.00 GiB
+after 2026-10-06 13:32:21 ds4-server 0 tests 0 pressure level 1 wired 4.74 GiB free 84% swap 0.15 GiB

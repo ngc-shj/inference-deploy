@@ -1,0 +1,6 @@
+command env EXPECT=1 STEPS=2048 DS4_BIN=/Users/noguchi/ghq/github.com/antirez/ds4-v41-m4native ./m4inproc.sh inX
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-06 13:34:06 ds4-server 0 tests 0 pressure level 1 wired 4.54 GiB free 84% swap 0.15 GiB
+pid 14487 process group 14487
+rc 1 peak wired 79.95 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 62.68 GiB, peak Metal 62.00 GiB
+after 2026-10-06 13:46:33 ds4-server 0 tests 0 pressure level 1 wired 4.62 GiB free 86% swap 0.15 GiB

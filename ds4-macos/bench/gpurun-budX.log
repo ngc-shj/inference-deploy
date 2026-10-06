@@ -1,0 +1,90 @@
+ds4: abort gate on for the first 40 layers
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: V4.1 SSD cache fitted from 10268 to 7034 experts for context/runtime headroom
+ds4: Metal backend: Metal 4
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: metal SSD streaming cache target 65.20 GiB; effective 65.20 GiB = 7.12 GiB prefill headroom + 58.08 GiB dynamic cache (6266 experts, 9.49 MiB each)
+ds4: Metal SSD static weights locked 9.37 GiB; pageable 0.00 GiB
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: expert cache prewarmed from the built-in V4.1 hotlist: 6264 experts (0 failed), 58.07 GiB in 5.99 s; stopped where the cache was full
+ds4: memory: KV 0.06 GiB (raw 0.01 + compressed 0.05) + buffers 3.36 GiB + resident model 9.37 GiB + expert cache 58.08 GiB + prefill expert reserve 7.12 GiB = 77.99 GiB planned
+ds4: memory detail: ctx=8192 prefill_cap=4096 raw_kv_rows=128 compressed_kv_rows=8193 backend=metal
+opened     allocated 67.54 GiB of a 80.00 GiB budget (7.12 GiB reserve) | peak 65.39 GiB | cache 6264 entries in 6266 slots, 58.07 GiB | slabs given back 0, allocations refused 0, cache growth stopped 0
+ds4: V4.1 executor ABI 3, arena align 256, rev 84909ac2aa4e-dirty, built Oct  6 2026 09:03:25
+ds4: V4.1 static context buffers 3503.03 MiB (ctx=8192), Engram disk-only
+ds4: shared/routed FFN overlap ran, mode 1
+ds4: expert cache lent the prefill headroom for decode: 6266 -> 7034 experts
+session 1  allocated 70.73 GiB of a 80.00 GiB budget (0.00 GiB reserve) | peak 70.73 GiB | cache 6266 entries in 6266 slots, 58.08 GiB | slabs given back 0, allocations refused 0, cache growth stopped 0
+ds4: V4.1 SSD cache fitted from 6266 to 5897 experts for context/runtime headroom
+ds4: expert cache sized for 6.84 GiB of sessions: 6266 -> 5897 experts
+ds4: V4.1 static context buffers 3503.03 MiB (ctx=8192), Engram disk-only
+ds4: memory budget: the expert cache returned a slab of 232 experts (2.15 GiB); it now has 6034 slots
+ds4: memory budget: the expert cache returned a slab of 431 experts (4.00 GiB); it now has 5603 slots
+ds4: expert cache lent the prefill headroom for decode: 5897 -> 6665 experts
+session 2  allocated 70.49 GiB of a 80.00 GiB budget (0.00 GiB reserve) | peak 73.92 GiB | cache 5897 entries in 5897 slots, 54.66 GiB | slabs given back 2, allocations refused 0, cache growth stopped 0
+ds4: V4.1 SSD cache fitted from 6266 to 5528 experts for context/runtime headroom
+ds4: expert cache sized for 10.26 GiB of sessions: 5897 -> 5528 experts
+ds4: V4.1 static context buffers 3503.03 MiB (ctx=8192), Engram disk-only
+ds4: memory budget: the expert cache returned a slab of 294 experts (2.73 GiB); it now has 5603 slots
+ds4: memory budget: the expert cache returned a slab of 431 experts (4.00 GiB); it now has 5172 slots
+ds4: expert cache lent the prefill headroom for decode: 5528 -> 6296 experts
+session 3  allocated 70.25 GiB of a 80.00 GiB budget (0.00 GiB reserve) | peak 73.92 GiB | cache 5528 entries in 5528 slots, 51.24 GiB | slabs given back 4, allocations refused 0, cache growth stopped 0
+ds4: V4.1 SSD cache fitted from 6266 to 5159 experts for context/runtime headroom
+ds4: expert cache sized for 13.68 GiB of sessions: 5528 -> 5159 experts
+ds4: V4.1 static context buffers 3503.03 MiB (ctx=8192), Engram disk-only
+ds4: memory budget: the expert cache returned a slab of 356 experts (3.30 GiB); it now has 5172 slots
+ds4: memory budget: the expert cache returned a slab of 431 experts (4.00 GiB); it now has 4741 slots
+ds4: expert cache lent the prefill headroom for decode: 5159 -> 5927 experts
+session 4  allocated 70.01 GiB of a 80.00 GiB budget (0.00 GiB reserve) | peak 73.92 GiB | cache 5159 entries in 5159 slots, 47.82 GiB | slabs given back 6, allocations refused 0, cache growth stopped 0
+ds4: V4.1 K-block effective configuration: rows=4 exact_vocab=0 head_tile=0 dense_tile=4 block_kv=0 block_levels=0 block_attn_k=0 block_attn_raw=0 block_low_batch=0 block_attn=0 batch_fuse=0 batch_attn_out=1 batch_stream_experts=1 row_gather=0 moe_expert_major=0 block_txn=0 row_logits_readback=0
+ds4: V4.1 batch attn_output_b hoisted out of the per-row loop (4 rows)
+ds4: V4.1 routed gate/up encode: ds4_gpu_encode_mul_mv_addr_iq2_pair_swiglu
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 batch step rows=4 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+decoded    allocated 77.14 GiB of a 80.00 GiB budget (0.00 GiB reserve) | peak 77.14 GiB | cache 5927 entries in 5927 slots, 54.94 GiB | slabs given back 6, allocations refused 0, cache growth stopped 0
+ids        session 1, 32 steps: ab2c14c9900e8a32
+ids        session 2, 32 steps: 8cc3fc6bfaa81ebe
+ids        session 3, 32 steps: 3a4bf102986be5f5
+ids        session 4, 32 steps: 399212564cc6c7cd
+ds4: V4.1 SSD cache fitted from 6266 to 5528 experts for context/runtime headroom
+ds4: expert cache sized for 10.26 GiB of sessions: 5159 -> 5528 experts
+ds4: V4.1 SSD cache fitted from 6266 to 5897 experts for context/runtime headroom
+ds4: expert cache sized for 6.84 GiB of sessions: 5528 -> 5897 experts
+ds4: expert cache sized for 3.42 GiB of sessions: 5897 -> 6266 experts
+ds4: Metal cleanup discarded 1 live tensor handles
+ds4: memory budget: peak 77.14 GiB allocated of 80.00 GiB; 6 slab(s) given back, 0 allocation(s) refused, cache growth stopped 0 time(s)
+ds4: expert directory: 0 pinned hits, 23535 cache hits, 12385 loads; 0 address mismatches, 0 missing with a non-zero slot, 0 selected and missing; 0 pinned experts given back to the budget
+closed     allocated 0.00 GiB of a 0.00 GiB budget (0.00 GiB reserve) | peak 0.00 GiB | cache 0 entries in 0 slots, 0.00 GiB | slabs given back 0, allocations refused 0, cache growth stopped 0
