@@ -1,0 +1,6 @@
+command env -C /Users/noguchi/ghq/github.com/antirez/ds4-v41-m4native STEPS=2048 DS4_METAL_V41_DECODE_QUEUE=1 DS4_METAL_IQ2_SELECTED_SHARED_EVENT=1 DS4_METAL_STREAM_SPLIT_MIN_MISSING=1 DS4_METAL_STREAMING_EXPERT_AUTO_PRELOAD_CAP=8192 DS4_METAL_V41_DECODE_LEND_HEADROOM=2 DS4_METAL_V41_STREAMING_MEMORY_BUDGET_GIB=80 DS4_METAL_V41_ABORT_GATE=40 DS4_METAL_V41_ABORT_GATE_SEG=3 DS4_METAL_V41_EXPERT_RESIDENCY_SET=1 DS4_METAL_V41_FFN_OVERLAP=1 DS4_METAL_V41_ROUTER_FUSE_TRANSFORM=5 DS4_METAL_V41_FUSE_BF16=2 DS4_METAL_V41_HC_COMPOUND=1 DS4_METAL_V41_GATE_ENCODE_AHEAD=1 ./tests/test_deepseek41_backend /Users/noguchi/ghq/github.com/antirez/ds4/gguf/DeepSeek-V4.1-Flash-Q2.gguf tests/long_context_story_prompt.txt short
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-06 14:43:27 ds4-server 0 tests 0 pressure level 1 wired 4.57 GiB free 87% swap 0.15 GiB
+pid 14756 process group 14756
+rc 0 peak wired 76.47 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 62.31 GiB, peak Metal 62.00 GiB
+after 2026-10-06 14:48:31 ds4-server 0 tests 0 pressure level 1 wired 4.54 GiB free 87% swap 0.15 GiB

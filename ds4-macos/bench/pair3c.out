@@ -1,0 +1,7 @@
+== 1-base 625b3a7f | short      prompt    26 tokens,  2048 steps: logits differ at 0 of 2049 evaluations (first -1), tokens first differ at -1, ids 13607d993a447227 / 13607d993a4472 | rc 0 peak wired 33.14 GiB, peak pressure | page cache 
+== 2-sb b9bd1e11 | short      prompt    26 tokens,  2048 steps: logits differ at 0 of 2049 evaluations (first -1), tokens first differ at -1, ids 13607d993a447227 / 13607d993a4472 | rc 0 peak wired 34.50 GiB, peak pressure | page cache 
+== 3-sb b9bd1e11 | short      prompt    26 tokens,  2048 steps: logits differ at 0 of 2049 evaluations (first -1), tokens first differ at -1, ids 13607d993a447227 / 13607d993a4472 | rc 0 peak wired 33.86 GiB, peak pressure | page cache 
+== 4-base 625b3a7f | short      prompt    26 tokens,  2048 steps: logits differ at 0 of 2049 evaluations (first -1), tokens first differ at -1, ids 13607d993a447227 / 13607d993a4472 | rc 0 peak wired 33.89 GiB, peak pressure | page cache 
+== 5-base 625b3a7f | short      prompt    26 tokens,  2048 steps: logits differ at 0 of 2049 evaluations (first -1), tokens first differ at -1, ids 13607d993a447227 / 13607d993a4472 | rc 0 peak wired 33.95 GiB, peak pressure | page cache 
+== 6-sb b9bd1e11 | short      prompt    26 tokens,  2048 steps: logits differ at 0 of 2049 evaluations (first -1), tokens first differ at -1, ids 13607d993a447227 / 13607d993a4472 | rc 0 peak wired 33.79 GiB, peak pressure | page cache 
+ALL-DONE
