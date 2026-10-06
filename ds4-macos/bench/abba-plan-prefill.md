@@ -175,3 +175,16 @@ state hashes near evaluation 1298, then the first differing layer's
 selection, addresses, slab slots, generations and load completion, the
 weight bytes resident against just loaded, and the cache/residency state a
 session leaves for the next.
+
+## Eighth amendment before any arm (2026-10-06): run Z on d34264a
+
+The candidate is d34264a: abe4ceb's prefix superbatch, the router
+publication barrier (b2bd8d1, the race the item-13 audit found), and the
+cache busy invariant and per-token history (diagnostic, no GPU work). Six
+short two-session runs on it give the oracle in both sessions with 0 of
+73,875 busy checks failing (pair3f). The final chain runs once as run Z
+(regZ.out, m4accept.sh Z, decode ABBA abba-z, cold arms Q-<n>-<old|new>)
+under every rule of run X. Fixed only if 15 of 15, cold time to first token
+shorter in both blocks, no decode regression, every arm the oracle's, 40 of
+40 superbatched layers in new arms and 0 in old, pressure level 1. A fixed
+d34264a gets a tag of a new name, pushed to fork only.
