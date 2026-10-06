@@ -13,6 +13,8 @@
 #            name its HEAD with dirty 0 and the hash of the binary it holds
 #   BASE_BIN the ABBA baseline tree (default ds4-v41-m4base), checked the
 #            same way for the a arms
+#   ABBA_N   the a arms' cache entries the ABBA judge reads (default 7041,
+#            the sentinel's N when the plan takes it from the sentinel)
 #
 # Prints PASS or FAIL per item with the evidence it read, and exits 1 unless
 # all fifteen pass.
@@ -122,7 +124,7 @@ done
 for c in 4096 5400 10268; do printf '%s' " $sizes " | grep -q " $c " || { echo "no long run at cache $c"; same=0; }; done
 bud=$(diff <(grep "^ids" gpurun-budD.log) <(grep "^ids" gpurun-bud$T.log) > /dev/null && echo 1)
 item 14 $([ "$st" = 1 ] && [ "$same" = 1 ] && [ "$bud" = 1 ] && echo 1) "2048 tokens, 3 prompts, 2 sessions, 3 consecutive requests; long prompt at caches$sizes: baseline ids, logits and state, the 699-row tail as one exact batch step in each; 4-session budget"
-judge=$(python3 abba-judge.py "m4ab-abba-$t" "gpurun-abba$t.samples" 7041 2>/dev/null)
+judge=$(python3 abba-judge.py "m4ab-abba-$t" "gpurun-abba$t.samples" "${ABBA_N:-7041}" 2>/dev/null)
 abba=$(printf '%s\n' "$judge" | tail -1)
 tails=$(printf '%s\n' "$judge" | sed -n 's/^token-major prefill tail steps in b arms: \([0-9]*\).*/\1/p')
 ok15=0
