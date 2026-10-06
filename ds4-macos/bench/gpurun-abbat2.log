@@ -1,0 +1,6 @@
+10-06 11:41:46 no gate: load.log has not advanced in 456171s (two windows is 300s); loadlog.sh is not running
+10-06 11:48:35 01-ma: aggregate 21.37 tok/s over 95.9 s wall per token: 44.4 ms wall at 22.51 tok/s, 47.8 ms inside the graph, -3.4 ms (-8%) outside  | 1212.2 GFLOP/s (0.554 ms)
+10-06 11:55:25 02-mb: aggregate 21.10 tok/s over 97.1 s wall per token: 44.9 ms wall at 22.27 tok/s, 46.6 ms inside the graph, -1.7 ms (-4%) outside  | 1213.3 GFLOP/s (0.553 ms)
+10-06 12:02:17 03-mb: aggregate 20.74 tok/s over 98.8 s wall per token: 45.8 ms wall at 21.85 tok/s, 47.5 ms inside the graph, -1.7 ms (-4%) outside  | 995.3 GFLOP/s (0.674 ms)
+10-06 12:09:02 04-ma: aggregate 21.16 tok/s over 96.8 s wall per token: 44.9 ms wall at 22.29 tok/s, 50.3 ms inside the graph, -5.4 ms (-12%) outside  | 1212.1 GFLOP/s (0.554 ms)
+10-06 12:09:02 done

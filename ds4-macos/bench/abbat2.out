@@ -1,0 +1,6 @@
+command env NOGATE=1 COOL=300 BIN_A=/Users/noguchi/ghq/github.com/antirez/ds4-v41-m4base BIN_B=/Users/noguchi/ghq/github.com/antirez/ds4-v41-m4native MTL4_A=1 MTL4_B=1 EXTRA_A=--ssd-streaming-cache-experts 7034 EXTRA_B=--ssd-streaming-cache-experts 10268 ./m4abba.sh abba-t2 1
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-06 11:41:46 ds4-server 0 tests 0 pressure level 1 wired 4.06 GiB free 85% swap 0.15 GiB
+pid 53691 process group 53691
+rc 0 peak wired 79.87 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 65.64 GiB, peak Metal 65.00 GiB
+after 2026-10-06 12:09:03 ds4-server 0 tests 0 pressure level 1 wired 3.94 GiB free 87% swap 0.15 GiB

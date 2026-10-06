@@ -1,0 +1,10 @@
+10-06 10:29:06 no gate: load.log has not advanced in 451811s (two windows is 300s); loadlog.sh is not running
+10-06 10:35:55 01-ma: aggregate 21.50 tok/s over 95.3 s wall per token: 45.2 ms wall at 22.14 tok/s, 49.1 ms inside the graph, -3.9 ms (-9%) outside  | 1216.6 GFLOP/s (0.552 ms)
+10-06 10:42:45 02-mb: aggregate 21.04 tok/s over 97.3 s wall per token: 45.0 ms wall at 22.24 tok/s, 47.7 ms inside the graph, -2.7 ms (-6%) outside  | 1210.0 GFLOP/s (0.555 ms)
+10-06 10:49:35 03-mb: aggregate 21.10 tok/s over 97.1 s wall per token: 44.8 ms wall at 22.30 tok/s, 47.7 ms inside the graph, -2.9 ms (-6%) outside  | 806.0 GFLOP/s (0.833 ms)
+10-06 10:56:25 04-ma: aggregate 21.06 tok/s over 97.3 s wall per token: 45.1 ms wall at 22.19 tok/s, 47.8 ms inside the graph, -2.7 ms (-6%) outside  | 1217.0 GFLOP/s (0.551 ms)
+10-06 11:03:18 05-ma: aggregate 20.49 tok/s over 99.9 s wall per token: 45.4 ms wall at 22.03 tok/s, 47.6 ms inside the graph, -2.2 ms (-5%) outside  | 1212.0 GFLOP/s (0.554 ms)
+10-06 11:10:12 06-mb: aggregate 20.28 tok/s over 101.0 s wall per token: 46.8 ms wall at 21.37 tok/s, 49.0 ms inside the graph, -2.2 ms (-5%) outside  | 992.7 GFLOP/s (0.676 ms)
+10-06 11:17:02 07-mb: aggregate 21.15 tok/s over 96.8 s wall per token: 44.8 ms wall at 22.33 tok/s, 47.5 ms inside the graph, -2.7 ms (-6%) outside  | 1211.1 GFLOP/s (0.554 ms)
+10-06 11:23:52 08-ma: aggregate 21.01 tok/s over 97.5 s wall per token: 45.2 ms wall at 22.13 tok/s, 48.4 ms inside the graph, -3.2 ms (-7%) outside  | 1216.5 GFLOP/s (0.552 ms)
+10-06 11:23:52 done

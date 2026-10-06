@@ -1,0 +1,6 @@
+command env PARTS=4 DS4_BIN=/Users/noguchi/ghq/github.com/antirez/ds4-v41-m4native ./m4state.sh stT4
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-06 09:42:17 ds4-server 0 tests 0 pressure level 1 wired 4.75 GiB free 83% swap 0.15 GiB
+pid 66079 process group 66079
+rc 0 peak wired 80.01 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 69.78 GiB, peak Metal 66.00 GiB
+after 2026-10-06 09:49:14 ds4-server 0 tests 0 pressure level 1 wired 4.67 GiB free 83% swap 0.15 GiB

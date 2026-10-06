@@ -1,0 +1,70 @@
+== stT rc 0 peak wired 79.67 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+== stT4 rc 0 peak wired 80.01 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+== cap-T-long4096 rc 0 peak wired 63.26 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+capacity 4096 experts: prompt 4795 tokens, 257 evaluations written, ids e197891559449b7b, logits 374aebdf03a98e0b, state 4e233746d733d046 (43357984 bytes)
+== cap-T-long5400 rc 0 peak wired 75.30 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+capacity 5400 experts: prompt 4795 tokens, 257 evaluations written, ids e197891559449b7b, logits 374aebdf03a98e0b, state 4e233746d733d046 (43357984 bytes)
+== cap-T-long10268 rc 0 peak wired 79.82 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+capacity 10268 experts: prompt 4795 tokens, 257 evaluations written, ids e197891559449b7b, logits 374aebdf03a98e0b, state 4e233746d733d046 (43357984 bytes)
+== inT rc 0 peak wired 79.56 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+== pathsT rc 0 peak wired 80.03 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+== budT rc 0 peak wired 72.59 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+== sentT rc 1 peak wired 79.94 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+sentinel N=7034
+records: STALE - the items below do not describe abe4ceb594ca7141e239c4f561ba9d97fb9265d7
+PASS 1  no Metal 3 queue created in 8 census lines (pathsT, inT)
+PASS 2  g_batch_cb: 0 references
+PASS 3  DS4Encoder / DS4MTL4Encoder: 0 references
+PASS 4  DS4M4Ctx; prod: ds4: Metal 4 parts: contexts in 1/2/3/4 parts 171074/0/0/0, 14663271 nodes; 0 commit:count
+PASS 5  DS4M4Ctx holds 6 of 6: allocator, command buffer, argument table, scratch, residency set, feedback
+PASS 6  global argument tables: 0
+PASS 7  every binding states its range in 7 census lines; ranges carry a generation
+PASS 8  prod: barriers 1135.2 from the graph, 35.8 queue
+PASS 9  every context cut in 4 parts, encoded on worker threads, commit:count: - state hashes equal the baseline's
+PASS 10  full table and resident layer removed (0 references, fa step matches); timeline on MTL4CounterHeap matches
+PASS 11  prod, native and fallback batch, disk KV, vision, timeline, ledger match (8); self-tests: 21 passing lines, 0 failing, 0 not run; failure and reopen paths
+PASS 12  Metal 3 execution 0 in every census; Metal 3 work under Metal 4: 0
+PASS 13  ids, every logit and the saved KV/carry state equal the frozen baseline's in all 8 cases; in-process ids on the clean oracle (3/3)
+PASS 14  2048 tokens, 3 prompts, 2 sessions, 3 consecutive requests; long prompt at caches 10268 4096 5400: baseline ids, logits and state, the 699-row tail as one exact batch step in each; 4-session 
+FAIL 15  ABBA m4ab-abba-t, b on abe4ceb594ca7141e239c4f561ba9d97fb9265d7: 8 valid arms, same text and token ids in all; token-major prefill-tail steps in b arms ?; none
+== abbat rc 0 peak wired 80.22 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+not every arm valid: the plan reruns the affected block before a decision
+a mean 45.225 sd 0.126 | b mean 44.867 sd 0.115
+token-major prefill tail steps in b arms: 0 (0: the arithmetic 13c14ca changed is not on this path)
+batched prefill tail rows in b arms: 0
+d -0.358 ms a token; blocks ['-0.250']; threshold 0.300
+decision: no regression
+== cap-U-1-old rc 0 peak wired 75.47 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+   prefill  4795 tokens in 96.622 s (cold, this process's first) | superbatch 0 | baseline ids/logits/state | page cache: resident 27.08 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+== cap-U-2-new rc 0 peak wired 78.95 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+   prefill  4795 tokens in 69.782 s (cold, this process's first) | superbatch 40 | baseline ids/logits/state | page cache: resident 34.20 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+== cap-U-3-new rc 0 peak wired 80.43 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+   prefill  4795 tokens in 63.704 s (cold, this process's first) | superbatch 40 | baseline ids/logits/state | page cache: resident 31.57 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+== cap-U-4-old rc 0 peak wired 76.09 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+   prefill  4795 tokens in 95.896 s (cold, this process's first) | superbatch 0 | baseline ids/logits/state | page cache: resident 29.68 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+== cap-U-5-new rc 0 peak wired 79.89 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+   prefill  4795 tokens in 66.136 s (cold, this process's first) | superbatch 40 | baseline ids/logits/state | page cache: resident 34.36 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+== cap-U-6-old rc 0 peak wired 76.53 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+   prefill  4795 tokens in 99.516 s (cold, this process's first) | superbatch 0 | baseline ids/logits/state | page cache: resident 30.21 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+== cap-U-7-old rc 0 peak wired 77.36 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+   prefill  4795 tokens in 106.155 s (cold, this process's first) | superbatch 0 | baseline ids/logits/state | page cache: resident 33.77 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+== cap-U-8-new rc 0 peak wired 79.75 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footp 
+   prefill  4795 tokens in 66.860 s (cold, this process's first) | superbatch 40 | baseline ids/logits/state | page cache: resident 33.26 GiB of 340.60 GiB after drop: resident 0.00 GiB of 340.60 GiB 
+records: every one is abe4ceb594ca7141e239c4f561ba9d97fb9265d7, dirty 0, the tree's binaries, rc 0 at pressure level 1
+PASS 1  no Metal 3 queue created in 8 census lines (pathsT, inT)
+PASS 2  g_batch_cb: 0 references
+PASS 3  DS4Encoder / DS4MTL4Encoder: 0 references
+PASS 4  DS4M4Ctx; prod: ds4: Metal 4 parts: contexts in 1/2/3/4 parts 171074/0/0/0, 14663271 nodes; 0 commit:count
+PASS 5  DS4M4Ctx holds 6 of 6: allocator, command buffer, argument table, scratch, residency set, feedback
+PASS 6  global argument tables: 0
+PASS 7  every binding states its range in 7 census lines; ranges carry a generation
+PASS 8  prod: barriers 1135.2 from the graph, 35.8 queue
+PASS 9  every context cut in 4 parts, encoded on worker threads, commit:count: - state hashes equal the baseline's
+PASS 10  full table and resident layer removed (0 references, fa step matches); timeline on MTL4CounterHeap matches
+PASS 11  prod, native and fallback batch, disk KV, vision, timeline, ledger match (8); self-tests: 21 passing lines, 0 failing, 0 not run; failure and reopen paths
+PASS 12  Metal 3 execution 0 in every census; Metal 3 work under Metal 4: 0
+PASS 13  ids, every logit and the saved KV/carry state equal the frozen baseline's in all 8 cases; in-process ids on the clean oracle (3/3)
+PASS 14  2048 tokens, 3 prompts, 2 sessions, 3 consecutive requests; long prompt at caches 10268 4096 5400: baseline ids, logits and state, the 699-row tail as one exact batch step in each; 4-session budget
+FAIL 15  ABBA m4ab-abba-t, b on abe4ceb594ca7141e239c4f561ba9d97fb9265d7: 8 valid arms, same text and token ids in all; token-major prefill-tail steps in b arms 0; decision: no regression
+14 of 15
+ALL-DONE

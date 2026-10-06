@@ -1,0 +1,9 @@
+short        tokens  2048 evals  2049 ids 13607d993a447227 logits 05061dd5f34744f6 state 6064cb3cbe8fa0ab (24284828 bytes)
+haiku        tokens   256 evals   257 ids 8f561a8abb7bba25 logits 80f3551add944684 state 884b306b6858df07 (12785288 bytes)
+long         tokens   256 evals   257 ids e197891559449b7b logits 374aebdf03a98e0b state 4e233746d733d046 (43357984 bytes)
+pair-a       tokens   384 evals   385 ids ec34eeff151add0d logits 7b1302e63bdb1ee5 state 7efecb8dfa66d73c (13564532 bytes)
+pair-b       tokens   384 evals   385 ids 008f04badba65f48 logits 90d8e087dcf42768 state a3114d13daea266f (13579384 bytes)
+turn-1       tokens   160 evals   161 ids 51781e168c95cfad logits 206be2c31fdd2830 state 5ca9a5a480db93e1 (12142844 bytes)
+turn-2       tokens   160 evals   161 ids 2e50d885753c0733 logits 35f7021f6f249067 state 6fd6828d152af39d (13269948 bytes)
+turn-3       tokens   160 evals   161 ids 439a7b25901cebca logits 38ddca7c273fb696 state 83cfcf3c9c64e9b0 (14371436 bytes)
+DONE
