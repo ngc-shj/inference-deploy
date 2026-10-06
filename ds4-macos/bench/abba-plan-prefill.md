@@ -147,3 +147,15 @@ superbatch layers during the decode):
   larger arm spread) with both orders the same sign; then the superbatch's
   allocations and residency that outlive prefill are separated from decode.
   Otherwise abe4ceb is kept and item 15 is taken as no regression.
+
+## Seventh amendment before any arm (2026-10-06): the one confirming run
+
+abe4ceb is adopted (decD: no decode regression). The final chain runs once
+more, as run X (regX.out, m4accept.sh X, decode ABBA abba-x, cold arms
+Y-<n>-<old|new>), on the tree b9bd1e1 - abe4ceb's engine sources and the
+capacity test's nosb - under every rule of run T, including arm a's cache at
+the sentinel's N and one block rerun for an invalid arm. It confirms: frozen
+oracle identity, cold time to first token (absolute and saved), no decode
+regression, 40 of 40 superbatched layers and 0 in the old arms, no
+token-major tail fallback, pressure level 1 within the 80 GiB budget, and
+15 of 15. No code or plan changes while it runs.
