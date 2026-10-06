@@ -1,0 +1,5 @@
+1 main prompt done 34.059s |  | rc 0 peak wired 85.68 GiB, peak pressure level 1, peak swap  | answer dae9d97ebf
+2 d34 prompt done 35.174s | waited 12.922 s | rc 0 peak wired 82.93 GiB, peak pressure level 1, peak swap  | answer d8f1a29302
+3 d34 prompt done 35.370s | waited 13.114 s | rc 0 peak wired 83.34 GiB, peak pressure level 1, peak swap  | answer d8f1a29302
+4 main prompt done 34.263s |  | rc 0 peak wired 85.96 GiB, peak pressure level 1, peak swap  | answer dae9d97ebf
+ALL-DONE

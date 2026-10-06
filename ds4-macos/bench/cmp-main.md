@@ -22,3 +22,25 @@ about twice the decode rate, same text. Long prompts: main's prefill is about
 1.8x faster cold at an equal cache size, with different arithmetic - its
 answer differs from the frozen oracle's - and more wired memory; at the
 production cache it does not run within the guard at all.
+
+## Correction: the long-prompt gap was thermal state (2026-10-07)
+
+The cold d34264a numbers above (60.0, 71.3 s) were taken in a sequence of
+heavy runs. With the per-layer read profile (engine d767aa9) two identical
+cold prompts back to back took 36.2 s and 51.1 s: the next layer's pread was
+hidden in both (0.22 s of join waits over 40 layers), and the prefix's and
+the tail's compute were both ~40% slower in the second. A short `./thermal`
+probe read the same before each and does not see it.
+
+With five minutes idle before every server start (cmpcool.out), cold, cache
+7034 for main:
+
+| run | main | d34264a |
+|---|---|---|
+| 1 / 4 | 34.06 s, 34.26 s | |
+| 2 / 3 | | 35.17 s, 35.37 s |
+
+At equal thermal state d34264a's exact long prefill is within 1.1 s (3%) of
+main's inexact one; its answer is the frozen oracle's (d8f1a29302), main's is
+not (dae9d97ebf). The difference that remains under load is the prefix's
+SIMD Q8_0 projections running hotter and throttling more.

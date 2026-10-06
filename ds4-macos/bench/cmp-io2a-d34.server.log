@@ -1,0 +1,251 @@
+ds4: abort gate on for the first 40 layers
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: V4.1 SSD cache fitted from 10268 to 7034 experts for context/runtime headroom
+ds4: Metal backend: Metal 4
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: metal SSD streaming cache target 65.20 GiB; effective 65.20 GiB = 7.12 GiB prefill headroom + 58.08 GiB dynamic cache (6266 experts, 9.49 MiB each)
+ds4: Metal SSD static weights locked 9.37 GiB; pageable 0.00 GiB
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: expert cache prewarmed from the built-in V4.1 hotlist: 6264 experts (0 failed), 58.07 GiB in 6.09 s; stopped where the cache was full
+ds4: memory: KV 0.06 GiB (raw 0.01 + compressed 0.05) + buffers 3.36 GiB + resident model 9.37 GiB + expert cache 58.08 GiB + prefill expert reserve 7.12 GiB = 77.99 GiB planned
+ds4: memory detail: ctx=8192 prefill_cap=4096 raw_kv_rows=128 compressed_kv_rows=8193 backend=metal
+1007 03:12:51 ds4-server: context buffers 3503.03 MiB (ctx=8192, backend=metal, prefill_chunk=4096, raw_kv_rows=128, compressed_kv_rows=8193)
+ds4: V4.1 executor ABI 3, arena align 256, rev d34264ab675b-dirty, built Oct  7 2026 03:10:41
+ds4: V4.1 static context buffers 3503.03 MiB (ctx=8192), Engram disk-only
+1007 03:12:51 ds4-server: listening on http://127.0.0.1:8031
+1007 03:12:52 ds4-server: chat ctx=0..4781:4781 prompt start
+1007 03:12:52 ds4-server: metal 4 at request start: 0 commits, 0 feedback, 0 errors, residency 0 entries 0.0 MiB
+ds4: Metal streaming prefill layer pread layer=0 tokens=2048 threads=8 ranges=104 bytes=4.96 GiB wait=223.345 ms thread=223.364 ms read=4.96 GiB ok=1
+ds4: V4.1 prefill layer=0 pos=0 rows=4096 encoder_resident=0 map=225.294 engram=0.000 encode=187.281 drain=308.164 seed=6.485 ms
+ds4: V4.1 K-block effective configuration: rows=685 exact_vocab=0 head_tile=0 dense_tile=4 block_kv=1 block_levels=1 block_attn_k=0 block_attn_raw=0 block_low_batch=0 block_attn=0 batch_fuse=0 batch_attn_out=1 batch_stream_experts=1 row_gather=1 moe_expert_major=0 block_txn=0 row_logits_readback=0
+ds4: V4.1 block-local KV delta, 685 rows over 127 prefix keys
+ds4: V4.1 batch attn_output_b hoisted out of the per-row loop (685 rows)
+ds4: V4.1 routed gate/up encode: ds4_gpu_encode_mul_mv_addr_iq2_pair_swiglu
+ds4: V4.1 io tail turn=1 start=489924.064136 end=489927.091034
+ds4: Metal streaming prefill layer pread layer=1 tokens=2048 threads=8 ranges=96 bytes=4.02 GiB wait=0.035 ms thread=268.228 ms read=4.02 GiB ok=1
+ds4: V4.1 io layer=1 issued=489923.499872 thread_end=489923.499872 join=489927.091063 joined=489927.091104
+ds4: V4.1 prefill layer=1 pos=0 rows=4096 encoder_resident=0 map=0.312 engram=0.001 encode=370.897 drain=173.337 seed=6.798 ms
+ds4: V4.1 io tail turn=2 start=489927.661357 end=489928.042636
+ds4: Metal streaming prefill layer pread layer=2 tokens=2048 threads=8 ranges=112 bytes=3.75 GiB wait=0.026 ms thread=355.830 ms read=3.75 GiB ok=1
+ds4: V4.1 io layer=2 issued=489927.091375 thread_end=489927.091375 join=489928.042686 joined=489928.042718
+ds4: V4.1 prefill layer=2 pos=0 rows=4096 encoder_resident=0 map=0.328 engram=0.000 encode=300.215 drain=271.569 seed=6.679 ms
+ds4: V4.1 block attention by level, 685 rows, concurrent section open
+ds4: V4.1 io tail turn=3 start=489928.623284 end=489928.983489
+ds4: Metal streaming prefill layer pread layer=3 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.039 ms thread=286.573 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=3 issued=489928.043014 thread_end=489928.043014 join=489928.983523 joined=489928.983567
+ds4: V4.1 prefill layer=3 pos=0 rows=4096 encoder_resident=0 map=0.427 engram=0.000 encode=194.778 drain=399.423 seed=6.617 ms
+ds4: V4.1 io tail turn=4 start=489929.586693 end=489929.789442
+ds4: Metal streaming prefill layer pread layer=4 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.047 ms thread=325.963 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=4 issued=489928.983950 thread_end=489928.983950 join=489929.789461 joined=489929.789519
+ds4: V4.1 prefill layer=4 pos=0 rows=4096 encoder_resident=0 map=0.363 engram=0.000 encode=185.289 drain=414.498 seed=5.553 ms
+ds4: V4.1 io tail turn=5 start=489930.397009 end=489930.599014
+ds4: Metal streaming prefill layer pread layer=5 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.038 ms thread=431.161 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=5 issued=489929.789824 thread_end=489929.789824 join=489930.599035 joined=489930.599077
+ds4: V4.1 prefill layer=5 pos=0 rows=4096 encoder_resident=0 map=0.393 engram=0.000 encode=191.156 drain=457.613 seed=7.192 ms
+ds4: V4.1 io tail turn=6 start=489931.257210 end=489931.459250
+ds4: Metal streaming prefill layer pread layer=6 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.027 ms thread=495.696 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=6 issued=489930.599428 thread_end=489930.599428 join=489931.459272 joined=489931.459303
+ds4: V4.1 prefill layer=6 pos=0 rows=4096 encoder_resident=0 map=0.355 engram=0.000 encode=183.085 drain=261.019 seed=7.306 ms
+ds4: V4.1 io tail turn=7 start=489931.912730 end=489932.114488
+ds4: Metal streaming prefill layer pread layer=7 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.036 ms thread=355.571 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=7 issued=489931.459626 thread_end=489931.459626 join=489932.114511 joined=489932.114554
+ds4: V4.1 prefill layer=7 pos=0 rows=4096 encoder_resident=0 map=0.361 engram=0.000 encode=176.307 drain=370.851 seed=11.204 ms
+ds4: V4.1 io tail turn=8 start=489932.675697 end=489932.882688
+ds4: Metal streaming prefill layer pread layer=8 tokens=2048 threads=8 ranges=112 bytes=3.75 GiB wait=0.031 ms thread=416.786 ms read=3.75 GiB ok=1
+ds4: V4.1 io layer=8 issued=489932.114871 thread_end=489932.114871 join=489932.883030 joined=489932.883067
+ds4: V4.1 prefill layer=8 pos=0 rows=4096 encoder_resident=0 map=0.757 engram=0.000 encode=312.431 drain=228.984 seed=8.373 ms
+ds4: V4.1 io tail turn=9 start=489933.436952 end=489933.712832
+ds4: Metal streaming prefill layer pread layer=9 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.024 ms thread=339.331 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=9 issued=489932.883674 thread_end=489932.883674 join=489933.712874 joined=489933.712903
+ds4: V4.1 prefill layer=9 pos=0 rows=4096 encoder_resident=0 map=0.311 engram=0.000 encode=182.105 drain=229.466 seed=8.228 ms
+ds4: V4.1 io tail turn=10 start=489934.134816 end=489934.340526
+ds4: Metal streaming prefill layer pread layer=10 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.034 ms thread=337.254 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=10 issued=489933.713185 thread_end=489933.713185 join=489934.340550 joined=489934.340589
+ds4: V4.1 prefill layer=10 pos=0 rows=4096 encoder_resident=0 map=4.211 engram=0.000 encode=199.009 drain=229.225 seed=9.008 ms
+ds4: V4.1 io tail turn=11 start=489934.784113 end=489934.992316
+ds4: Metal streaming prefill layer pread layer=11 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.028 ms thread=360.582 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=11 issued=489934.344761 thread_end=489934.344761 join=489934.992351 joined=489934.992384
+ds4: V4.1 prefill layer=11 pos=0 rows=4096 encoder_resident=0 map=0.303 engram=0.000 encode=176.145 drain=288.739 seed=7.787 ms
+ds4: V4.1 io tail turn=12 start=489935.467211 end=489935.675613
+ds4: Metal streaming prefill layer pread layer=12 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.032 ms thread=422.945 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=12 issued=489934.992654 thread_end=489934.992654 join=489935.675658 joined=489935.675698
+ds4: V4.1 prefill layer=12 pos=0 rows=4096 encoder_resident=0 map=0.408 engram=0.000 encode=178.143 drain=244.885 seed=9.108 ms
+ds4: V4.1 io tail turn=13 start=489936.110003 end=489936.322997
+ds4: Metal streaming prefill layer pread layer=13 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.028 ms thread=361.276 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=13 issued=489935.676065 thread_end=489935.676065 join=489936.323025 joined=489936.323058
+ds4: V4.1 prefill layer=13 pos=0 rows=4096 encoder_resident=0 map=0.319 engram=0.000 encode=185.171 drain=270.208 seed=8.023 ms
+ds4: V4.1 io tail turn=14 start=489936.788630 end=489937.012529
+ds4: Metal streaming prefill layer pread layer=14 tokens=2048 threads=8 ranges=112 bytes=4.04 GiB wait=0.030 ms thread=441.350 ms read=4.04 GiB ok=1
+ds4: V4.1 io layer=14 issued=489936.323344 thread_end=489936.323344 join=489937.012550 joined=489937.012586
+ds4: V4.1 prefill layer=14 pos=0 rows=4096 encoder_resident=0 map=0.348 engram=0.000 encode=511.170 drain=225.550 seed=10.759 ms
+ds4: V4.1 io tail turn=15 start=489937.762119 end=489938.265825
+ds4: Metal streaming prefill layer pread layer=15 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.028 ms thread=377.723 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=15 issued=489937.012898 thread_end=489937.012898 join=489938.266042 joined=489938.266076
+ds4: V4.1 prefill layer=15 pos=0 rows=4096 encoder_resident=0 map=0.324 engram=0.000 encode=209.614 drain=280.959 seed=11.125 ms
+ds4: V4.1 io tail turn=16 start=489938.769942 end=489939.017535
+ds4: Metal streaming prefill layer pread layer=16 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.046 ms thread=368.559 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=16 issued=489938.266366 thread_end=489938.266366 join=489939.017568 joined=489939.017619
+ds4: V4.1 prefill layer=16 pos=0 rows=4096 encoder_resident=0 map=15.083 engram=0.000 encode=221.005 drain=266.915 seed=12.494 ms
+ds4: V4.1 io tail turn=17 start=489939.535392 end=489939.787843
+ds4: Metal streaming prefill layer pread layer=17 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.027 ms thread=369.437 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=17 issued=489939.032650 thread_end=489939.032650 join=489939.787878 joined=489939.787911
+ds4: V4.1 prefill layer=17 pos=0 rows=4096 encoder_resident=0 map=0.343 engram=0.000 encode=220.781 drain=286.177 seed=13.922 ms
+ds4: V4.1 io tail turn=18 start=489940.310823 end=489940.566663
+ds4: Metal streaming prefill layer pread layer=18 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.032 ms thread=349.667 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=18 issued=489939.788221 thread_end=489939.788221 join=489940.566703 joined=489940.566741
+ds4: V4.1 prefill layer=18 pos=0 rows=4096 encoder_resident=0 map=0.338 engram=0.000 encode=219.078 drain=315.760 seed=13.851 ms
+ds4: V4.1 io tail turn=19 start=489941.117519 end=489941.378888
+ds4: Metal streaming prefill layer pread layer=19 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.034 ms thread=436.068 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=19 issued=489940.567041 thread_end=489940.567041 join=489941.378923 joined=489941.378963
+ds4: V4.1 prefill layer=19 pos=0 rows=4096 encoder_resident=0 map=0.533 engram=0.000 encode=218.771 drain=298.546 seed=11.720 ms
+ds4: V4.1 io tail turn=20 start=489941.910414 end=489942.155402
+ds4: Metal streaming prefill layer pread layer=20 tokens=2048 threads=8 ranges=112 bytes=3.74 GiB wait=0.028 ms thread=363.258 ms read=3.74 GiB ok=1
+ds4: V4.1 io layer=20 issued=489941.379455 thread_end=489941.379455 join=489942.155429 joined=489942.155464
+ds4: V4.1 prefill layer=20 pos=0 rows=4096 encoder_resident=0 map=0.351 engram=0.000 encode=455.636 drain=392.248 seed=10.011 ms
+ds4: V4.1 io tail turn=21 start=489943.015682 end=489943.352790
+ds4: Metal streaming prefill layer pread layer=21 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.037 ms thread=338.214 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=21 issued=489942.155780 thread_end=489942.155780 join=489943.353274 joined=489943.353549
+ds4: V4.1 prefill layer=21 pos=0 rows=4096 encoder_resident=0 map=0.982 engram=0.000 encode=220.462 drain=288.118 seed=11.096 ms
+ds4: V4.1 io tail turn=22 start=489943.877742 end=489944.119696
+ds4: Metal streaming prefill layer pread layer=22 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.031 ms thread=476.101 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=22 issued=489943.354138 thread_end=489943.354138 join=489944.119733 joined=489944.119769
+ds4: V4.1 prefill layer=22 pos=0 rows=4096 encoder_resident=0 map=0.381 engram=0.000 encode=232.674 drain=290.539 seed=14.317 ms
+ds4: V4.1 io tail turn=23 start=489944.659536 end=489944.913865
+ds4: Metal streaming prefill layer pread layer=23 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.024 ms thread=377.236 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=23 issued=489944.120113 thread_end=489944.120113 join=489944.913889 joined=489944.913917
+ds4: V4.1 prefill layer=23 pos=0 rows=4096 encoder_resident=0 map=0.320 engram=0.001 encode=224.122 drain=286.607 seed=13.477 ms
+ds4: V4.1 io tail turn=24 start=489945.440314 end=489945.701765
+ds4: Metal streaming prefill layer pread layer=24 tokens=2048 threads=8 ranges=96 bytes=3.74 GiB wait=0.025 ms thread=368.525 ms read=3.74 GiB ok=1
+ds4: V4.1 io layer=24 issued=489944.914209 thread_end=489944.914209 join=489945.701783 joined=489945.701812
+ds4: V4.1 prefill layer=24 pos=0 rows=4096 encoder_resident=0 map=0.318 engram=0.000 encode=327.162 drain=316.233 seed=11.885 ms
+ds4: V4.1 io tail turn=25 start=489946.359117 end=489946.671520
+ds4: Metal streaming prefill layer pread layer=25 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.023 ms thread=572.697 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=25 issued=489945.702101 thread_end=489945.702101 join=489946.671541 joined=489946.671569
+ds4: V4.1 prefill layer=25 pos=0 rows=4096 encoder_resident=0 map=0.374 engram=0.000 encode=220.672 drain=301.505 seed=12.059 ms
+ds4: V4.1 io tail turn=26 start=489947.208064 end=489947.450227
+ds4: Metal streaming prefill layer pread layer=26 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.030 ms thread=384.653 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=26 issued=489946.671914 thread_end=489946.671914 join=489947.450247 joined=489947.450282
+ds4: V4.1 prefill layer=26 pos=0 rows=4096 encoder_resident=0 map=0.344 engram=0.000 encode=227.214 drain=300.277 seed=12.281 ms
+ds4: V4.1 io tail turn=27 start=489947.992310 end=489948.234534
+ds4: Metal streaming prefill layer pread layer=27 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.026 ms thread=400.788 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=27 issued=489947.450591 thread_end=489947.450591 join=489948.234555 joined=489948.234585
+ds4: V4.1 prefill layer=27 pos=0 rows=4096 encoder_resident=0 map=0.293 engram=0.000 encode=235.441 drain=324.328 seed=11.192 ms
+ds4: V4.1 io tail turn=28 start=489948.807524 end=489949.051700
+ds4: Metal streaming prefill layer pread layer=28 tokens=2048 threads=8 ranges=96 bytes=3.74 GiB wait=0.025 ms thread=499.434 ms read=3.74 GiB ok=1
+ds4: V4.1 io layer=28 issued=489948.234848 thread_end=489948.234848 join=489949.051721 joined=489949.051752
+ds4: V4.1 prefill layer=28 pos=0 rows=4096 encoder_resident=0 map=0.372 engram=0.000 encode=317.017 drain=290.465 seed=14.206 ms
+ds4: V4.1 io tail turn=29 start=489949.676305 end=489950.006080
+ds4: Metal streaming prefill layer pread layer=29 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.055 ms thread=371.246 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=29 issued=489949.052092 thread_end=489949.052092 join=489950.008865 joined=489950.009221
+ds4: V4.1 prefill layer=29 pos=0 rows=4096 encoder_resident=0 map=0.802 engram=0.008 encode=226.881 drain=300.274 seed=12.611 ms
+ds4: V4.1 io tail turn=30 start=489950.551859 end=489950.802034
+ds4: Metal streaming prefill layer pread layer=30 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.027 ms thread=383.560 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=30 issued=489950.009667 thread_end=489950.009667 join=489950.802063 joined=489950.802096
+ds4: V4.1 prefill layer=30 pos=0 rows=4096 encoder_resident=0 map=0.343 engram=0.000 encode=219.123 drain=375.939 seed=12.627 ms
+ds4: V4.1 io tail turn=31 start=489951.411841 end=489951.658606
+ds4: Metal streaming prefill layer pread layer=31 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.030 ms thread=503.357 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=31 issued=489950.802406 thread_end=489950.802406 join=489951.658632 joined=489951.658667
+ds4: V4.1 prefill layer=31 pos=0 rows=4096 encoder_resident=0 map=0.361 engram=0.001 encode=214.937 drain=328.931 seed=13.813 ms
+ds4: V4.1 io tail turn=32 start=489952.218743 end=489952.476768
+ds4: Metal streaming prefill layer pread layer=32 tokens=2048 threads=8 ranges=96 bytes=3.74 GiB wait=0.036 ms thread=440.801 ms read=3.74 GiB ok=1
+ds4: V4.1 io layer=32 issued=489951.658993 thread_end=489951.658993 join=489952.476792 joined=489952.476833
+ds4: V4.1 prefill layer=32 pos=0 rows=4096 encoder_resident=0 map=0.398 engram=0.000 encode=309.968 drain=325.485 seed=13.788 ms
+ds4: V4.1 io tail turn=33 start=489953.128248 end=489953.440099
+ds4: Metal streaming prefill layer pread layer=33 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.040 ms thread=392.837 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=33 issued=489952.477189 thread_end=489952.477189 join=489953.440129 joined=489953.440177
+ds4: V4.1 prefill layer=33 pos=0 rows=4096 encoder_resident=0 map=72.461 engram=0.000 encode=230.474 drain=292.745 seed=20.140 ms
+ds4: V4.1 io tail turn=34 start=489954.058963 end=489954.306803
+ds4: Metal streaming prefill layer pread layer=34 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.029 ms thread=378.116 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=34 issued=489953.512590 thread_end=489953.512590 join=489954.307018 joined=489954.307165
+ds4: V4.1 prefill layer=34 pos=0 rows=4096 encoder_resident=0 map=0.974 engram=0.000 encode=218.351 drain=291.553 seed=14.258 ms
+ds4: V4.1 io tail turn=35 start=489954.835624 end=489955.102281
+ds4: Metal streaming prefill layer pread layer=35 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.027 ms thread=374.916 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=35 issued=489954.307817 thread_end=489954.307817 join=489955.102300 joined=489955.102331
+ds4: V4.1 prefill layer=35 pos=0 rows=4096 encoder_resident=0 map=0.363 engram=0.000 encode=223.881 drain=311.035 seed=14.322 ms
+ds4: V4.1 io tail turn=36 start=489955.653827 end=489955.921168
+ds4: Metal streaming prefill layer pread layer=36 tokens=2048 threads=8 ranges=96 bytes=3.74 GiB wait=0.037 ms thread=367.352 ms read=3.74 GiB ok=1
+ds4: V4.1 io layer=36 issued=489955.102663 thread_end=489955.102663 join=489955.921204 joined=489955.921249
+ds4: V4.1 prefill layer=36 pos=0 rows=4096 encoder_resident=0 map=17.414 engram=0.000 encode=328.660 drain=309.147 seed=14.031 ms
+ds4: V4.1 io tail turn=37 start=489956.592824 end=489956.905143
+ds4: Metal streaming prefill layer pread layer=37 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.025 ms thread=379.397 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=37 issued=489955.938618 thread_end=489955.938618 join=489956.905175 joined=489956.905205
+ds4: V4.1 prefill layer=37 pos=0 rows=4096 encoder_resident=0 map=0.338 engram=0.001 encode=235.736 drain=352.419 seed=14.612 ms
+ds4: V4.1 io tail turn=38 start=489957.510720 end=489957.783775
+ds4: Metal streaming prefill layer pread layer=38 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.026 ms thread=463.441 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=38 issued=489956.905513 thread_end=489956.905513 join=489957.783798 joined=489957.783829
+ds4: V4.1 prefill layer=38 pos=0 rows=4096 encoder_resident=0 map=0.334 engram=0.000 encode=226.684 drain=325.026 seed=14.753 ms
+ds4: V4.1 io tail turn=39 start=489958.352677 end=489958.610414
+ds4: Metal streaming prefill layer pread layer=39 tokens=2048 threads=8 ranges=96 bytes=3.73 GiB wait=0.060 ms thread=405.368 ms read=3.73 GiB ok=1
+ds4: V4.1 io layer=39 issued=489957.784132 thread_end=489957.784132 join=489958.610444 joined=489958.610512
+ds4: V4.1 prefill layer=39 pos=0 rows=4096 encoder_resident=0 map=0.375 engram=0.000 encode=215.477 drain=327.096 seed=14.580 ms
+ds4: V4.1 io tail turn=40 start=489959.169544 end=489959.441520
+ds4: V4.1 batch step rows=685 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 io tail turn=41 start=489959.458691 end=489959.459004
+ds4: V4.1 prefill of 4096 rows interleaved layer by layer with the 685-row tail after it; the prefix waited 13.315 s on the tail's layers
+1007 03:13:28 ds4-server: chat ctx=0..4781:4781 prefill chunk 4781/4781 (100.0%) chunk=0.00 t/s avg=132.05 t/s 36.205s
+ds4: V4.1 prefill tail at position 4096 ran 685 rows as 1 batch steps
+ds4: expert cache lent the prefill headroom for decode: 6266 -> 7034 experts
+1007 03:13:28 ds4-server: chat ctx=0..4781:4781 prompt done 36.246s
+ds4: shared/routed FFN overlap ran, mode 1
+ds4: memory budget reached: a cache slab of 2.03 GiB refused with 80.00 GiB allocated and a 0.00 GiB prefill reserve, of a 80.00 GiB budget; the expert cache now evicts to make room
+1007 03:13:32 ds4-server: chat ctx=4781..4831:50 gen=50 decoding chunk=13.63 t/s avg=13.63 t/s 3.668s
+ds4:   decode path so far: 64 single-row steps (70.4 ms each inside the graph over the last 64), 1 K-row verification steps over 685 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1370 nodes attended one at a time
+ds4: gate over tokens 1-64: 26.33 command buffers, 18.47 aborts, 240.0 expert ids accounted, 252.43 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 2.13 + commit-to-done 33.63 + repair-load 27.73 + accounting 0.06 + tail 1.48 = 65.02 of a 70.64 ms wall, residual 5.61
+ds4:   GPU busy 469.70 ms of the token's wall (the union of its buffers' spans), idle -399.06 ms
+ds4:   1385.4 gated dispatches a token, 20.2 of them behind an abort; 590.3 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 6.86 segments used, 17.45 dropped, 4.95 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 249.78 attempted, 249.78 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 49.22 command buffers sent, 8700.1 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 49.22 contexts in 51.28 command buffers (0.69 split); 9865.3 nodes = 8700.1 dispatches + 1165.1 copies; barriers 5630.5 from the graph, 102.6 queue; engine asked for 135.8 barriers and 529.7 section ends, neither encoded; 24722.8 buffer and 9355.4 constant bindings (760607 B), 0.0 with no stated length; 49.22 blocking waits, 472.82 ms
+ds4:   expert cache over the last 64 tokens: 2714.73 hits, 194.03 misses, 87.55 evictions a token; 6815 of 7034 entries live (96.9%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 124.47 genuinely absent
+ds4:   of the repair a token: readahead 30.14 ms, slot preparation 35.94 ms, reads 56.50 ms, install 0.28 ms, over 194.03 loads
+ds4:   Engram rows written at step start in 64 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+1007 03:13:33 ds4-server: chat ctx=4831..4845:14 gen=64 decoding chunk=15.28 t/s avg=13.96 t/s 4.585s
+1007 03:13:33 ds4-server: token ids: 64, hash 0d7fb78ed9b7a4a1, stop output limit token -1, every 64: 0d7fb78e
+ds4: backend request Metal 4 encoder batch                  encoder=573136
+ds4: backend request Metal 4 segment                        commit=3150
+ds4: backend request Metal 4 wait                           wait=3150
+ds4: backend request Metal 4 tensor_copy                    blit=48592
+ds4: backend request Metal 4 expert_cache_fill              blit=4452
+ds4: backend request Metal 4 tensor_read                    readback=105
+ds4: backend request totals over 64 tokens (selected Metal 4): M3 commit=0 wait=0 signal=0 evwait=0 blit=0 encoder=0 readback=0 M4 commit=3150 wait=3150 signal=0 evwait=0 blit=53044 encoder=573136 readback=105; Metal 3 fallback 0; site table overflow 0
+ds4: backend request boundary end            pc 0x1001cec48 1
+ds4: backend request boundary end            pc 0x1001dc9c8 40
+ds4: backend request boundary end            pc 0x100200860 40
+ds4: backend request boundary end            pc 0x1001dce2c 40
+ds4: backend request boundary end            pc 0x1001de638 40
+ds4: backend request boundary end            pc 0x1002c6b60 40
+ds4: backend request boundary end            pc 0x1002ca580 40
+ds4: backend request boundary end            pc 0x100179fe8 40
+ds4: backend request boundary end            pc 0x100175c20 1
+ds4: backend request boundary end            pc 0x1001e041c 1
+ds4: backend request boundary end            pc 0x1001cd640 1
+ds4: backend request boundary end            pc 0x1000cda90 65
+ds4: backend request boundary flush          pc 0x1000c6bfc 1685
+ds4: backend request boundary flush          pc 0x1000c6fe8 1556
+ds4: backend request boundary wait mark      pc 0x1000c6fc8 1556
+ds4: backend request boundary wait           pc 0x1000c70d0 1117
+ds4: backend request boundary wait           pc 0x1000c7024 129
+ds4: backend request boundary end            pc 0x1000c8174 64
+ds4: Metal 4 bindings with no stated length: 0 at 0 call sites
+ds4: Metal 4 parts: contexts in 1/2/3/4 parts 3106/0/0/44, 631377 nodes; 44 commit:count: calls with more than one buffer, 3282 command buffers in all; 0 contexts cut short of their parts, 0 empty or mismatched parts
+ds4: backend request Metal 4 feedback after completion: 2455 waits, 39.883 ms
+ds4: backend request Metal 3 command execution after Metal 4 selection: 0 (refused 0); Metal 3 queues created before selection 0, after 0; full expert address table uses 0
+ds4: backend request background: keepalive M3 0 M4 45, pacer M3 0 M4 0 (cumulative)
+1007 03:13:33 ds4-server: token trace: 0 128803 0 3476 477 260 16372 22896 16 5453 270 4093 14 6360 270 31605 14 305 3287 270 4087 7231 9045 16 128803 3476 477 5081 260 1606 4093 538 270 58523 6949 294 15143 89 14158 16 455 4093 344 201 75950 377 6425 28 1482 7065 14 4961 14 6360 14 15292 2924 14 17972 943 201 50219 14 305 7097 7306 260 3729 18538 1167 4866 798 295 201 10595 16 5375 4125 509 270 1522 344 304 13272 270 18538 3737 339 83227 7498 1901 5081 28 1353 31605 10844 412 582 14428 14037 270 201 14360 4588 4 1895 16 6241 16922 14 9572 14 18571 14 26190 14 4772 3737 14 65962 989 272 111855 696 554 1895 16 455 18538 3737 295 270 4093 477 4866 295 201 10595 14 554 56003 339 4690 1257 2900 270 58523 86456 294 38398 14 9641 14 305 110251 20928 16 71595 26577 201 1805 645 386 418 260 44056 6403 62339 1202 834 7931 14 30308 20408 336 75800 1960 260 201 113004 294 270 64383 15844 4851 270 7536 93324 16 33926 601 936 23865 304 11284 270 201 85 2960 14742 1936 69832 14 790 270 91731 47475 832 59143 396 6660 201 6452 3195 554 304 7746 1066 16 660 270 95042 8667 14 3330 4853 51489 21537 53900 201 8848 260 1888 34011 41151 295 260 26166 19900 16 3011 834 515 295 260 53582 14 1754 201 45182 89 14158 8599 513 41949 305 10180 14 554 513 270 71293 377 270 19951 28757 339 671 5613 51141 110278 8398 9575 295 13769 28428 14 3214 5159 14 1754 5159 28428 1960 201 1129 6192 15294 1747 1277 5476 99651 273 16 2566 16818 71595 305 33926 601 2281 270 201 72 39360 14 1539 5144 260 2562 943 270 7469 33935 16 5334 9575 2915 77603 1055 201 26758 6744 28 270 3605 294 260 92683 14 270 537 10592 32820 294 260 9778 14 270 1722 260 5823 201 2438 529 10083 1561 436 936 1047 31691 16056 339 4546 45366 270 3194 936 11300 418 82362 294 280 7002 14 32032 6103 14 49766 69943 14 305 201 39020 14692 16 47643 31004 3659 362 3853 560 1901 82146 34226 304 260 104614 201 50095 260 14560 396 8743 304 2334 59125 1750 1014 468 1094 1129 436 16 455 6949 201 27747 936 12852 1820 14 790 29780 12141 377 1082 14 832 1750 15391 53140 16789 260 201 59206 6857 305 53733 436 418 11198 339 47 3444 3825 5854 270 3799 11162 69 699 305 43697 270 2173 734 17229 2818 1055 270 201 61403 3578 86508 16 2566 18428 17229 2818 2455 16 45836 75950 2818 4127 201 6135 45386 14 58792 14 305 1482 995 37344 1060 969 16884 16 87986 201 60037 13721 30278 14 3825 1910 14 305 5750 3980 1936 7918 16243 339 1124 270 16232 14 260 93437 362 270 113450 50565 1946 31744 270 15106 6337 603 43 2638 9023 260 71040 294 80005 9220 1407 270 18544 1901 27170 1733 201 12678 538 260 27640 11314 16 45789 936 28035 270 17408 2727 8295 377 270 52312 989 458 2038 1482 18288 943 3920 260 65326 17408 515 7837 304 366 7139 603 671 9517 40107 5827 1099 270 11219 339 671 86508 3997 2526 377 260 18496 16 110278 9026 436 37205 418 1234 11316 23441 201 5356 270 18992 16 2566 11516 995 48112 270 31363 44183 14 995 10274 270 201 94786 109871 14 305 995 16026 270 12070 4332 56295 16 455 58941 515 18715 201 25287 1082 270 6949 515 554 339 16422 288 7068 260 12426 4213 305 270 5706 294 16056 8513 1902 6059 3234 834 1561 201 58264 16 31065 10082 7457 38271 1055 270 14677 14085 14 1479 270 9319 936 201 64583 15518 50093 3514 436 86456 39375 367 294 11128 16 38798 2006 260 6644 10549 201 84037 270 5823 305 83119 436 304 270 8806 6791 418 260 7155 396 1359 14 5880 989 4 23299 891 4331 47 3444 13577 270 39317 294 270 14085 418 270 86508 27546 304 969 15142 16 2566 201 18988 8838 396 2239 9616 25342 2455 6352 111461 3137 16 334 12070 201 10911 14 260 7956 12240 14 260 37370 2329 14 260 1167 14037 2503 27566 1137 47484 881 270 2924 396 3859 1960 4880 294 5675 3006 339 47 3444 7431 5524 6731 411 3072 110658 943 260 50645 3077 14 790 1225 26577 436 798 1754 436 515 554 411 18538 305 1687 554 9028 295 270 4087 2310 339 72829 13721 1561 44844 305 78756 1750 5706 295 15143 89 14158 16 33926 601 201 11475 21537 270 6326 1188 294 270 38398 114646 734 15391 14 11602 362 58252 14 995 936 201 42774 1559 362 260 26339 3825 45555 16 455 12505 56574 87934 295 280 22469 1154 1277 30525 201 9336 29780 1494 10965 16 5795 270 25131 14 270 115921 75496 418 5828 201 20850 481 339 47 3444 12652 42313 295 270 41273 4772 16 2566 15965 4371 260 41815 14 23047 436 989 458 10274 304 13769 28428 16 455 25550 86508 936 14376 9754 418 270 3469 1137 50219 9575 14 37266 14 1843 97989 14 110088 14 305 260 2767 9616 1225 79213 1353 201 32568 832 851 1114 554 1747 2727 2239 339 4690 1257 2900 270 58523 86456 294 38398 14 9641 14 305 110251 20928 16 57715 26577 201 1805 645 386 418 260 44056 6403 62339 1202 834 7931 14 30308 20408 336 75800 1960 260 201 113004 294 270 64383 15844 4851 270 7536 93324 16 31065 936 23865 304 11284 270 201 85 2960 14742 1936 69832 14 790 270 91731 47475 832 59143 396 6660 201 6452 3195 554 304 7746 1066 16 660 270 95042 8667 14 3330 4853 51489 21537 53900 201 8848 260 1888 34011 41151 295 260 26166 19900 16 3011 834 515 295 260 53582 14 1754 201 45182 89 14158 8599 513 41949 305 10180 14 554 513 270 71293 377 270 19951 28757 339 671 5613 51141 110278 8398 9575 295 13769 28428 14 3214 5159 14 1754 5159 28428 1960 201 1129 6192 15294 1747 1277 5476 99651 273 16 2566 16818 57715 305 31065 2281 270 201 72 39360 14 1539 5144 260 2562 943 270 7469 33935 16 5334 9575 2915 77603 1055 201 26758 6744 28 270 3605 294 260 92683 14 270 537 10592 32820 294 260 9778 14 270 1722 260 5823 201 2438 529 10083 1561 436 936 1047 31691 16056 339 4546 45366 270 3194 936 11300 418 82362 294 280 7002 14 32032 6103 14 49766 69943 14 305 201 39020 14692 16 58252 31004 3659 362 3853 560 1901 57715 34226 304 260 104614 201 50095 260 14560 396 8743 304 2334 59125 1750 1014 468 1094 1129 436 16 455 6949 201 27747 936 12852 1820 14 790 29780 12141 377 1082 14 832 1750 15391 53140 16789 260 201 59206 6857 305 53733 436 418 11198 339 47 3444 3825 5854 270 3799 11162 69 699 305 43697 270 2173 734 17229 2818 1055 270 201 61403 3578 86508 16 2566 18428 17229 2818 2455 16 45836 75950 2818 4127 201 6135 45386 14 58792 14 305 1482 995 37344 1060 969 16884 16 87986 201 60037 13721 30278 14 3825 1910 14 305 5750 3980 1936 7918 16243 339 35 15391 1520 77289 260 16110 295 16372 3345 14 790 9572 305 55288 881 554 18538 3737 14 832 110278 21168 1066 339 1124 270 16232 14 260 93437 362 270 113450 50565 1946 31744 270 15106 6337 603 42 97683 9023 260 71040 294 80005 9220 1407 270 18544 1901 16358 1733 201 12678 538 260 27640 11314 16 45789 936 28035 270 17408 2727 8295 377 270 52312 989 458 2038 1482 18288 943 3920 260 65326 17408 515 7837 304 366 7139 603 671 9517 40107 5827 1099 270 11219 339 671 86508 3997 2526 377 260 18496 16 110278 9026 436 37205 418 1234 11316 23441 201 5356 270 18992 16 2566 11516 995 48112 270 31363 44183 14 995 10274 270 201 94786 109871 14 305 995 16026 270 12070 4332 56295 16 455 58941 515 18715 201 25287 1082 270 6949 515 554 339 47 3444 1687 554 82406 270 10175 29 1225 5829 436 304 366 5418 304 1783 3859 16 10272 396 1975 11219 14 16358 515 14037 270 1167 10577 15311 16 110278 8398 270 18538 295 3345 14 9101 270 86508 362 260 4712 14 305 1539 10274 304 270 8577 73845 294 270 58523 339 16422 288 7068 260 12426 4213 305 270 5706 294 16056 8513 1902 6059 3234 834 1561 201 58264 16 657 5287 10082 7457 38271 1055 270 14677 14085 14 1479 270 9319 936 201 64583 15518 50093 3514 436 86456 39375 367 294 11128 16 489 59209 2006 260 6644 10549 201 84037 270 5823 305 83119 436 304 270 8806 6791 418 260 7155 396 1359 14 5880 989 4 23299 891 4331 47 3444 13577 270 39317 294 270 14085 418 270 86508 27546 304 969 15142 16 2566 201 18988 8838 396 2239 9616 25342 2455 6352 111461 3137 16 334 12070 201 10911 14 260 7956 12240 14 260 37370 2329 14 260 1167 14037 2503 27566 1137 47484 881 270 2924 396 3859 1960 4880 294 5675 3006 339 72829 13721 1561 44844 305 78756 1750 5706 295 15143 89 14158 16 27170 201 11475 21537 270 6326 1188 294 270 38398 114646 734 15391 14 11602 362 33926 601 14 995 936 201 42774 1559 362 260 26339 3825 45555 16 455 12505 56574 87934 295 280 22469 1154 1277 30525 201 9336 29780 1494 10965 16 5795 270 25131 14 270 115921 75496 418 5828 201 20850 481 339 47 3444 12652 42313 295 270 41273 4772 16 2566 15965 4371 260 41815 14 23047 436 989 458 10274 304 13769 28428 16 455 25550 86508 936 14376 9754 418 270 3469 1137 50219 9575 14 37266 14 1843 97989 14 110088 14 305 260 2767 9616 1225 79213 1353 201 32568 832 851 1114 554 1747 2727 2239 339 4690 1257 2900 270 58523 86456 294 38398 14 9641 14 305 110251 20928 16 58252 26577 201 1805 645 386 418 260 44056 6403 62339 1202 834 7931 14 30308 20408 336 75800 1960 260 201 113004 294 270 64383 15844 4851 270 7536 93324 16 71595 936 23865 304 11284 270 201 85 2960 14742 1936 69832 14 790 270 91731 47475 832 59143 396 6660 201 6452 3195 554 304 7746 1066 16 660 270 95042 8667 14 3330 4853 51489 21537 53900 201 8848 260 1888 34011 41151 295 260 26166 19900 16 3011 834 515 295 260 53582 14 1754 201 45182 89 14158 8599 513 41949 305 10180 14 554 513 270 71293 377 270 19951 28757 339 671 5613 51141 110278 8398 9575 295 13769 28428 14 3214 5159 14 1754 5159 28428 1960 201 1129 6192 15294 1747 1277 5476 99651 273 16 2566 16818 58252 305 71595 2281 270 201 72 39360 14 1539 5144 260 2562 943 270 7469 33935 16 5334 9575 2915 77603 1055 201 26758 6744 28 270 3605 294 260 92683 14 270 537 10592 32820 294 260 9778 14 270 1722 260 5823 201 2438 529 10083 1561 436 936 1047 31691 16056 339 4546 45366 270 3194 936 11300 418 82362 294 280 7002 14 32032 6103 14 49766 69943 14 305 201 39020 14692 16 55394 31004 3659 362 3853 560 1901 16358 34226 304 260 104614 201 50095 260 14560 396 8743 304 2334 59125 1750 1014 468 1094 1129 436 16 455 6949 201 27747 936 12852 1820 14 790 29780 12141 377 1082 14 832 1750 15391 53140 16789 260 201 59206 6857 305 53733 436 418 11198 339 47 3444 3825 5854 270 3799 11162 69 699 305 43697 270 2173 734 17229 2818 1055 270 201 61403 3578 86508 16 2566 18428 17229 2818 2455 16 45836 75950 2818 4127 201 6135 45386 14 58792 14 305 1482 995 37344 1060 969 16884 16 87986 201 60037 13721 30278 14 3825 1910 14 305 5750 3980 1936 7918 16243 339 1124 270 16232 14 260 93437 362 270 113450 50565 1946 31744 270 15106 6337 603 16874 2710 9023 260 71040 294 80005 9220 1407 270 18544 1901 79780 1733 201 12678 538 260 27640 11314 16 45789 936 28035 270 17408 2727 8295 377 270 52312 989 458 2038 1482 18288 943 3920 260 65326 17408 515 7837 304 366 7139 603 671 9517 40107 5827 1099 270 11219 339 671 86508 3997 2526 377 260 18496 16 110278 9026 436 37205 418 1234 11316 23441 201 5356 270 18992 16 2566 11516 995 48112 270 31363 44183 14 995 10274 270 201 94786 109871 14 305 995 16026 270 12070 4332 56295 16 455 58941 515 18715 201 25287 1082 270 6949 515 554 339 47 3444 7431 5524 6731 411 3072 110658 943 260 50645 3077 14 790 1225 26577 436 798 1754 436 515 554 411 18538 305 1687 554 9028 295 270 4087 2310 339 16422 288 7068 260 12426 4213 305 270 5706 294 16056 8513 1902 6059 3234 834 1561 201 58264 16 657 5287 10082 7457 38271 1055 270 14677 14085 14 1479 270 9319 936 201 64583 15518 50093 3514 436 86456 39375 367 294 11128 16 71595 2006 260 6644 10549 201 84037 270 5823 305 83119 436 304 270 8806 6791 418 260 7155 396 1359 14 5880 989 4 23299 891 4331 47 3444 13577 270 39317 294 270 14085 418 270 86508 27546 304 969 15142 16 2566 201 18988 8838 396 2239 9616 25342 2455 6352 111461 3137 16 334 12070 201 10911 14 260 7956 12240 14 260 37370 2329 14 260 1167 14037 2503 27566 1137 47484 881 270 2924 396 3859 1960 4880 294 5675 3006 339 72829 13721 1561 44844 305 78756 1750 5706 295 15143 89 14158 16 33926 601 201 11475 21537 270 6326 1188 294 270 38398 114646 734 15391 14 11602 362 57715 14 995 936 201 42774 1559 362 260 26339 3825 45555 16 455 12505 56574 87934 295 280 22469 1154 1277 30525 201 9336 29780 1494 10965 16 5795 270 25131 14 270 115921 75496 418 5828 201 20850 481 339 47 3444 12652 42313 295 270 41273 4772 16 2566 15965 4371 260 41815 14 23047 436 989 458 10274 304 13769 28428 16 455 25550 86508 936 14376 9754 418 270 3469 1137 50219 9575 14 37266 14 1843 97989 14 110088 14 305 260 2767 9616 1225 79213 1353 201 32568 832 851 1114 554 1747 2727 2239 339 4690 1257 2900 270 58523 86456 294 38398 14 9641 14 305 110251 20928 16 106044 26577 201 1805 645 386 418 260 44056 6403 62339 1202 834 7931 14 30308 20408 336 75800 1960 260 201 113004 294 270 64383 15844 4851 270 7536 93324 16 12741 4789 936 23865 304 11284 270 201 85 2960 14742 1936 69832 14 790 270 91731 47475 832 59143 396 6660 201 6452 3195 554 304 7746 1066 16 660 270 95042 8667 14 3330 4853 51489 21537 53900 201 8848 260 1888 34011 41151 295 260 26166 19900 16 3011 834 515 295 260 53582 14 1754 201 45182 89 14158 8599 513 41949 305 10180 14 554 513 270 71293 377 270 19951 28757 339 671 5613 51141 110278 8398 9575 295 13769 28428 14 3214 5159 14 1754 5159 28428 1960 201 1129 6192 15294 1747 1277 5476 99651 273 16 2566 16818 106044 305 12741 4789 2281 270 201 72 39360 14 1539 5144 260 2562 943 270 7469 33935 16 5334 9575 2915 77603 1055 201 26758 6744 28 270 3605 294 260 92683 14 270 537 10592 32820 294 260 9778 14 270 1722 260 5823 201 2438 529 10083 1561 436 936 1047 31691 16056 339 4546 45366 270 3194 936 11300 418 82362 294 280 7002 14 32032 6103 14 49766 69943 14 305 201 39020 14692 16 57715 31004 3659 362 3853 560 1901 106044 34226 304 260 104614 201 50095 260 14560 396 8743 304 2334 59125 1750 1014 468 1094 1129 436 16 455 6949 201 27747 936 12852 1820 14 790 29780 12141 377 1082 14 832 1750 15391 53140 16789 260 201 59206 6857 305 53733 436 418 11198 339 47 3444 3825 5854 270 3799 11162 69 699 305 43697 270 2173 734 17229 2818 1055 270 201 61403 3578 86508 16 2566 18428 17229 2818 2455 16 45836 75950 2818 4127 201 6135 45386 14 58792 14 305 1482 995 37344 1060 969 16884 16 87986 201 60037 13721 30278 14 3825 1910 14 305 5750 3980 1936 7918 16243 339 1124 270 16232 14 260 93437 362 270 113450 50565 1946 31744 270 15106 6337 603 100950 4789 9023 260 71040 294 80005 9220 1407 270 18544 1901 27170 1733 201 12678 538 260 27640 11314 16 45789 936 28035 270 17408 2727 8295 377 270 52312 989 458 2038 1482 18288 943 3920 260 65326 17408 515 7837 304 366 7139 603 671 9517 40107 5827 1099 270 11219 339 671 86508 3997 2526 377 260 18496 16 110278 9026 436 37205 418 1234 11316 23441 201 5356 270 18992 16 2566 11516 995 48112 270 31363 44183 14 995 10274 270 201 94786 109871 14 305 995 16026 270 12070 4332 56295 16 455 58941 515 18715 201 25287 1082 270 6949 515 554 339 35 15391 1520 77289 260 16110 295 16372 3345 14 790 9572 305 55288 881 554 18538 3737 14 832 110278 21168 1066 339 16422 288 7068 260 12426 4213 305 270 5706 294 16056 8513 1902 6059 3234 834 1561 201 58264 16 16358 10082 7457 38271 1055 270 14677 14085 14 1479 270 9319 936 201 64583 15518 50093 3514 436 86456 39375 367 294 11128 16 82146 2006 260 6644 10549 201 84037 270 5823 305 83119 436 304 270 8806 6791 418 260 7155 396 1359 14 5880 989 4 23299 891 4331 47 3444 13577 270 39317 294 270 14085 418 270 86508 27546 304 969 15142 16 2566 201 18988 8838 396 2239 9616 25342 2455 6352 111461 3137 16 334 12070 201 10911 14 260 7956 12240 14 260 37370 2329 14 260 1167 14037 2503 27566 1137 47484 881 270 2924 396 3859 1960 4880 294 5675 3006 339 671 17132 515 19441 4387 14 1539 44056 1055 270 2591 294 270 2173 734 2818 16 10272 396 1975 11219 14 31065 515 14037 270 1167 12099 15171 16 110278 8398 270 18538 295 3345 14 9101 270 86508 362 260 4712 14 305 1539 10274 304 270 8577 73845 294 270 58523 339 72829 13721 1561 44844 305 78756 1750 5706 295 15143 89 14158 16 71595 201 11475 21537 270 6326 1188 294 270 38398 114646 734 15391 14 11602 362 38798 14 995 936 201 42774 1559 362 260 26339 3825 45555 16 455 12505 56574 87934 295 280 22469 1154 1277 30525 201 9336 29780 1494 10965 16 5795 270 25131 14 270 115921 75496 418 5828 201 20850 481 339 47 3444 12652 42313 295 270 41273 4772 16 2566 15965 4371 260 41815 14 23047 436 989 458 10274 304 13769 28428 16 455 25550 86508 936 14376 9754 418 270 3469 1137 50219 9575 14 37266 14 1843 97989 14 110088 14 305 260 2767 9616 1225 79213 1353 201 32568 832 851 1114 554 1747 2727 2239 339 4690 1257 2900 270 58523 86456 294 38398 14 9641 14 305 110251 20928 16 71595 26577 201 1805 645 386 418 260 44056 6403 62339 1202 834 7931 14 30308 20408 336 75800 1960 260 201 113004 294 270 64383 15844 4851 270 7536 93324 16 106044 936 23865 304 11284 270 201 85 2960 14742 1936 69832 14 790 270 91731 47475 832 59143 396 6660 201 6452 3195 554 304 7746 1066 16 660 270 95042 8667 14 3330 4853 51489 21537 53900 201 8848 260 1888 34011 41151 295 260 26166 19900 16 3011 834 515 295 260 53582 14 1754 201 45182 89 14158 8599 513 41949 305 10180 14 554 513 270 71293 377 270 19951 28757 339 671 5613 51141 110278 8398 9575 295 13769 28428 14 3214 5159 14 1754 5159 28428 1960 201 1129 6192 15294 1747 1277 5476 99651 273 16 2566 16818 71595 305 106044 2281 270 201 72 39360 14 1539 5144 260 2562 943 270 7469 33935 16 5334 9575 2915 77603 1055 201 26758 6744 28 270 3605 294 260 92683 14 270 537 10592 32820 294 260 9778 14 270 1722 260 5823 201 2438 529 10083 1561 436 936 1047 31691 16056 339 4546 45366 270 3194 936 11300 418 82362 294 280 7002 14 32032 6103 14 49766 69943 14 305 201 39020 14692 16 82146 31004 3659 362 3853 560 1901 657 5287 34226 304 260 104614 201 50095 260 14560 396 8743 304 2334 59125 1750 1014 468 1094 1129 436 16 455 6949 201 27747 936 12852 1820 14 790 29780 12141 377 1082 14 832 1750 15391 53140 16789 260 201 59206 6857 305 53733 436 418 11198 339 47 3444 3825 5854 270 3799 11162 69 699 305 43697 270 2173 734 17229 2818 1055 270 201 61403 3578 86508 16 2566 18428 17229 2818 2455 16 45836 75950 2818 4127 201 6135 45386 14 58792 14 305 1482 995 37344 1060 969 16884 16 87986 201 60037 13721 30278 14 3825 1910 14 305 5750 3980 1936 7918 16243 339 47 3444 7431 5524 6731 411 3072 110658 943 260 50645 3077 14 790 1225 26577 436 798 1754 436 515 554 411 18538 305 1687 554 9028 295 270 4087 2310 339 1124 270 16232 14 260 93437 362 270 113450 50565 1946 31744 270 15106 6337 603 45 5287 9023 260 71040 294 80005 9220 1407 270 18544 1901 33926 601 1733 201 12678 538 260 27640 11314 16 45789 936 28035 270 17408 2727 8295 377 270 52312 989 458 2038 1482 18288 943 3920 260 65326 17408 515 7837 304 366 7139 603 671 9517 40107 5827 1099 270 11219 339 671 86508 3997 2526 377 260 18496 16 110278 9026 436 37205 418 1234 11316 23441 201 5356 270 18992 16 2566 11516 995 48112 270 31363 44183 14 995 10274 270 201 94786 109871 14 305 995 16026 270 12070 4332 56295 16 455 58941 515 18715 201 25287 1082 270 6949 515 554 339 16422 288 7068 260 12426 4213 305 270 5706 294 16056 8513 1902 6059 3234 834 1561 201 58264 16 71595 10082 7457 38271 1055 270 14677 14085 14 1479 270 9319 936 201 64583 15518 50093 3514 436 86456 39375 367 294 11128 16 657 5287 2006 260 6644 10549 201 84037 270 5823 305 83119 436 304 270 8806 6791 418 260 7155 396 1359 14 5880 989 4 23299 891 4331 47 3444 13577 270 39317 294 270 14085 418 270 86508 27546 304 969 15142 16 2566 201 18988 8838 396 2239 9616 25342 2455 6352 111461 3137 16 334 12070 201 10911 14 260 7956 12240 14 260 37370 2329 14 260 1167 14037 2503 27566 1137 47484 881 270 2924 396 3859 1960 4880 294 5675 3006 339 72829 13721 1561 44844 305 78756 1750 5706 295 15143 89 14158 16 12741 4789 201 11475 21537 270 6326 1188 294 270 38398 114646 734 15391 14 11602 362 57715 14 995 936 201 42774 1559 362 260 26339 3825 45555 16 455 12505 56574 87934 295 280 22469 1154 1277 30525 201 9336 29780 1494 10965 16 5795 270 25131 14 270 115921 75496 418 5828 201 20850 481 339 47 3444 12652 42313 295 270 41273 4772 16 2566 15965 4371 260 41815 14 23047 436 989 458 10274 304 13769 28428 16 455 25550 86508 936 14376 9754 418 270 3469 1137 50219 9575 14 37266 14 1843 97989 14 110088 14 305 260 2767 9616 1225 79213 1353 201 32568 832 851 1114 554 1747 2727 2239 339 4690 1257 2900 270 58523 86456 294 38398 14 9641 14 305 110251 20928 16 58252 26577 201 1805 645 386 418 260 44056 6403 62339 1202 834 7931 14 30308 20408 336 75800 1960 260 201 113004 294 270 64383 15844 4851 270 7536 93324 16 57715 936 23865 304 11284 270 201 85 2960 14742 1936 69832 14 790 270 91731 47475 832 59143 396 6660 201 6452 3195 554 304 7746 1066 16 660 270 95042 8667 14 3330 4853 51489 21537 53900 201 8848 260 1888 34011 41151 295 260 26166 19900 16 3011 834 515 295 260 53582 14 1754 201 45182 89 14158 8599 513 41949 305 10180 14 554 513 270 71293 377 270 19951 28757 339 671 5613 51141 110278 8398 9575 295 13769 28428 14 3214 5159 14 1754 5159 28428 1960 201 1129 6192 15294 1747 1277 5476 99651 273 16 2566 16818 58252 305 57715 2281 270 201 72 39360 14 1539 5144 260 2562 943 270 7469 33935 16 5334 9575 2915 77603 1055 201 26758 6744 28 270 3605 294 260 92683 14 270 537 10592 32820 294 260 9778 14 270 1722 260 5823 201 2438 529 10083 1561 436 936 1047 31691 16056 339 4546 45366 270 3194 936 11300 418 82362 294 280 7002 14 32032 6103 14 49766 69943 14 305 201 39020 14692 16 58252 31004 3659 362 3853 560 1901 27170 34226 304 260 104614 201 50095 260 14560 396 8743 304 2334 59125 1750 1014 468 1094 1129 436 16 455 6949 201 27747 936 12852 1820 14 790 29780 12141 377 1082 14 832 1750 15391 53140 16789 260 201 59206 6857 305 53733 436 418 11198 339 47 3444 3825 5854 270 3799 11162 69 699 305 43697 270 2173 734 17229 2818 1055 270 201 61403 3578 86508 16 2566 18428 17229 2818 2455 16 45836 75950 2818 4127 201 6135 45386 14 58792 14 305 1482 995 37344 1060 969 16884 16 87986 201 60037 13721 30278 14 3825 1910 14 305 5750 3980 1936 7918 16243 339 1124 270 16232 14 260 93437 362 270 113450 50565 1946 31744 270 15106 6337 603 3346 3444 9023 260 71040 294 80005 9220 1407 270 18544 1901 57715 1733 201 12678 538 260 27640 11314 16 45789 936 28035 270 17408 2727 8295 377 270 52312 989 458 2038 1482 18288 943 3920 260 65326 17408 515 7837 304 366 7139 603 671 9517 40107 5827 1099 270 11219 339 671 86508 3997 2526 377 260 18496 16 110278 9026 436 37205 418 1234 11316 23441 201 5356 270 18992 16 2566 11516 995 48112 270 31363 44183 14 995 10274 270 201 94786 109871 14 305 995 16026 270 12070 4332 56295 16 455 58941 515 18715 201 25287 1082 270 6949 515 554 339 16422 288 7068 260 12426 4213 305 270 5706 294 16056 8513 1902 6059 3234 834 1561 201 58264 16 106044 10082 7457 38271 1055 270 14677 14085 14 1479 270 9319 936 201 64583 15518 50093 3514 436 86456 39375 367 294 11128 16 27170 2006 260 6644 10549 201 84037 270 5823 305 83119 436 304 270 8806 6791 418 260 7155 396 1359 14 5880 989 4 23299 891 4331 47 3444 13577 270 39317 294 270 14085 418 270 86508 27546 304 969 15142 16 2566 201 18988 8838 396 2239 9616 25342 2455 6352 111461 3137 16 334 12070 201 10911 14 260 7956 12240 14 260 37370 2329 14 260 1167 14037 2503 27566 1137 47484 881 270 2924 396 3859 1960 4880 294 5675 3006 339 35 15391 1520 77289 260 16110 295 16372 3345 14 790 9572 305 55288 881 554 18538 3737 14 832 110278 21168 1066 339 44953 271 101859 1387 270 4093 832 3706 16 128804 128822 | 5328 3706 14 270 4093 7226 270 17229 44258 294 15143 89 14158 1407 12529 3137 28 58523 28483 14 3194 51150 14 37266 14 1946 56573 1290 14 86508 9575 14 305 13044 77693 16 110278 14 270 5613 51141 14 10087 15699 5516 295 13769 28428 305 39342 12426 6744 412 2239 3980 339 671 3077 18538 3737 10844 832 3706 477
+1007 03:13:33 ds4-server: metal 4 at request end: 3150 commits, 3150 feedback, 0 errors, residency 0 entries 0.0 MiB
+1007 03:13:33 ds4-server: router finalize so far: 6792 fused, 80 generic, 80 fallback; compare 0 calls, mismatches 0 probs 0 ids 0 weights
+1007 03:13:33 ds4-server: transition compare words differing so far: mix 0 split 0 sum 0 norm 0 residual 0 pre 0 kv 0 window 0 low 0 rows 0 expand 0 expand-sum 0 expand-norm 0 route-proj 0 route-select 0, over 0 comparisons
+1007 03:13:33 ds4-server: chat ctx=0..4781:4781 gen=64 finish=length 40.831s
+1007 03:13:33 ds4-server: shutdown requested, draining requests
+ds4: Metal cleanup discarded 1 live tensor handles
+ds4: memory budget: peak 80.00 GiB allocated of 80.00 GiB; 0 slab(s) given back, 0 allocation(s) refused, cache growth stopped 1153 time(s)
+ds4: expert directory: 0 pinned hits, 0 cache hits, 12418 loads; 0 address mismatches, 0 missing with a non-zero slot, 0 selected and missing; 0 pinned experts given back to the budget
