@@ -138,8 +138,9 @@ superbatch layers during the decode):
 - arms D-1-on, D-2-off, D-3-off, D-4-on: m4capab.sh at cache 10268, 2048
   decode steps after the long prompt, each its own process, settled (wired
   below 8 GiB, thermal back to 97%) before each; "off" is ARM_MODE=nosb.
-- valid: rc 0 at pressure level 1; the oracle's ids/logits/state for the
-  prompt; superbatch 40 in on arms and 0 in off arms during the prefill, and
+- valid: rc 0 at pressure level 1; ids, logits and state the same in all
+  four arms (the oracle has 256 decode steps, which run T matched; none
+  exists at 2048); superbatch 40 in on arms and 0 in off arms during the prefill, and
   0 during the decode in every arm; other processes' CPU recorded beside it.
 - d = mean(on) - mean(off) of the decode's ms a token, and per order (D-1
   against D-2, D-4 against D-3). A regression is d > max(0.3 ms, 2 x the
