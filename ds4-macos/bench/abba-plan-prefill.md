@@ -125,3 +125,24 @@ frozen oracle's; every new arm printing 40 superbatched layers and every old
 arm 0; pressure level 1, unstopped, no residency or memory anomaly. If the
 cold time to first token is not shorter in both blocks, the superbatch is
 taken out and 625b3a7 stays the baseline.
+
+## Sixth amendment before any arm (2026-10-06): run T's decode, once more
+
+Run T's decode ABBA (item 15) was inconclusive: one b arm invalid for other
+processes' CPU in abba-t, and one in its rerun abba-t2. The superbatch runs
+in prefill only, so the one question left is whether a decode regression is
+real. It is measured once, on one binary, the tree b9bd1e1 (abe4ceb's engine
+sources; the capacity test gains "nosb", the superbatch alone off, and counts
+superbatch layers during the decode):
+
+- arms D-1-on, D-2-off, D-3-off, D-4-on: m4capab.sh at cache 10268, 2048
+  decode steps after the long prompt, each its own process, settled (wired
+  below 8 GiB, thermal back to 97%) before each; "off" is ARM_MODE=nosb.
+- valid: rc 0 at pressure level 1; the oracle's ids/logits/state for the
+  prompt; superbatch 40 in on arms and 0 in off arms during the prefill, and
+  0 during the decode in every arm; other processes' CPU recorded beside it.
+- d = mean(on) - mean(off) of the decode's ms a token, and per order (D-1
+  against D-2, D-4 against D-3). A regression is d > max(0.3 ms, 2 x the
+  larger arm spread) with both orders the same sign; then the superbatch's
+  allocations and residency that outlive prefill are separated from decode.
+  Otherwise abe4ceb is kept and item 15 is taken as no regression.
