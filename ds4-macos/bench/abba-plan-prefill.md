@@ -103,3 +103,25 @@ prefix layers and every old arm 0; every run at pressure level 1, unstopped,
 with no residency or memory anomaly. If the cold time to first token is not
 shorter in both blocks, the pairing is taken out and 625b3a7 stays the
 baseline.
+
+## Fifth amendment before any arm (2026-10-06)
+
+Run S was stopped after stS/stS4 (both rc 0) to merge the rest of the prefix
+(prefix-superbatch.md). The candidate is abe4ceb: 625b3a7 plus the prefix
+superbatch (every row-independent step of a 4096-row prefix once over both
+chunks, attention a chunk at a time) and the tail's carried fields in their
+own 57 MiB. The final regression is run T (regT.out, m4accept.sh T), the
+decode ABBA abba-t, the cold arms U-<n>-<old|new>, in run R's order and
+cooling; the old arms are "prev q8nr2 base", which turns the superbatch off.
+
+The expert cache fits 14 fewer experts than at 625b3a7, so the sentinel's
+live entries may no longer be 7041: arm a of the decode ABBA (the frozen
+baseline) takes the sentinel's N, whatever it is, so both arms decode with
+the same live cache, and abba-judge reads that N.
+
+Fixed only if: 15 of 15; cold time to first token shorter than the old arms
+in both blocks; no decode regression; every arm's ids, logits and state the
+frozen oracle's; every new arm printing 40 superbatched layers and every old
+arm 0; pressure level 1, unstopped, no residency or memory anomaly. If the
+cold time to first token is not shorter in both blocks, the superbatch is
+taken out and 625b3a7 stays the baseline.
