@@ -188,3 +188,15 @@ under every rule of run X. Fixed only if 15 of 15, cold time to first token
 shorter in both blocks, no decode regression, every arm the oracle's, 40 of
 40 superbatched layers in new arms and 0 in old, pressure level 1. A fixed
 d34264a gets a tag of a new name, pushed to fork only.
+
+## Ninth amendment before the cold arms are run again (2026-10-07)
+
+Run Z's cold arms stopped at Q-1-old on the harness, not the candidate: the
+capacity test now prints two "superbatch" lines (the prefill's, and the
+decode's count from b9bd1e1), and regZ.sh read both as the count ("0\n0").
+Q-1-old itself was valid (superbatch 0, the oracle's ids/logits/state, cold
+prefill 92.9 s, pressure level 1). The count is now read from the prefill's
+line alone, and the eight cold arms run again as P-<n>-<old|new> in run R's
+order and cooling, followed by m4accept.sh Z with the sentinel's N; run Z's
+regression items and decode ABBA (no regression, blocks -0.300/-0.150 ms)
+stand. Every other rule of the eighth amendment stands.
