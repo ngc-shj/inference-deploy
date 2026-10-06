@@ -1,0 +1,7 @@
+command bash /private/tmp/claude-501/-Users-noguchi-ghq-github-com-ngc-shj-inference-deploy/1f25695b-61e4-4e05-996e-07996a0d6038/scratchpad/cmp_phase.sh main long 1-main-long
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-07 00:32:38 ds4-server 0 tests 0 pressure level 1 wired 4.68 GiB free 88% swap 0.15 GiB
+pid 41004 process group 41004
+ASKED TO STOP (SIGTERM to the group) at wired 90.56 GiB pressure 1 swap+ 0.00 GiB
+rc 143 peak wired 90.56 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 83.53 GiB, peak Metal 83.00 GiB
+after 2026-10-07 00:33:08 ds4-server 0 tests 0 pressure level 1 wired 4.97 GiB free 83% swap 0.15 GiB

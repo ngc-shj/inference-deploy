@@ -1,0 +1,8 @@
+short1 client_total 10.401517s
+short2 client_total 7.367092s
+ds4-server: chat ctx=0..18:18 prompt done 4.543s
+ds4-server: chat ctx=18..68:50 gen=50 decoding chunk=10.46 t/s avg=10.46 t/s 4.779s
+ds4-server: chat ctx=68..82:14 gen=64 decoding chunk=12.98 t/s avg=10.93 t/s 5.857s
+ds4-server: chat ctx=0..18:18 prompt done 1.001s
+ds4-server: chat ctx=18..68:50 gen=50 decoding chunk=9.74 t/s avg=9.74 t/s 5.133s
+ds4-server: chat ctx=68..82:14 gen=64 decoding chunk=11.36 t/s avg=10.05 t/s 6.365s

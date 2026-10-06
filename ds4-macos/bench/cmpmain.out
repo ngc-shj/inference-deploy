@@ -1,0 +1,13 @@
+== 1-main-short rev 0aaea5a238fb41a35106a551e73c8409dfb751ac dir | rc 0 peak wired 50.93 GiB, peak pressure level 1, peak swap 
+== 1-main-long rev 0aaea5a238fb41a35106a551e73c8409dfb751ac dir | rc 143 peak wired 90.56 GiB, peak pressure level 1, peak swa
+   ./gpurun.sh: line 190: 41004 Terminated: 15          "$@" < /dev/null > "$OUT" 2>&1
+   ASKED TO STOP (SIGTERM to the group) at wired 90.56 GiB pressure 1 swap+ 0.00 GiB
+== 2-d34-short rev d34264ab675b0706f356d36eebe2220ec7381d42 dir | rc 0 peak wired 80.11 GiB, peak pressure level 1, peak swap 
+== 2-d34-long rev d34264ab675b0706f356d36eebe2220ec7381d42 dir | rc 0 peak wired 83.83 GiB, peak pressure level 1, peak swap 
+== 3-d34-short rev d34264ab675b0706f356d36eebe2220ec7381d42 dir | rc 0 peak wired 80.19 GiB, peak pressure level 1, peak swap 
+== 3-d34-long rev d34264ab675b0706f356d36eebe2220ec7381d42 dir | rc 0 peak wired 84.41 GiB, peak pressure level 1, peak swap 
+== 4-main-short rev 0aaea5a238fb41a35106a551e73c8409dfb751ac dir | rc 0 peak wired 50.97 GiB, peak pressure level 1, peak swap 
+== 4-main-long rev 0aaea5a238fb41a35106a551e73c8409dfb751ac dir | rc 143 peak wired 89.80 GiB, peak pressure level 1, peak swa
+   ./gpurun.sh: line 190: 52004 Terminated: 15          "$@" < /dev/null > "$OUT" 2>&1
+   ASKED TO STOP (SIGTERM to the group) at wired 89.80 GiB pressure 1 swap+ 0.00 GiB
+ALL-DONE

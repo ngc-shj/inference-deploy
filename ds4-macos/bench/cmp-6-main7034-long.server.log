@@ -1,0 +1,20 @@
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: Metal SSD static weights locked 9.37 GiB; pageable 0.00 GiB
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.06 GiB (raw 0.01 + compressed 0.05) + buffers 3.26 GiB + resident model 9.37 GiB + expert cache 65.20 GiB = 77.90 GiB planned
+ds4: memory detail: ctx=8192 prefill_cap=4096 raw_kv_rows=128 compressed_kv_rows=8193 backend=metal
+1007 00:41:07 ds4-server: context buffers 3403.23 MiB (ctx=8192, backend=metal, prefill_chunk=4096, raw_kv_rows=128, compressed_kv_rows=8193)
+ds4: V4.1 static context buffers 3403.23 MiB (ctx=8192), Engram disk-only
+1007 00:41:07 ds4-server: listening on http://127.0.0.1:8031
+1007 00:41:08 ds4-server: chat ctx=0..4781:4781 prompt start
+1007 00:41:27 ds4-server: chat ctx=0..4781:4781 prefill chunk 4096/4781 (85.7%) chunk=0.00 t/s avg=216.58 t/s 18.912s
+1007 00:41:44 ds4-server: chat ctx=0..4781:4781 prefill chunk 4781/4781 (100.0%) chunk=39.64 t/s avg=132.11 t/s 36.190s
+1007 00:41:44 ds4-server: chat ctx=0..4781:4781 prompt done 36.243s
+1007 00:41:48 ds4-server: chat ctx=4781..4831:50 gen=50 decoding chunk=12.02 t/s avg=12.02 t/s 4.161s
+1007 00:41:49 ds4-server: chat ctx=4831..4845:14 gen=64 decoding chunk=12.94 t/s avg=12.21 t/s 5.243s
+1007 00:41:49 ds4-server: chat ctx=0..4781:4781 gen=64 finish=length 41.487s
+1007 00:41:49 ds4-server: shutdown requested, draining requests

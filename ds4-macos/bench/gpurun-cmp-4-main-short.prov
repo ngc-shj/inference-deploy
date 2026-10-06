@@ -1,0 +1,6 @@
+command bash /private/tmp/claude-501/-Users-noguchi-ghq-github-com-ngc-shj-inference-deploy/1f25695b-61e4-4e05-996e-07996a0d6038/scratchpad/cmp_phase.sh main short 4-main-short
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-07 00:37:24 ds4-server 0 tests 0 pressure level 1 wired 4.91 GiB free 84% swap 0.15 GiB
+pid 51004 process group 51004
+rc 0 peak wired 50.97 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 36.37 GiB, peak Metal 36.00 GiB
+after 2026-10-07 00:37:44 ds4-server 0 tests 0 pressure level 1 wired 4.72 GiB free 84% swap 0.15 GiB

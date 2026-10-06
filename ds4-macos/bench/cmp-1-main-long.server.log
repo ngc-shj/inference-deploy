@@ -1,0 +1,17 @@
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: V4.1 SSD cache fitted from 10268 to 10013 experts for context/runtime headroom
+ds4: metal SSD streaming cache budget 92.82 GiB capped to 90.00 GiB to stay below the graph working-set pressure budget
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: metal SSD streaming cache target 90.00 GiB; effective 90.00 GiB = 7.12 GiB prefill headroom + 82.88 GiB dynamic cache (8941 experts, 9.49 MiB each)
+ds4: Metal SSD static weights remain pageable to preserve runtime headroom
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: memory: KV 0.06 GiB (raw 0.01 + compressed 0.05) + buffers 3.26 GiB + resident model 9.37 GiB + expert cache 82.88 GiB + prefill expert reserve 7.12 GiB = 102.69 GiB planned
+ds4: memory detail: ctx=8192 prefill_cap=4096 raw_kv_rows=128 compressed_kv_rows=8193 backend=metal
+1007 00:32:38 ds4-server: context buffers 3403.23 MiB (ctx=8192, backend=metal, prefill_chunk=4096, raw_kv_rows=128, compressed_kv_rows=8193)
+ds4: V4.1 static context buffers 3403.23 MiB (ctx=8192), Engram disk-only
+1007 00:32:38 ds4-server: listening on http://127.0.0.1:8031
+1007 00:32:39 ds4-server: chat ctx=0..4781:4781 prompt start
+1007 00:33:06 ds4-server: shutdown requested, draining requests
