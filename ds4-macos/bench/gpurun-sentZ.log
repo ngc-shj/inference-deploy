@@ -1,0 +1,8 @@
+== sustained generation, 1 x 2048 tokens ==
+aggregate 11.95 tok/s over 171.3 s wall
+1006 22:42:12 ds4-server: chat ctx=2000..2050:50 gen=2000 THINKING decoding chunk=12.91 t/s avg=12.32 t/s 162.369s
+1006 22:42:15 ds4-server: chat ctx=2050..2098:48 gen=2048 THINKING decoding chunk=12.68 t/s avg=12.33 t/s 166.153s
+1006 22:42:15 ds4-server: chat ctx=0..50:50 gen=2048 THINKING finish=length 171.273s
+ds4:   decode path so far: 2048 single-row steps (78.0 ms each inside the graph over the last 64), 0 K-row verification steps over 0 positions, 0 batch-fusion sites taken; candidate K none
+per token: 81.1 ms wall at 12.33 tok/s, 78.0 ms inside the graph, 3.1 ms (4%) outside
+REFUSED: no K-row verification step ran, so this rate is the single-row path
