@@ -200,3 +200,16 @@ line alone, and the eight cold arms run again as P-<n>-<old|new> in run R's
 order and cooling, followed by m4accept.sh Z with the sentinel's N; run Z's
 regression items and decode ABBA (no regression, blocks -0.300/-0.150 ms)
 stand. Every other rule of the eighth amendment stands.
+
+## Final (2026-10-07)
+
+d34264a, tagged ds4-v41-metal4-superbatch-router-barrier-exact-production on
+fork, is the fastest exact production and what production runs. Evaluated
+after it and not adopted: per-row weight re-reads (none clears 1 ms a token),
+exact Q8_0 tiles at thermal steady state (none beats 48), I/O overlap (the
+next layer's read is already hidden), FFN overlap scheduling and thermal
+pacing (no gain on back-to-back prompts). What remains between it and main
+under sustained load is the oracle's arithmetic itself (SIMD Q8_0 projections,
+the shared expert's Q8_0, the tail's per-row kernels); an inexact MPP build is
+out of scope. The engine branch's later diagnostic commit d767aa9 is not part
+of production.
