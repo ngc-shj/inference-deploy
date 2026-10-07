@@ -1,0 +1,100 @@
+diff --git a/ds4.c b/ds4.c
+index 2c81c3b..26be8fa 100644
+--- a/ds4.c
++++ b/ds4.c
+@@ -41453,6 +41453,15 @@ static int g_ds41_tail_block_off;
+ static int g_ds41_q8_nr8_off;
+ void ds4_test_v41_q8_nr8(int on);
+ void ds4_test_v41_q8_nr8(int on) { g_ds41_q8_nr8_off = !on; }
++/* Test hook: another exact Q8_0 row tile in place of 48 wherever 48 is chosen
++ * (ds4_gpu_matmul_q8_0_decode_rows_reuse_round_tensor's codes: BR*100+NR0,
++ * 4800 the one-barrier reduction), and how many dispatches took it. */
++static uint32_t g_ds41_q8_tile;
++static unsigned long long g_ds41_q8_tile_uses;
++void ds4_test_v41_q8_tile(uint32_t code);
++void ds4_test_v41_q8_tile(uint32_t code) { g_ds41_q8_tile = code; }
++unsigned long long ds4_test_v41_q8_tile_uses(void);
++unsigned long long ds4_test_v41_q8_tile_uses(void) { return g_ds41_q8_tile_uses; }
+ 
+ #if defined(__APPLE__) && !defined(DS4_NO_GPU)
+ /* Layer-interleaved prefill. A layer-major prefix and the batched tail after
+@@ -42009,9 +42018,11 @@ static bool ds41_matmul_batch_ex(ds4_gpu_tensor *out, const ds4_model *m,
+         /* The tile's reduction helper rounds on store when asked, so the pass
+          * that used to read every output row back is not needed. */
+         const bool fuse = round && ds41_batch_fuse();
++        const uint32_t tile = dense_tile == 48 && g_ds41_q8_tile ? g_ds41_q8_tile :
++                              (uint32_t)dense_tile;
++        if (tile != (uint32_t)dense_tile) g_ds41_q8_tile_uses++;
+         ok = ds4_gpu_matmul_q8_0_decode_rows_reuse_round_tensor(out, m->map, m->size,
+-            weight->abs_offset, width, outputs, in, count, (uint32_t)dense_tile,
+-            fuse ? 1 : 0);
++            weight->abs_offset, width, outputs, in, count, tile, fuse ? 1 : 0);
+         if (!ok) {
+             fprintf(stderr, "ds4: dense row tile %d refused for %u x %u rows=%u\n",
+                     dense_tile, width, outputs, count);
+@@ -50487,7 +50498,7 @@ int ds4_test_q8_tiles(const ds4_model *m, const ds4_weights *w) {
+         { "attn_q_b", l->attn_q_b }, { "attn_kv", l->attn_kv },
+     };
+     static const uint32_t rows_list[] = { 1, 2, 3, 4, 5, 8, 63, 64, 65, 699, 2048 };
+-    static const uint32_t tiles[] = { 4, 48, 4802 };
++    static const uint32_t tiles[] = { 4, 48, 416, 432, 216, 808, 816, 4800 };
+     int bad = 0, cases = 0;
+     for (size_t si = 0; si < sizeof(shapes) / sizeof(shapes[0]); si++) {
+         const ds4_tensor *t = shapes[si].t;
+diff --git a/tests/test_deepseek41_tailab.c b/tests/test_deepseek41_tailab.c
+index b40a0cf..c73608f 100644
+--- a/tests/test_deepseek41_tailab.c
++++ b/tests/test_deepseek41_tailab.c
+@@ -151,6 +151,11 @@ static int g_mt;
+  * superbatch (every row-independent step once over both, attention a chunk at
+  * a time), B a chunk at a time; both print the layers run so. */
+ void ds4_test_v41_superbatch(int on) __attribute__((weak));
++/* "q8t:CODE" (with "full"): arm A takes Q8_0 row tile CODE wherever 48 is
++ * chosen, B 48; both print how many dispatches took it. */
++void ds4_test_v41_q8_tile(uint32_t code) __attribute__((weak));
++unsigned long long ds4_test_v41_q8_tile_uses(void) __attribute__((weak));
++static uint32_t g_q8t;
+ unsigned long long ds4_test_v41_superbatch_layers(void) __attribute__((weak));
+ static int g_mp;
+ /* "drop:<pagecache tool>": arm B starts with the model file dropped from the
+@@ -214,6 +219,8 @@ static int run_arm(ds4_session **sp, const ds4_session_snapshot *snap, const ds4
+     if (g_pkg) { ds4_test_v41_every_block_counts(pk_eb0); ds4_test_v41_attn_rows_counts(pk_ar0); }
+     if (g_eb) ds4_test_v41_every_block(!b);
+     if (g_mp) ds4_test_v41_superbatch(!b);
++    if (g_q8t) ds4_test_v41_q8_tile(b ? 0u : g_q8t);
++    const unsigned long long q8t0 = g_q8t ? ds4_test_v41_q8_tile_uses() : 0;
+     const unsigned long long mp0 = g_mp ? ds4_test_v41_superbatch_layers() : 0;
+     if (g_preps) ds4_test_moe_packed_reps(g_preps, b ? g_preps_n : 1u);
+     uint64_t mt0 = 0;
+@@ -249,7 +256,7 @@ static int run_arm(ds4_session **sp, const ds4_session_snapshot *snap, const ds4
+     }
+     if (g_benv_name[0]) { if (b) setenv(g_benv_name, g_benv_value, 1); else unsetenv(g_benv_name); }
+     if (g_rows[0] && ds4_test_v41_tail_rows) ds4_test_v41_tail_rows(g_rows[b]);
+-    else if (!g_em && !g_prev && !g_q8 && !g_gu2 && !g_drop_tool && !g_il && !g_f32 && !g_pabl && !g_topk1 && !g_eb && !g_attn && !g_pkg && !g_mt && !g_preps && !g_mp && ds4_test_v41_token_major_tail) ds4_test_v41_token_major_tail(b);
++    else if (!g_em && !g_prev && !g_q8 && !g_gu2 && !g_drop_tool && !g_il && !g_f32 && !g_pabl && !g_topk1 && !g_eb && !g_attn && !g_pkg && !g_mt && !g_preps && !g_mp && !g_q8t && ds4_test_v41_token_major_tail) ds4_test_v41_token_major_tail(b);
+     ds4_session *s = *sp;
+     uint64_t h0, m0, e0, h1, m1, e1;
+     const uint64_t em0 = ds4_gpu_moe_expert_major_dispatches ? ds4_gpu_moe_expert_major_dispatches() : 0;
+@@ -274,6 +281,11 @@ static int run_arm(ds4_session **sp, const ds4_session_snapshot *snap, const ds4
+     if (g_gu2) ds4_test_moe_gateup_reps(1);
+     if (g_il) ds4_test_v41_interleave(1);
+     if (g_f32) ds4_test_v41_f32_reps(1);
++    if (g_q8t) {
++        printf("q8t      arm %c: %llu dispatches took tile %u\n", b ? 'B' : 'A',
++               ds4_test_v41_q8_tile_uses() - q8t0, g_q8t);
++        ds4_test_v41_q8_tile(0);
++    }
+     if (g_mp) {
+         printf("mp       arm %c: %llu layers superbatched\n", b ? 'B' : 'A',
+                ds4_test_v41_superbatch_layers() - mp0);
+@@ -382,6 +394,10 @@ int main(int argc, char **argv) {
+             if (!ds4_test_v41_attn_rows || !ds4_test_v41_attn_rows_check ||
+                 !ds4_test_v41_attn_rows_counts || !ds4_gpu_dsv41_compare_counts) return 2;
+             g_attn = argv[a][4] == 'c' ? 2 : 1;
++        } else if (strncmp(argv[a], "q8t:", 4) == 0) {
++            if (!ds4_test_v41_q8_tile || !ds4_test_v41_q8_tile_uses) return 2;
++            g_q8t = (uint32_t)atoi(argv[a] + 4);
++            if (!g_q8t) return 2;
+         } else if (strcmp(argv[a], "mp") == 0) {
+             if (!ds4_test_v41_superbatch || !ds4_test_v41_superbatch_layers) return 2;
+             g_mp = 1;
