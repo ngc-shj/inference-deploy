@@ -1,0 +1,6 @@
+command bash /private/tmp/claude-501/-Users-noguchi-ghq-github-com-ngc-shj-inference-deploy/1f25695b-61e4-4e05-996e-07996a0d6038/scratchpad/doctest.sh
+cwd /Users/noguchi/ghq/github.com/ngc-shj/inference-deploy/ds4-macos/bench
+before 2026-10-07 19:22:41 ds4-server 0 tests 0 pressure level 1 wired 4.71 GiB free 90% swap 0.15 GiB
+pid 58404 process group 58404
+rc 0 peak wired 80.03 GiB, peak pressure level 1, peak swap growth 0 GiB, peak group footprint 65.64 GiB, peak Metal 65.00 GiB
+after 2026-10-07 19:23:17 ds4-server 0 tests 0 pressure level 1 wired 38.03 GiB free 64% swap 0.15 GiB

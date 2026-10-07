@@ -1,0 +1,56 @@
+--- curl 1
+{"id":"chatcmpl-9fd2d374c102fd4ff1b2af39","object":"chat.completion","created":1791368502,"model":"ds4","choices":[{"index":0,"message":{"role":"assistant","content":"Hello! How can I help you today?"},"finish_reason":"stop"}],"usage":{"prompt_tokens":5,"completion_tokens":9,"total_tokens":14,"prompt_tokens_details":{"cached_tokens":0,"cache_write_tokens":5}}}
+
+--- curl 2 (stream)
+# B-Tree Node Splitting
+
+Node splitting is the core operation that keeps a B-tree **balanced** as it grows. Without it, a B-tree would degenerate into something like a linked list, losing its O(log n) guarantees.
+
+## The Problem It Solves
+
+A B-tree node has a fixed capacity — it can hold at most `2t - 1` keys (where `t` is the *minimum degree*). When you try to insert a key into a node that's already full, you can't just overflow it. Instead, you **split** the node.
+
+## The Split Operation
+
+When a node is full (`2t - 1` keys), it's split into two nodes around its **median key**:
+
+1. **Pick the median** — the middle key of the `2t - 1` keys.
+2. **Create two siblings** — the left sibling gets the keys smaller than the median; the right sibling gets the keys larger than the median. Each ends up with `t - 1` keys.
+3. **Push the median up** — the median key is inserted into the parent node, which now points to the two new children.
+4. **If the parent is also full**, it too must be split — and this can cascade upward.
+
+### Visual Example (t = 2, so max 3 keys per node)
+
+Inserting into a full leaf:
+
+```
+        [ 10 | 20 | 30 ]        ← full node (3 keys)
+```
+
+Split around median `20`:
+
+```
+              [ 20 ]            ← median promoted to parent
+             /      \
+      [ 10 ]        [ 30 ]      ← two half-full siblings
+```
+
+If the parent was already full, the promoted key triggers a split there too, propagating up the tree.
+
+## The Root Split — How the Tree Grows
+
+The only way a B-tree increases in height is when the **root** splits:
+
+- The root is full and gets split into two nodes.
+- A **new root** is created containing the single median key.
+- The two halves become the children of this new root.
+
+This is why B-trees are perfectly balanced: **every leaf is always at the same depth**, because growth happens only at the root.
+
+## Key Properties
+
+| Property | Value |
+|---|---|
+| Node capacity | `2t - 1` keys |
+| After split, each sibling | `t - 1` keys |
+| Keys promoted to
