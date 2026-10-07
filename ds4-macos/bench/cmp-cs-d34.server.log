@@ -1,0 +1,736 @@
+ds4: abort gate on for the first 40 layers
+ds4: Metal device Apple M5 Max, 128.00 GiB RAM
+ds4: Metal 4 tensor API enabled for Tensor kernels
+ds4: drift-patch flags hc_stable=on norm_unify=on kv_raw_f32=off rope_exp2_log2=off math_safe=off tensor_matmul=on
+ds4: V4.1 SSD cache fitted from 10268 to 7034 experts for context/runtime headroom
+ds4: Metal backend: Metal 4
+ds4: Metal SSD streaming mode enabled; full model residency and warmup are skipped
+ds4: metal SSD streaming cache target 65.20 GiB; effective 65.20 GiB = 7.12 GiB prefill headroom + 58.08 GiB dynamic cache (6266 experts, 9.49 MiB each)
+ds4: Metal SSD static weights locked 9.37 GiB; pageable 0.00 GiB
+ds4: SSD streaming initial metal model map (569 spans, 9.37 GiB tensor span)
+ds4: metal backend initialized for graph diagnostics
+ds4: expert cache prewarmed from the built-in V4.1 hotlist: 6264 experts (0 failed), 58.07 GiB in 6.04 s; stopped where the cache was full
+ds4: memory: KV 0.06 GiB (raw 0.01 + compressed 0.05) + buffers 3.36 GiB + resident model 9.37 GiB + expert cache 58.08 GiB + prefill expert reserve 7.12 GiB = 77.99 GiB planned
+ds4: memory detail: ctx=8192 prefill_cap=4096 raw_kv_rows=128 compressed_kv_rows=8193 backend=metal
+1007 11:40:52 ds4-server: context buffers 3503.03 MiB (ctx=8192, backend=metal, prefill_chunk=4096, raw_kv_rows=128, compressed_kv_rows=8193)
+ds4: V4.1 executor ABI 3, arena align 256, rev d767aa9a8a34, built Oct  7 2026 10:57:21
+ds4: V4.1 static context buffers 3503.03 MiB (ctx=8192), Engram disk-only
+1007 11:40:52 ds4-server: listening on http://127.0.0.1:8031
+1007 11:40:52 ds4-server: chat ctx=0..4781:4781 prompt start
+1007 11:40:52 ds4-server: metal 4 at request start: 0 commits, 0 feedback, 0 errors, residency 0 entries 0.0 MiB
+ds4: V4.1 stage layer=0 pos=0 rows=2048 hc/engram=28.586 ms
+ds4: V4.1 stage layer=0 pos=0 rows=2048 attention projections=71.725 ms
+ds4: V4.1 stage layer=0 pos=0 rows=2048 attention core/index=27.827 ms
+ds4: V4.1 stage layer=0 pos=0 rows=2048 attention output=15.295 ms
+ds4: V4.1 stage layer=0 pos=0 rows=2048 hc/ffn norm=11.815 ms
+ds4: V4.1 stage layer=0 pos=0 rows=2048 shared/routed ffn=231.837 ms
+ds4: V4.1 stage layer=0 pos=0 rows=2048 hc expand=2.165 ms
+ds4: V4.1 prefill layer=0 pos=0 rows=2048 encoder_resident=0 map=220.723 engram=0.000 encode=389.554 drain=10.082 seed=0.000 ms
+ds4: V4.1 stage layer=0 pos=2048 rows=2048 hc/engram=2.458 ms
+ds4: V4.1 stage layer=0 pos=2048 rows=2048 attention projections=67.693 ms
+ds4: V4.1 stage layer=0 pos=2048 rows=2048 attention core/index=11.621 ms
+ds4: V4.1 stage layer=0 pos=2048 rows=2048 attention output=8.063 ms
+ds4: V4.1 stage layer=0 pos=2048 rows=2048 hc/ffn norm=3.958 ms
+ds4: V4.1 stage layer=0 pos=2048 rows=2048 shared/routed ffn=72.322 ms
+ds4: V4.1 stage layer=0 pos=2048 rows=2048 hc expand=2.123 ms
+ds4: V4.1 prefill layer=0 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=168.274 drain=0.747 seed=6.945 ms
+ds4: V4.1 K-block effective configuration: rows=685 exact_vocab=0 head_tile=0 dense_tile=4 block_kv=1 block_levels=1 block_attn_k=0 block_attn_raw=0 block_low_batch=0 block_attn=0 batch_fuse=0 batch_attn_out=1 batch_stream_experts=1 row_gather=1 moe_expert_major=0 block_txn=0 row_logits_readback=0
+ds4: V4.1 block-local KV delta, 685 rows over 127 prefix keys
+ds4: V4.1 batch attn_output_b hoisted out of the per-row loop (685 rows)
+ds4: V4.1 routed gate/up encode: ds4_gpu_encode_mul_mv_addr_iq2_pair_swiglu
+ds4: V4.1 stage layer=1 pos=0 rows=2048 hc/engram=180.570 ms
+ds4: V4.1 stage layer=1 pos=0 rows=2048 attention projections=150.933 ms
+ds4: V4.1 stage layer=1 pos=0 rows=2048 attention core/index=7.876 ms
+ds4: V4.1 stage layer=1 pos=0 rows=2048 attention output=9.074 ms
+ds4: V4.1 stage layer=1 pos=0 rows=2048 hc/ffn norm=4.059 ms
+ds4: V4.1 stage layer=1 pos=0 rows=2048 shared/routed ffn=74.490 ms
+ds4: V4.1 stage layer=1 pos=0 rows=2048 hc expand=2.174 ms
+ds4: V4.1 prefill layer=1 pos=0 rows=2048 encoder_resident=0 map=0.340 engram=0.000 encode=429.211 drain=0.736 seed=0.000 ms
+ds4: V4.1 stage layer=1 pos=2048 rows=2048 hc/engram=18.488 ms
+ds4: V4.1 stage layer=1 pos=2048 rows=2048 attention projections=67.655 ms
+ds4: V4.1 stage layer=1 pos=2048 rows=2048 attention core/index=9.998 ms
+ds4: V4.1 stage layer=1 pos=2048 rows=2048 attention output=8.062 ms
+ds4: V4.1 stage layer=1 pos=2048 rows=2048 hc/ffn norm=3.975 ms
+ds4: V4.1 stage layer=1 pos=2048 rows=2048 shared/routed ffn=72.620 ms
+ds4: V4.1 stage layer=1 pos=2048 rows=2048 hc expand=2.144 ms
+ds4: V4.1 prefill layer=1 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=182.966 drain=0.783 seed=5.774 ms
+ds4: V4.1 stage layer=2 pos=0 rows=2048 hc/engram=13.111 ms
+ds4: V4.1 stage layer=2 pos=0 rows=2048 attention projections=72.033 ms
+ds4: V4.1 stage layer=2 pos=0 rows=2048 attention core/index=86.740 ms
+ds4: V4.1 stage layer=2 pos=0 rows=2048 attention output=8.223 ms
+ds4: V4.1 stage layer=2 pos=0 rows=2048 hc/ffn norm=4.344 ms
+ds4: V4.1 stage layer=2 pos=0 rows=2048 shared/routed ffn=183.162 ms
+ds4: V4.1 stage layer=2 pos=0 rows=2048 hc expand=2.328 ms
+ds4: V4.1 prefill layer=2 pos=0 rows=2048 encoder_resident=0 map=0.314 engram=0.000 encode=369.985 drain=0.793 seed=-0.000 ms
+ds4: V4.1 stage layer=2 pos=2048 rows=2048 hc/engram=2.470 ms
+ds4: V4.1 stage layer=2 pos=2048 rows=2048 attention projections=67.657 ms
+ds4: V4.1 stage layer=2 pos=2048 rows=2048 attention core/index=84.431 ms
+ds4: V4.1 stage layer=2 pos=2048 rows=2048 attention output=7.908 ms
+ds4: V4.1 stage layer=2 pos=2048 rows=2048 hc/ffn norm=3.962 ms
+ds4: V4.1 stage layer=2 pos=2048 rows=2048 shared/routed ffn=69.872 ms
+ds4: V4.1 stage layer=2 pos=2048 rows=2048 hc expand=2.133 ms
+ds4: V4.1 prefill layer=2 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=238.461 drain=0.764 seed=7.220 ms
+ds4: V4.1 block attention by level, 685 rows, concurrent section open
+ds4: V4.1 stage layer=3 pos=0 rows=2048 hc/engram=11.580 ms
+ds4: V4.1 stage layer=3 pos=0 rows=2048 attention projections=68.885 ms
+ds4: V4.1 stage layer=3 pos=0 rows=2048 attention core/index=25.019 ms
+ds4: V4.1 stage layer=3 pos=0 rows=2048 attention output=8.782 ms
+ds4: V4.1 stage layer=3 pos=0 rows=2048 hc/ffn norm=4.223 ms
+ds4: V4.1 stage layer=3 pos=0 rows=2048 shared/routed ffn=363.872 ms
+ds4: V4.1 stage layer=3 pos=0 rows=2048 hc expand=2.227 ms
+ds4: V4.1 prefill layer=3 pos=0 rows=2048 encoder_resident=0 map=0.328 engram=0.000 encode=484.626 drain=0.761 seed=0.000 ms
+ds4: V4.1 stage layer=3 pos=2048 rows=2048 hc/engram=2.395 ms
+ds4: V4.1 stage layer=3 pos=2048 rows=2048 attention projections=67.712 ms
+ds4: V4.1 stage layer=3 pos=2048 rows=2048 attention core/index=30.257 ms
+ds4: V4.1 stage layer=3 pos=2048 rows=2048 attention output=8.255 ms
+ds4: V4.1 stage layer=3 pos=2048 rows=2048 hc/ffn norm=4.064 ms
+ds4: V4.1 stage layer=3 pos=2048 rows=2048 shared/routed ffn=70.397 ms
+ds4: V4.1 stage layer=3 pos=2048 rows=2048 hc expand=2.200 ms
+ds4: V4.1 prefill layer=3 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=185.302 drain=0.748 seed=6.314 ms
+ds4: V4.1 stage layer=4 pos=0 rows=2048 hc/engram=11.529 ms
+ds4: V4.1 stage layer=4 pos=0 rows=2048 attention projections=77.678 ms
+ds4: V4.1 stage layer=4 pos=0 rows=2048 attention core/index=25.932 ms
+ds4: V4.1 stage layer=4 pos=0 rows=2048 attention output=11.027 ms
+ds4: V4.1 stage layer=4 pos=0 rows=2048 hc/ffn norm=4.247 ms
+ds4: V4.1 stage layer=4 pos=0 rows=2048 shared/routed ffn=216.683 ms
+ds4: V4.1 stage layer=4 pos=0 rows=2048 hc expand=2.193 ms
+ds4: V4.1 prefill layer=4 pos=0 rows=2048 encoder_resident=0 map=0.332 engram=0.000 encode=349.343 drain=0.785 seed=0.000 ms
+ds4: V4.1 stage layer=4 pos=2048 rows=2048 hc/engram=2.445 ms
+ds4: V4.1 stage layer=4 pos=2048 rows=2048 attention projections=68.241 ms
+ds4: V4.1 stage layer=4 pos=2048 rows=2048 attention core/index=31.126 ms
+ds4: V4.1 stage layer=4 pos=2048 rows=2048 attention output=8.162 ms
+ds4: V4.1 stage layer=4 pos=2048 rows=2048 hc/ffn norm=3.975 ms
+ds4: V4.1 stage layer=4 pos=2048 rows=2048 shared/routed ffn=70.974 ms
+ds4: V4.1 stage layer=4 pos=2048 rows=2048 hc expand=2.078 ms
+ds4: V4.1 prefill layer=4 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=187.015 drain=0.775 seed=5.981 ms
+ds4: V4.1 stage layer=5 pos=0 rows=2048 hc/engram=13.053 ms
+ds4: V4.1 stage layer=5 pos=0 rows=2048 attention projections=82.196 ms
+ds4: V4.1 stage layer=5 pos=0 rows=2048 attention core/index=25.133 ms
+ds4: V4.1 stage layer=5 pos=0 rows=2048 attention output=8.864 ms
+ds4: V4.1 stage layer=5 pos=0 rows=2048 hc/ffn norm=4.131 ms
+ds4: V4.1 stage layer=5 pos=0 rows=2048 shared/routed ffn=255.489 ms
+ds4: V4.1 stage layer=5 pos=0 rows=2048 hc expand=2.178 ms
+ds4: V4.1 prefill layer=5 pos=0 rows=2048 encoder_resident=0 map=0.319 engram=0.000 encode=391.078 drain=0.766 seed=-0.000 ms
+ds4: V4.1 stage layer=5 pos=2048 rows=2048 hc/engram=2.432 ms
+ds4: V4.1 stage layer=5 pos=2048 rows=2048 attention projections=67.721 ms
+ds4: V4.1 stage layer=5 pos=2048 rows=2048 attention core/index=30.235 ms
+ds4: V4.1 stage layer=5 pos=2048 rows=2048 attention output=8.164 ms
+ds4: V4.1 stage layer=5 pos=2048 rows=2048 hc/ffn norm=4.017 ms
+ds4: V4.1 stage layer=5 pos=2048 rows=2048 shared/routed ffn=71.505 ms
+ds4: V4.1 stage layer=5 pos=2048 rows=2048 hc expand=2.164 ms
+ds4: V4.1 prefill layer=5 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.001 encode=186.263 drain=0.728 seed=7.254 ms
+ds4: V4.1 stage layer=6 pos=0 rows=2048 hc/engram=13.711 ms
+ds4: V4.1 stage layer=6 pos=0 rows=2048 attention projections=84.340 ms
+ds4: V4.1 stage layer=6 pos=0 rows=2048 attention core/index=25.165 ms
+ds4: V4.1 stage layer=6 pos=0 rows=2048 attention output=15.895 ms
+ds4: V4.1 stage layer=6 pos=0 rows=2048 hc/ffn norm=6.524 ms
+ds4: V4.1 stage layer=6 pos=0 rows=2048 shared/routed ffn=193.468 ms
+ds4: V4.1 stage layer=6 pos=0 rows=2048 hc expand=2.186 ms
+ds4: V4.1 prefill layer=6 pos=0 rows=2048 encoder_resident=0 map=0.321 engram=0.000 encode=341.336 drain=1.093 seed=-0.000 ms
+ds4: V4.1 stage layer=6 pos=2048 rows=2048 hc/engram=2.418 ms
+ds4: V4.1 stage layer=6 pos=2048 rows=2048 attention projections=67.693 ms
+ds4: V4.1 stage layer=6 pos=2048 rows=2048 attention core/index=30.249 ms
+ds4: V4.1 stage layer=6 pos=2048 rows=2048 attention output=8.145 ms
+ds4: V4.1 stage layer=6 pos=2048 rows=2048 hc/ffn norm=4.204 ms
+ds4: V4.1 stage layer=6 pos=2048 rows=2048 shared/routed ffn=71.111 ms
+ds4: V4.1 stage layer=6 pos=2048 rows=2048 hc expand=2.291 ms
+ds4: V4.1 prefill layer=6 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=186.156 drain=0.886 seed=8.271 ms
+ds4: V4.1 stage layer=7 pos=0 rows=2048 hc/engram=15.993 ms
+ds4: V4.1 stage layer=7 pos=0 rows=2048 attention projections=84.994 ms
+ds4: V4.1 stage layer=7 pos=0 rows=2048 attention core/index=25.003 ms
+ds4: V4.1 stage layer=7 pos=0 rows=2048 attention output=8.963 ms
+ds4: V4.1 stage layer=7 pos=0 rows=2048 hc/ffn norm=4.165 ms
+ds4: V4.1 stage layer=7 pos=0 rows=2048 shared/routed ffn=181.360 ms
+ds4: V4.1 stage layer=7 pos=0 rows=2048 hc expand=2.211 ms
+ds4: V4.1 prefill layer=7 pos=0 rows=2048 encoder_resident=0 map=0.444 engram=0.000 encode=322.720 drain=0.735 seed=0.001 ms
+ds4: V4.1 stage layer=7 pos=2048 rows=2048 hc/engram=2.430 ms
+ds4: V4.1 stage layer=7 pos=2048 rows=2048 attention projections=67.764 ms
+ds4: V4.1 stage layer=7 pos=2048 rows=2048 attention core/index=30.270 ms
+ds4: V4.1 stage layer=7 pos=2048 rows=2048 attention output=8.126 ms
+ds4: V4.1 stage layer=7 pos=2048 rows=2048 hc/ffn norm=3.994 ms
+ds4: V4.1 stage layer=7 pos=2048 rows=2048 shared/routed ffn=71.576 ms
+ds4: V4.1 stage layer=7 pos=2048 rows=2048 hc expand=2.157 ms
+ds4: V4.1 prefill layer=7 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=186.347 drain=0.736 seed=8.282 ms
+ds4: V4.1 stage layer=8 pos=0 rows=2048 hc/engram=14.267 ms
+ds4: V4.1 stage layer=8 pos=0 rows=2048 attention projections=85.330 ms
+ds4: V4.1 stage layer=8 pos=0 rows=2048 attention core/index=113.198 ms
+ds4: V4.1 stage layer=8 pos=0 rows=2048 attention output=8.434 ms
+ds4: V4.1 stage layer=8 pos=0 rows=2048 hc/ffn norm=4.362 ms
+ds4: V4.1 stage layer=8 pos=0 rows=2048 shared/routed ffn=146.993 ms
+ds4: V4.1 stage layer=8 pos=0 rows=2048 hc expand=2.234 ms
+ds4: V4.1 prefill layer=8 pos=0 rows=2048 encoder_resident=0 map=0.313 engram=0.000 encode=374.900 drain=0.847 seed=-0.000 ms
+ds4: V4.1 stage layer=8 pos=2048 rows=2048 hc/engram=2.423 ms
+ds4: V4.1 stage layer=8 pos=2048 rows=2048 attention projections=67.692 ms
+ds4: V4.1 stage layer=8 pos=2048 rows=2048 attention core/index=84.326 ms
+ds4: V4.1 stage layer=8 pos=2048 rows=2048 attention output=8.103 ms
+ds4: V4.1 stage layer=8 pos=2048 rows=2048 hc/ffn norm=4.084 ms
+ds4: V4.1 stage layer=8 pos=2048 rows=2048 shared/routed ffn=71.848 ms
+ds4: V4.1 stage layer=8 pos=2048 rows=2048 hc expand=2.161 ms
+ds4: V4.1 prefill layer=8 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=240.666 drain=0.737 seed=8.085 ms
+ds4: V4.1 stage layer=9 pos=0 rows=2048 hc/engram=11.523 ms
+ds4: V4.1 stage layer=9 pos=0 rows=2048 attention projections=71.584 ms
+ds4: V4.1 stage layer=9 pos=0 rows=2048 attention core/index=25.176 ms
+ds4: V4.1 stage layer=9 pos=0 rows=2048 attention output=8.743 ms
+ds4: V4.1 stage layer=9 pos=0 rows=2048 hc/ffn norm=4.170 ms
+ds4: V4.1 stage layer=9 pos=0 rows=2048 shared/routed ffn=108.792 ms
+ds4: V4.1 stage layer=9 pos=0 rows=2048 hc expand=2.182 ms
+ds4: V4.1 prefill layer=9 pos=0 rows=2048 encoder_resident=0 map=0.333 engram=0.000 encode=232.204 drain=0.769 seed=-0.000 ms
+ds4: V4.1 stage layer=9 pos=2048 rows=2048 hc/engram=2.457 ms
+ds4: V4.1 stage layer=9 pos=2048 rows=2048 attention projections=67.722 ms
+ds4: V4.1 stage layer=9 pos=2048 rows=2048 attention core/index=30.232 ms
+ds4: V4.1 stage layer=9 pos=2048 rows=2048 attention output=8.192 ms
+ds4: V4.1 stage layer=9 pos=2048 rows=2048 hc/ffn norm=3.992 ms
+ds4: V4.1 stage layer=9 pos=2048 rows=2048 shared/routed ffn=71.652 ms
+ds4: V4.1 stage layer=9 pos=2048 rows=2048 hc expand=2.125 ms
+ds4: V4.1 prefill layer=9 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.001 encode=186.398 drain=0.723 seed=7.480 ms
+ds4: V4.1 stage layer=10 pos=0 rows=2048 hc/engram=16.215 ms
+ds4: V4.1 stage layer=10 pos=0 rows=2048 attention projections=87.976 ms
+ds4: V4.1 stage layer=10 pos=0 rows=2048 attention core/index=25.008 ms
+ds4: V4.1 stage layer=10 pos=0 rows=2048 attention output=9.054 ms
+ds4: V4.1 stage layer=10 pos=0 rows=2048 hc/ffn norm=4.132 ms
+ds4: V4.1 stage layer=10 pos=0 rows=2048 shared/routed ffn=102.504 ms
+ds4: V4.1 stage layer=10 pos=0 rows=2048 hc expand=2.170 ms
+ds4: V4.1 prefill layer=10 pos=0 rows=2048 encoder_resident=0 map=0.367 engram=0.000 encode=247.096 drain=0.780 seed=0.000 ms
+ds4: V4.1 stage layer=10 pos=2048 rows=2048 hc/engram=2.434 ms
+ds4: V4.1 stage layer=10 pos=2048 rows=2048 attention projections=67.720 ms
+ds4: V4.1 stage layer=10 pos=2048 rows=2048 attention core/index=30.210 ms
+ds4: V4.1 stage layer=10 pos=2048 rows=2048 attention output=8.062 ms
+ds4: V4.1 stage layer=10 pos=2048 rows=2048 hc/ffn norm=3.922 ms
+ds4: V4.1 stage layer=10 pos=2048 rows=2048 shared/routed ffn=71.357 ms
+ds4: V4.1 stage layer=10 pos=2048 rows=2048 hc expand=2.137 ms
+ds4: V4.1 prefill layer=10 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=185.871 drain=0.807 seed=9.429 ms
+ds4: V4.1 stage layer=11 pos=0 rows=2048 hc/engram=12.592 ms
+ds4: V4.1 stage layer=11 pos=0 rows=2048 attention projections=79.680 ms
+ds4: V4.1 stage layer=11 pos=0 rows=2048 attention core/index=25.028 ms
+ds4: V4.1 stage layer=11 pos=0 rows=2048 attention output=8.755 ms
+ds4: V4.1 stage layer=11 pos=0 rows=2048 hc/ffn norm=4.305 ms
+ds4: V4.1 stage layer=11 pos=0 rows=2048 shared/routed ffn=113.655 ms
+ds4: V4.1 stage layer=11 pos=0 rows=2048 hc expand=2.218 ms
+ds4: V4.1 prefill layer=11 pos=0 rows=2048 encoder_resident=0 map=0.296 engram=0.000 encode=246.272 drain=0.797 seed=-0.000 ms
+ds4: V4.1 stage layer=11 pos=2048 rows=2048 hc/engram=2.451 ms
+ds4: V4.1 stage layer=11 pos=2048 rows=2048 attention projections=67.691 ms
+ds4: V4.1 stage layer=11 pos=2048 rows=2048 attention core/index=30.273 ms
+ds4: V4.1 stage layer=11 pos=2048 rows=2048 attention output=8.182 ms
+ds4: V4.1 stage layer=11 pos=2048 rows=2048 hc/ffn norm=4.007 ms
+ds4: V4.1 stage layer=11 pos=2048 rows=2048 shared/routed ffn=70.391 ms
+ds4: V4.1 stage layer=11 pos=2048 rows=2048 hc expand=2.168 ms
+ds4: V4.1 prefill layer=11 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=185.194 drain=0.738 seed=7.228 ms
+ds4: V4.1 stage layer=12 pos=0 rows=2048 hc/engram=12.706 ms
+ds4: V4.1 stage layer=12 pos=0 rows=2048 attention projections=79.833 ms
+ds4: V4.1 stage layer=12 pos=0 rows=2048 attention core/index=25.064 ms
+ds4: V4.1 stage layer=12 pos=0 rows=2048 attention output=8.788 ms
+ds4: V4.1 stage layer=12 pos=0 rows=2048 hc/ffn norm=4.238 ms
+ds4: V4.1 stage layer=12 pos=0 rows=2048 shared/routed ffn=201.347 ms
+ds4: V4.1 stage layer=12 pos=0 rows=2048 hc expand=2.490 ms
+ds4: V4.1 prefill layer=12 pos=0 rows=2048 encoder_resident=0 map=0.297 engram=0.000 encode=334.542 drain=0.829 seed=0.000 ms
+ds4: V4.1 stage layer=12 pos=2048 rows=2048 hc/engram=2.559 ms
+ds4: V4.1 stage layer=12 pos=2048 rows=2048 attention projections=67.737 ms
+ds4: V4.1 stage layer=12 pos=2048 rows=2048 attention core/index=30.375 ms
+ds4: V4.1 stage layer=12 pos=2048 rows=2048 attention output=8.192 ms
+ds4: V4.1 stage layer=12 pos=2048 rows=2048 hc/ffn norm=3.955 ms
+ds4: V4.1 stage layer=12 pos=2048 rows=2048 shared/routed ffn=72.398 ms
+ds4: V4.1 stage layer=12 pos=2048 rows=2048 hc expand=2.106 ms
+ds4: V4.1 prefill layer=12 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=187.335 drain=0.746 seed=9.939 ms
+ds4: V4.1 stage layer=13 pos=0 rows=2048 hc/engram=35.681 ms
+ds4: V4.1 stage layer=13 pos=0 rows=2048 attention projections=70.346 ms
+ds4: V4.1 stage layer=13 pos=0 rows=2048 attention core/index=25.052 ms
+ds4: V4.1 stage layer=13 pos=0 rows=2048 attention output=8.992 ms
+ds4: V4.1 stage layer=13 pos=0 rows=2048 hc/ffn norm=4.191 ms
+ds4: V4.1 stage layer=13 pos=0 rows=2048 shared/routed ffn=115.320 ms
+ds4: V4.1 stage layer=13 pos=0 rows=2048 hc expand=2.152 ms
+ds4: V4.1 prefill layer=13 pos=0 rows=2048 encoder_resident=0 map=24.296 engram=0.000 encode=261.770 drain=0.765 seed=0.000 ms
+ds4: V4.1 stage layer=13 pos=2048 rows=2048 hc/engram=2.383 ms
+ds4: V4.1 stage layer=13 pos=2048 rows=2048 attention projections=67.686 ms
+ds4: V4.1 stage layer=13 pos=2048 rows=2048 attention core/index=30.398 ms
+ds4: V4.1 stage layer=13 pos=2048 rows=2048 attention output=8.274 ms
+ds4: V4.1 stage layer=13 pos=2048 rows=2048 hc/ffn norm=4.099 ms
+ds4: V4.1 stage layer=13 pos=2048 rows=2048 shared/routed ffn=73.413 ms
+ds4: V4.1 stage layer=13 pos=2048 rows=2048 hc expand=2.326 ms
+ds4: V4.1 prefill layer=13 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=188.611 drain=0.828 seed=9.149 ms
+ds4: V4.1 stage layer=14 pos=0 rows=2048 hc/engram=144.528 ms
+ds4: V4.1 stage layer=14 pos=0 rows=2048 attention projections=68.275 ms
+ds4: V4.1 stage layer=14 pos=0 rows=2048 attention core/index=93.912 ms
+ds4: V4.1 stage layer=14 pos=0 rows=2048 attention output=8.383 ms
+ds4: V4.1 stage layer=14 pos=0 rows=2048 hc/ffn norm=4.161 ms
+ds4: V4.1 stage layer=14 pos=0 rows=2048 shared/routed ffn=74.283 ms
+ds4: V4.1 stage layer=14 pos=0 rows=2048 hc expand=2.288 ms
+ds4: V4.1 prefill layer=14 pos=0 rows=2048 encoder_resident=0 map=0.335 engram=0.000 encode=395.862 drain=0.760 seed=-0.000 ms
+ds4: V4.1 stage layer=14 pos=2048 rows=2048 hc/engram=19.226 ms
+ds4: V4.1 stage layer=14 pos=2048 rows=2048 attention projections=71.953 ms
+ds4: V4.1 stage layer=14 pos=2048 rows=2048 attention core/index=90.151 ms
+ds4: V4.1 stage layer=14 pos=2048 rows=2048 attention output=8.883 ms
+ds4: V4.1 stage layer=14 pos=2048 rows=2048 hc/ffn norm=4.338 ms
+ds4: V4.1 stage layer=14 pos=2048 rows=2048 shared/routed ffn=74.949 ms
+ds4: V4.1 stage layer=14 pos=2048 rows=2048 hc expand=2.264 ms
+ds4: V4.1 prefill layer=14 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=271.794 drain=0.770 seed=11.019 ms
+ds4: V4.1 stage layer=15 pos=0 rows=2048 hc/engram=15.004 ms
+ds4: V4.1 stage layer=15 pos=0 rows=2048 attention projections=95.250 ms
+ds4: V4.1 stage layer=15 pos=0 rows=2048 attention core/index=27.184 ms
+ds4: V4.1 stage layer=15 pos=0 rows=2048 attention output=9.517 ms
+ds4: V4.1 stage layer=15 pos=0 rows=2048 hc/ffn norm=4.443 ms
+ds4: V4.1 stage layer=15 pos=0 rows=2048 shared/routed ffn=121.597 ms
+ds4: V4.1 stage layer=15 pos=0 rows=2048 hc expand=2.319 ms
+ds4: V4.1 prefill layer=15 pos=0 rows=2048 encoder_resident=0 map=0.316 engram=0.000 encode=275.354 drain=0.785 seed=-0.000 ms
+ds4: V4.1 stage layer=15 pos=2048 rows=2048 hc/engram=2.581 ms
+ds4: V4.1 stage layer=15 pos=2048 rows=2048 attention projections=75.191 ms
+ds4: V4.1 stage layer=15 pos=2048 rows=2048 attention core/index=34.041 ms
+ds4: V4.1 stage layer=15 pos=2048 rows=2048 attention output=9.117 ms
+ds4: V4.1 stage layer=15 pos=2048 rows=2048 hc/ffn norm=4.446 ms
+ds4: V4.1 stage layer=15 pos=2048 rows=2048 shared/routed ffn=82.467 ms
+ds4: V4.1 stage layer=15 pos=2048 rows=2048 hc expand=2.353 ms
+ds4: V4.1 prefill layer=15 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=210.222 drain=0.770 seed=7.916 ms
+ds4: V4.1 stage layer=16 pos=0 rows=2048 hc/engram=16.740 ms
+ds4: V4.1 stage layer=16 pos=0 rows=2048 attention projections=103.677 ms
+ds4: V4.1 stage layer=16 pos=0 rows=2048 attention core/index=29.279 ms
+ds4: V4.1 stage layer=16 pos=0 rows=2048 attention output=10.066 ms
+ds4: V4.1 stage layer=16 pos=0 rows=2048 hc/ffn norm=4.585 ms
+ds4: V4.1 stage layer=16 pos=0 rows=2048 shared/routed ffn=132.149 ms
+ds4: V4.1 stage layer=16 pos=0 rows=2048 hc expand=2.409 ms
+ds4: V4.1 prefill layer=16 pos=0 rows=2048 encoder_resident=0 map=0.398 engram=0.000 encode=298.943 drain=0.838 seed=-0.000 ms
+ds4: V4.1 stage layer=16 pos=2048 rows=2048 hc/engram=2.726 ms
+ds4: V4.1 stage layer=16 pos=2048 rows=2048 attention projections=80.041 ms
+ds4: V4.1 stage layer=16 pos=2048 rows=2048 attention core/index=35.983 ms
+ds4: V4.1 stage layer=16 pos=2048 rows=2048 attention output=9.607 ms
+ds4: V4.1 stage layer=16 pos=2048 rows=2048 hc/ffn norm=4.486 ms
+ds4: V4.1 stage layer=16 pos=2048 rows=2048 shared/routed ffn=88.952 ms
+ds4: V4.1 stage layer=16 pos=2048 rows=2048 hc expand=2.408 ms
+ds4: V4.1 prefill layer=16 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=224.232 drain=0.791 seed=11.474 ms
+ds4: V4.1 stage layer=17 pos=0 rows=2048 hc/engram=27.596 ms
+ds4: V4.1 stage layer=17 pos=0 rows=2048 attention projections=96.773 ms
+ds4: V4.1 stage layer=17 pos=0 rows=2048 attention core/index=29.796 ms
+ds4: V4.1 stage layer=17 pos=0 rows=2048 attention output=10.233 ms
+ds4: V4.1 stage layer=17 pos=0 rows=2048 hc/ffn norm=4.891 ms
+ds4: V4.1 stage layer=17 pos=0 rows=2048 shared/routed ffn=133.274 ms
+ds4: V4.1 stage layer=17 pos=0 rows=2048 hc expand=2.333 ms
+ds4: V4.1 prefill layer=17 pos=0 rows=2048 encoder_resident=0 map=0.440 engram=0.001 encode=304.935 drain=0.787 seed=-0.000 ms
+ds4: V4.1 stage layer=17 pos=2048 rows=2048 hc/engram=2.713 ms
+ds4: V4.1 stage layer=17 pos=2048 rows=2048 attention projections=81.122 ms
+ds4: V4.1 stage layer=17 pos=2048 rows=2048 attention core/index=36.683 ms
+ds4: V4.1 stage layer=17 pos=2048 rows=2048 attention output=9.753 ms
+ds4: V4.1 stage layer=17 pos=2048 rows=2048 hc/ffn norm=4.571 ms
+ds4: V4.1 stage layer=17 pos=2048 rows=2048 shared/routed ffn=86.400 ms
+ds4: V4.1 stage layer=17 pos=2048 rows=2048 hc expand=2.371 ms
+ds4: V4.1 prefill layer=17 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=223.632 drain=0.816 seed=11.888 ms
+ds4: V4.1 stage layer=18 pos=0 rows=2048 hc/engram=15.215 ms
+ds4: V4.1 stage layer=18 pos=0 rows=2048 attention projections=104.477 ms
+ds4: V4.1 stage layer=18 pos=0 rows=2048 attention core/index=29.889 ms
+ds4: V4.1 stage layer=18 pos=0 rows=2048 attention output=10.204 ms
+ds4: V4.1 stage layer=18 pos=0 rows=2048 hc/ffn norm=4.623 ms
+ds4: V4.1 stage layer=18 pos=0 rows=2048 shared/routed ffn=147.366 ms
+ds4: V4.1 stage layer=18 pos=0 rows=2048 hc expand=2.336 ms
+ds4: V4.1 prefill layer=18 pos=0 rows=2048 encoder_resident=0 map=0.381 engram=0.000 encode=314.144 drain=0.757 seed=0.000 ms
+ds4: V4.1 stage layer=18 pos=2048 rows=2048 hc/engram=2.646 ms
+ds4: V4.1 stage layer=18 pos=2048 rows=2048 attention projections=79.180 ms
+ds4: V4.1 stage layer=18 pos=2048 rows=2048 attention core/index=37.145 ms
+ds4: V4.1 stage layer=18 pos=2048 rows=2048 attention output=9.324 ms
+ds4: V4.1 stage layer=18 pos=2048 rows=2048 hc/ffn norm=4.396 ms
+ds4: V4.1 stage layer=18 pos=2048 rows=2048 shared/routed ffn=83.247 ms
+ds4: V4.1 stage layer=18 pos=2048 rows=2048 hc expand=2.348 ms
+ds4: V4.1 prefill layer=18 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.001 encode=218.306 drain=0.746 seed=10.400 ms
+ds4: V4.1 stage layer=19 pos=0 rows=2048 hc/engram=17.487 ms
+ds4: V4.1 stage layer=19 pos=0 rows=2048 attention projections=88.060 ms
+ds4: V4.1 stage layer=19 pos=0 rows=2048 attention core/index=31.023 ms
+ds4: V4.1 stage layer=19 pos=0 rows=2048 attention output=10.170 ms
+ds4: V4.1 stage layer=19 pos=0 rows=2048 hc/ffn norm=4.705 ms
+ds4: V4.1 stage layer=19 pos=0 rows=2048 shared/routed ffn=188.740 ms
+ds4: V4.1 stage layer=19 pos=0 rows=2048 hc expand=2.358 ms
+ds4: V4.1 prefill layer=19 pos=0 rows=2048 encoder_resident=0 map=0.400 engram=0.001 encode=342.594 drain=0.815 seed=0.000 ms
+ds4: V4.1 stage layer=19 pos=2048 rows=2048 hc/engram=2.674 ms
+ds4: V4.1 stage layer=19 pos=2048 rows=2048 attention projections=77.602 ms
+ds4: V4.1 stage layer=19 pos=2048 rows=2048 attention core/index=34.991 ms
+ds4: V4.1 stage layer=19 pos=2048 rows=2048 attention output=9.286 ms
+ds4: V4.1 stage layer=19 pos=2048 rows=2048 hc/ffn norm=4.514 ms
+ds4: V4.1 stage layer=19 pos=2048 rows=2048 shared/routed ffn=86.189 ms
+ds4: V4.1 stage layer=19 pos=2048 rows=2048 hc expand=2.447 ms
+ds4: V4.1 prefill layer=19 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=217.732 drain=0.843 seed=9.482 ms
+ds4: V4.1 stage layer=20 pos=0 rows=2048 hc/engram=14.172 ms
+ds4: V4.1 stage layer=20 pos=0 rows=2048 attention projections=97.674 ms
+ds4: V4.1 stage layer=20 pos=0 rows=2048 attention core/index=205.425 ms
+ds4: V4.1 stage layer=20 pos=0 rows=2048 attention output=8.867 ms
+ds4: V4.1 stage layer=20 pos=0 rows=2048 hc/ffn norm=4.385 ms
+ds4: V4.1 stage layer=20 pos=0 rows=2048 shared/routed ffn=122.271 ms
+ds4: V4.1 stage layer=20 pos=0 rows=2048 hc expand=2.317 ms
+ds4: V4.1 prefill layer=20 pos=0 rows=2048 encoder_resident=0 map=0.333 engram=0.000 encode=455.143 drain=0.791 seed=-0.000 ms
+ds4: V4.1 stage layer=20 pos=2048 rows=2048 hc/engram=2.583 ms
+ds4: V4.1 stage layer=20 pos=2048 rows=2048 attention projections=75.680 ms
+ds4: V4.1 stage layer=20 pos=2048 rows=2048 attention core/index=215.662 ms
+ds4: V4.1 stage layer=20 pos=2048 rows=2048 attention output=8.749 ms
+ds4: V4.1 stage layer=20 pos=2048 rows=2048 hc/ffn norm=4.210 ms
+ds4: V4.1 stage layer=20 pos=2048 rows=2048 shared/routed ffn=74.611 ms
+ds4: V4.1 stage layer=20 pos=2048 rows=2048 hc expand=2.282 ms
+ds4: V4.1 prefill layer=20 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=383.800 drain=0.813 seed=10.519 ms
+ds4: V4.1 stage layer=21 pos=0 rows=2048 hc/engram=15.250 ms
+ds4: V4.1 stage layer=21 pos=0 rows=2048 attention projections=179.174 ms
+ds4: V4.1 stage layer=21 pos=0 rows=2048 attention core/index=29.217 ms
+ds4: V4.1 stage layer=21 pos=0 rows=2048 attention output=9.464 ms
+ds4: V4.1 stage layer=21 pos=0 rows=2048 hc/ffn norm=4.504 ms
+ds4: V4.1 stage layer=21 pos=0 rows=2048 shared/routed ffn=148.591 ms
+ds4: V4.1 stage layer=21 pos=0 rows=2048 hc expand=2.368 ms
+ds4: V4.1 prefill layer=21 pos=0 rows=2048 encoder_resident=0 map=0.830 engram=0.001 encode=388.606 drain=0.776 seed=-0.000 ms
+ds4: V4.1 stage layer=21 pos=2048 rows=2048 hc/engram=2.543 ms
+ds4: V4.1 stage layer=21 pos=2048 rows=2048 attention projections=73.338 ms
+ds4: V4.1 stage layer=21 pos=2048 rows=2048 attention core/index=33.053 ms
+ds4: V4.1 stage layer=21 pos=2048 rows=2048 attention output=8.877 ms
+ds4: V4.1 stage layer=21 pos=2048 rows=2048 hc/ffn norm=4.299 ms
+ds4: V4.1 stage layer=21 pos=2048 rows=2048 shared/routed ffn=79.333 ms
+ds4: V4.1 stage layer=21 pos=2048 rows=2048 hc expand=2.348 ms
+ds4: V4.1 prefill layer=21 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=203.822 drain=0.777 seed=13.085 ms
+ds4: V4.1 stage layer=22 pos=0 rows=2048 hc/engram=15.729 ms
+ds4: V4.1 stage layer=22 pos=0 rows=2048 attention projections=105.902 ms
+ds4: V4.1 stage layer=22 pos=0 rows=2048 attention core/index=33.320 ms
+ds4: V4.1 stage layer=22 pos=0 rows=2048 attention output=10.462 ms
+ds4: V4.1 stage layer=22 pos=0 rows=2048 hc/ffn norm=4.815 ms
+ds4: V4.1 stage layer=22 pos=0 rows=2048 shared/routed ffn=150.367 ms
+ds4: V4.1 stage layer=22 pos=0 rows=2048 hc expand=2.467 ms
+ds4: V4.1 prefill layer=22 pos=0 rows=2048 encoder_resident=0 map=0.333 engram=0.000 encode=323.121 drain=0.837 seed=0.000 ms
+ds4: V4.1 stage layer=22 pos=2048 rows=2048 hc/engram=2.744 ms
+ds4: V4.1 stage layer=22 pos=2048 rows=2048 attention projections=80.563 ms
+ds4: V4.1 stage layer=22 pos=2048 rows=2048 attention core/index=36.302 ms
+ds4: V4.1 stage layer=22 pos=2048 rows=2048 attention output=9.300 ms
+ds4: V4.1 stage layer=22 pos=2048 rows=2048 hc/ffn norm=4.522 ms
+ds4: V4.1 stage layer=22 pos=2048 rows=2048 shared/routed ffn=86.969 ms
+ds4: V4.1 stage layer=22 pos=2048 rows=2048 hc expand=2.459 ms
+ds4: V4.1 prefill layer=22 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=222.883 drain=0.857 seed=13.716 ms
+ds4: V4.1 stage layer=23 pos=0 rows=2048 hc/engram=16.202 ms
+ds4: V4.1 stage layer=23 pos=0 rows=2048 attention projections=106.575 ms
+ds4: V4.1 stage layer=23 pos=0 rows=2048 attention core/index=33.142 ms
+ds4: V4.1 stage layer=23 pos=0 rows=2048 attention output=10.450 ms
+ds4: V4.1 stage layer=23 pos=0 rows=2048 hc/ffn norm=4.649 ms
+ds4: V4.1 stage layer=23 pos=0 rows=2048 shared/routed ffn=134.836 ms
+ds4: V4.1 stage layer=23 pos=0 rows=2048 hc expand=2.418 ms
+ds4: V4.1 prefill layer=23 pos=0 rows=2048 encoder_resident=0 map=0.333 engram=0.000 encode=308.316 drain=0.811 seed=0.000 ms
+ds4: V4.1 stage layer=23 pos=2048 rows=2048 hc/engram=2.744 ms
+ds4: V4.1 stage layer=23 pos=2048 rows=2048 attention projections=82.450 ms
+ds4: V4.1 stage layer=23 pos=2048 rows=2048 attention core/index=36.671 ms
+ds4: V4.1 stage layer=23 pos=2048 rows=2048 attention output=10.820 ms
+ds4: V4.1 stage layer=23 pos=2048 rows=2048 hc/ffn norm=4.927 ms
+ds4: V4.1 stage layer=23 pos=2048 rows=2048 shared/routed ffn=93.328 ms
+ds4: V4.1 stage layer=23 pos=2048 rows=2048 hc expand=2.409 ms
+ds4: V4.1 prefill layer=23 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=233.360 drain=0.775 seed=12.208 ms
+ds4: V4.1 stage layer=24 pos=0 rows=2048 hc/engram=17.517 ms
+ds4: V4.1 stage layer=24 pos=0 rows=2048 attention projections=105.641 ms
+ds4: V4.1 stage layer=24 pos=0 rows=2048 attention core/index=81.466 ms
+ds4: V4.1 stage layer=24 pos=0 rows=2048 attention output=9.335 ms
+ds4: V4.1 stage layer=24 pos=0 rows=2048 hc/ffn norm=4.621 ms
+ds4: V4.1 stage layer=24 pos=0 rows=2048 shared/routed ffn=171.644 ms
+ds4: V4.1 stage layer=24 pos=0 rows=2048 hc expand=2.354 ms
+ds4: V4.1 prefill layer=24 pos=0 rows=2048 encoder_resident=0 map=14.413 engram=0.000 encode=392.620 drain=0.803 seed=0.001 ms
+ds4: V4.1 stage layer=24 pos=2048 rows=2048 hc/engram=2.617 ms
+ds4: V4.1 stage layer=24 pos=2048 rows=2048 attention projections=77.120 ms
+ds4: V4.1 stage layer=24 pos=2048 rows=2048 attention core/index=73.716 ms
+ds4: V4.1 stage layer=24 pos=2048 rows=2048 attention output=9.320 ms
+ds4: V4.1 stage layer=24 pos=2048 rows=2048 hc/ffn norm=4.476 ms
+ds4: V4.1 stage layer=24 pos=2048 rows=2048 shared/routed ffn=83.872 ms
+ds4: V4.1 stage layer=24 pos=2048 rows=2048 hc expand=2.515 ms
+ds4: V4.1 prefill layer=24 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=253.664 drain=0.812 seed=14.124 ms
+ds4: V4.1 stage layer=25 pos=0 rows=2048 hc/engram=16.031 ms
+ds4: V4.1 stage layer=25 pos=0 rows=2048 attention projections=102.406 ms
+ds4: V4.1 stage layer=25 pos=0 rows=2048 attention core/index=32.119 ms
+ds4: V4.1 stage layer=25 pos=0 rows=2048 attention output=9.812 ms
+ds4: V4.1 stage layer=25 pos=0 rows=2048 hc/ffn norm=4.648 ms
+ds4: V4.1 stage layer=25 pos=0 rows=2048 shared/routed ffn=146.792 ms
+ds4: V4.1 stage layer=25 pos=0 rows=2048 hc expand=2.358 ms
+ds4: V4.1 prefill layer=25 pos=0 rows=2048 encoder_resident=0 map=0.323 engram=0.000 encode=314.229 drain=0.833 seed=-0.000 ms
+ds4: V4.1 stage layer=25 pos=2048 rows=2048 hc/engram=2.678 ms
+ds4: V4.1 stage layer=25 pos=2048 rows=2048 attention projections=77.623 ms
+ds4: V4.1 stage layer=25 pos=2048 rows=2048 attention core/index=34.947 ms
+ds4: V4.1 stage layer=25 pos=2048 rows=2048 attention output=9.101 ms
+ds4: V4.1 stage layer=25 pos=2048 rows=2048 hc/ffn norm=4.380 ms
+ds4: V4.1 stage layer=25 pos=2048 rows=2048 shared/routed ffn=82.066 ms
+ds4: V4.1 stage layer=25 pos=2048 rows=2048 hc expand=2.381 ms
+ds4: V4.1 prefill layer=25 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=213.189 drain=0.774 seed=15.162 ms
+ds4: V4.1 stage layer=26 pos=0 rows=2048 hc/engram=15.691 ms
+ds4: V4.1 stage layer=26 pos=0 rows=2048 attention projections=107.488 ms
+ds4: V4.1 stage layer=26 pos=0 rows=2048 attention core/index=32.261 ms
+ds4: V4.1 stage layer=26 pos=0 rows=2048 attention output=9.993 ms
+ds4: V4.1 stage layer=26 pos=0 rows=2048 hc/ffn norm=4.572 ms
+ds4: V4.1 stage layer=26 pos=0 rows=2048 shared/routed ffn=222.260 ms
+ds4: V4.1 stage layer=26 pos=0 rows=2048 hc expand=2.324 ms
+ds4: V4.1 prefill layer=26 pos=0 rows=2048 encoder_resident=0 map=0.321 engram=0.000 encode=394.632 drain=0.852 seed=0.000 ms
+ds4: V4.1 stage layer=26 pos=2048 rows=2048 hc/engram=2.625 ms
+ds4: V4.1 stage layer=26 pos=2048 rows=2048 attention projections=74.623 ms
+ds4: V4.1 stage layer=26 pos=2048 rows=2048 attention core/index=33.663 ms
+ds4: V4.1 stage layer=26 pos=2048 rows=2048 attention output=9.076 ms
+ds4: V4.1 stage layer=26 pos=2048 rows=2048 hc/ffn norm=4.436 ms
+ds4: V4.1 stage layer=26 pos=2048 rows=2048 shared/routed ffn=78.717 ms
+ds4: V4.1 stage layer=26 pos=2048 rows=2048 hc expand=2.306 ms
+ds4: V4.1 prefill layer=26 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=205.472 drain=0.783 seed=10.606 ms
+ds4: V4.1 stage layer=27 pos=0 rows=2048 hc/engram=18.769 ms
+ds4: V4.1 stage layer=27 pos=0 rows=2048 attention projections=90.023 ms
+ds4: V4.1 stage layer=27 pos=0 rows=2048 attention core/index=32.093 ms
+ds4: V4.1 stage layer=27 pos=0 rows=2048 attention output=9.682 ms
+ds4: V4.1 stage layer=27 pos=0 rows=2048 hc/ffn norm=4.682 ms
+ds4: V4.1 stage layer=27 pos=0 rows=2048 shared/routed ffn=130.099 ms
+ds4: V4.1 stage layer=27 pos=0 rows=2048 hc expand=2.475 ms
+ds4: V4.1 prefill layer=27 pos=0 rows=2048 encoder_resident=0 map=0.475 engram=0.000 encode=287.898 drain=0.864 seed=0.001 ms
+ds4: V4.1 stage layer=27 pos=2048 rows=2048 hc/engram=2.704 ms
+ds4: V4.1 stage layer=27 pos=2048 rows=2048 attention projections=80.414 ms
+ds4: V4.1 stage layer=27 pos=2048 rows=2048 attention core/index=36.116 ms
+ds4: V4.1 stage layer=27 pos=2048 rows=2048 attention output=9.316 ms
+ds4: V4.1 stage layer=27 pos=2048 rows=2048 hc/ffn norm=4.612 ms
+ds4: V4.1 stage layer=27 pos=2048 rows=2048 shared/routed ffn=87.019 ms
+ds4: V4.1 stage layer=27 pos=2048 rows=2048 hc expand=2.359 ms
+ds4: V4.1 prefill layer=27 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=222.567 drain=0.779 seed=15.059 ms
+ds4: V4.1 stage layer=28 pos=0 rows=2048 hc/engram=16.488 ms
+ds4: V4.1 stage layer=28 pos=0 rows=2048 attention projections=109.518 ms
+ds4: V4.1 stage layer=28 pos=0 rows=2048 attention core/index=75.437 ms
+ds4: V4.1 stage layer=28 pos=0 rows=2048 attention output=9.389 ms
+ds4: V4.1 stage layer=28 pos=0 rows=2048 hc/ffn norm=4.627 ms
+ds4: V4.1 stage layer=28 pos=0 rows=2048 shared/routed ffn=168.286 ms
+ds4: V4.1 stage layer=28 pos=0 rows=2048 hc expand=2.261 ms
+ds4: V4.1 prefill layer=28 pos=0 rows=2048 encoder_resident=0 map=0.345 engram=0.000 encode=386.028 drain=0.735 seed=0.000 ms
+ds4: V4.1 stage layer=28 pos=2048 rows=2048 hc/engram=2.517 ms
+ds4: V4.1 stage layer=28 pos=2048 rows=2048 attention projections=75.773 ms
+ds4: V4.1 stage layer=28 pos=2048 rows=2048 attention core/index=72.939 ms
+ds4: V4.1 stage layer=28 pos=2048 rows=2048 attention output=9.106 ms
+ds4: V4.1 stage layer=28 pos=2048 rows=2048 hc/ffn norm=4.452 ms
+ds4: V4.1 stage layer=28 pos=2048 rows=2048 shared/routed ffn=82.094 ms
+ds4: V4.1 stage layer=28 pos=2048 rows=2048 hc expand=2.258 ms
+ds4: V4.1 prefill layer=28 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.001 encode=249.147 drain=0.847 seed=12.480 ms
+ds4: V4.1 stage layer=29 pos=0 rows=2048 hc/engram=14.871 ms
+ds4: V4.1 stage layer=29 pos=0 rows=2048 attention projections=88.650 ms
+ds4: V4.1 stage layer=29 pos=0 rows=2048 attention core/index=31.928 ms
+ds4: V4.1 stage layer=29 pos=0 rows=2048 attention output=10.370 ms
+ds4: V4.1 stage layer=29 pos=0 rows=2048 hc/ffn norm=4.566 ms
+ds4: V4.1 stage layer=29 pos=0 rows=2048 shared/routed ffn=160.686 ms
+ds4: V4.1 stage layer=29 pos=0 rows=2048 hc expand=2.452 ms
+ds4: V4.1 prefill layer=29 pos=0 rows=2048 encoder_resident=0 map=0.320 engram=0.000 encode=313.549 drain=0.757 seed=0.001 ms
+ds4: V4.1 stage layer=29 pos=2048 rows=2048 hc/engram=2.772 ms
+ds4: V4.1 stage layer=29 pos=2048 rows=2048 attention projections=79.411 ms
+ds4: V4.1 stage layer=29 pos=2048 rows=2048 attention core/index=35.366 ms
+ds4: V4.1 stage layer=29 pos=2048 rows=2048 attention output=9.249 ms
+ds4: V4.1 stage layer=29 pos=2048 rows=2048 hc/ffn norm=4.531 ms
+ds4: V4.1 stage layer=29 pos=2048 rows=2048 shared/routed ffn=85.202 ms
+ds4: V4.1 stage layer=29 pos=2048 rows=2048 hc expand=2.409 ms
+ds4: V4.1 prefill layer=29 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=218.965 drain=0.816 seed=11.961 ms
+ds4: V4.1 stage layer=30 pos=0 rows=2048 hc/engram=17.109 ms
+ds4: V4.1 stage layer=30 pos=0 rows=2048 attention projections=113.899 ms
+ds4: V4.1 stage layer=30 pos=0 rows=2048 attention core/index=33.268 ms
+ds4: V4.1 stage layer=30 pos=0 rows=2048 attention output=10.753 ms
+ds4: V4.1 stage layer=30 pos=0 rows=2048 hc/ffn norm=4.801 ms
+ds4: V4.1 stage layer=30 pos=0 rows=2048 shared/routed ffn=158.263 ms
+ds4: V4.1 stage layer=30 pos=0 rows=2048 hc expand=2.367 ms
+ds4: V4.1 prefill layer=30 pos=0 rows=2048 encoder_resident=0 map=0.367 engram=0.001 encode=340.508 drain=0.798 seed=0.000 ms
+ds4: V4.1 stage layer=30 pos=2048 rows=2048 hc/engram=2.653 ms
+ds4: V4.1 stage layer=30 pos=2048 rows=2048 attention projections=78.042 ms
+ds4: V4.1 stage layer=30 pos=2048 rows=2048 attention core/index=35.167 ms
+ds4: V4.1 stage layer=30 pos=2048 rows=2048 attention output=9.115 ms
+ds4: V4.1 stage layer=30 pos=2048 rows=2048 hc/ffn norm=4.433 ms
+ds4: V4.1 stage layer=30 pos=2048 rows=2048 shared/routed ffn=88.737 ms
+ds4: V4.1 stage layer=30 pos=2048 rows=2048 hc expand=2.303 ms
+ds4: V4.1 prefill layer=30 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=220.479 drain=0.844 seed=13.720 ms
+ds4: V4.1 stage layer=31 pos=0 rows=2048 hc/engram=17.626 ms
+ds4: V4.1 stage layer=31 pos=0 rows=2048 attention projections=101.438 ms
+ds4: V4.1 stage layer=31 pos=0 rows=2048 attention core/index=33.871 ms
+ds4: V4.1 stage layer=31 pos=0 rows=2048 attention output=10.450 ms
+ds4: V4.1 stage layer=31 pos=0 rows=2048 hc/ffn norm=4.895 ms
+ds4: V4.1 stage layer=31 pos=0 rows=2048 shared/routed ffn=137.940 ms
+ds4: V4.1 stage layer=31 pos=0 rows=2048 hc expand=2.483 ms
+ds4: V4.1 prefill layer=31 pos=0 rows=2048 encoder_resident=0 map=0.349 engram=0.001 encode=308.746 drain=0.808 seed=0.001 ms
+ds4: V4.1 stage layer=31 pos=2048 rows=2048 hc/engram=2.793 ms
+ds4: V4.1 stage layer=31 pos=2048 rows=2048 attention projections=84.434 ms
+ds4: V4.1 stage layer=31 pos=2048 rows=2048 attention core/index=37.971 ms
+ds4: V4.1 stage layer=31 pos=2048 rows=2048 attention output=9.790 ms
+ds4: V4.1 stage layer=31 pos=2048 rows=2048 hc/ffn norm=4.692 ms
+ds4: V4.1 stage layer=31 pos=2048 rows=2048 shared/routed ffn=90.352 ms
+ds4: V4.1 stage layer=31 pos=2048 rows=2048 hc expand=2.385 ms
+ds4: V4.1 prefill layer=31 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=232.446 drain=0.759 seed=14.459 ms
+ds4: V4.1 stage layer=32 pos=0 rows=2048 hc/engram=17.702 ms
+ds4: V4.1 stage layer=32 pos=0 rows=2048 attention projections=107.593 ms
+ds4: V4.1 stage layer=32 pos=0 rows=2048 attention core/index=84.220 ms
+ds4: V4.1 stage layer=32 pos=0 rows=2048 attention output=11.061 ms
+ds4: V4.1 stage layer=32 pos=0 rows=2048 hc/ffn norm=5.265 ms
+ds4: V4.1 stage layer=32 pos=0 rows=2048 shared/routed ffn=243.384 ms
+ds4: V4.1 stage layer=32 pos=0 rows=2048 hc expand=2.298 ms
+ds4: V4.1 prefill layer=32 pos=0 rows=2048 encoder_resident=0 map=0.376 engram=0.000 encode=471.559 drain=0.779 seed=0.000 ms
+ds4: V4.1 stage layer=32 pos=2048 rows=2048 hc/engram=2.573 ms
+ds4: V4.1 stage layer=32 pos=2048 rows=2048 attention projections=75.633 ms
+ds4: V4.1 stage layer=32 pos=2048 rows=2048 attention core/index=72.133 ms
+ds4: V4.1 stage layer=32 pos=2048 rows=2048 attention output=9.295 ms
+ds4: V4.1 stage layer=32 pos=2048 rows=2048 hc/ffn norm=4.409 ms
+ds4: V4.1 stage layer=32 pos=2048 rows=2048 shared/routed ffn=83.699 ms
+ds4: V4.1 stage layer=32 pos=2048 rows=2048 hc expand=2.326 ms
+ds4: V4.1 prefill layer=32 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=250.095 drain=0.811 seed=13.382 ms
+ds4: V4.1 stage layer=33 pos=0 rows=2048 hc/engram=17.507 ms
+ds4: V4.1 stage layer=33 pos=0 rows=2048 attention projections=107.215 ms
+ds4: V4.1 stage layer=33 pos=0 rows=2048 attention core/index=32.326 ms
+ds4: V4.1 stage layer=33 pos=0 rows=2048 attention output=9.762 ms
+ds4: V4.1 stage layer=33 pos=0 rows=2048 hc/ffn norm=4.606 ms
+ds4: V4.1 stage layer=33 pos=0 rows=2048 shared/routed ffn=193.003 ms
+ds4: V4.1 stage layer=33 pos=0 rows=2048 hc expand=2.335 ms
+ds4: V4.1 prefill layer=33 pos=0 rows=2048 encoder_resident=0 map=0.365 engram=0.000 encode=366.792 drain=0.798 seed=-0.000 ms
+ds4: V4.1 stage layer=33 pos=2048 rows=2048 hc/engram=2.617 ms
+ds4: V4.1 stage layer=33 pos=2048 rows=2048 attention projections=75.694 ms
+ds4: V4.1 stage layer=33 pos=2048 rows=2048 attention core/index=34.129 ms
+ds4: V4.1 stage layer=33 pos=2048 rows=2048 attention output=9.191 ms
+ds4: V4.1 stage layer=33 pos=2048 rows=2048 hc/ffn norm=4.396 ms
+ds4: V4.1 stage layer=33 pos=2048 rows=2048 shared/routed ffn=83.209 ms
+ds4: V4.1 stage layer=33 pos=2048 rows=2048 hc expand=2.361 ms
+ds4: V4.1 prefill layer=33 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=211.626 drain=0.765 seed=15.670 ms
+ds4: V4.1 stage layer=34 pos=0 rows=2048 hc/engram=16.400 ms
+ds4: V4.1 stage layer=34 pos=0 rows=2048 attention projections=109.476 ms
+ds4: V4.1 stage layer=34 pos=0 rows=2048 attention core/index=32.020 ms
+ds4: V4.1 stage layer=34 pos=0 rows=2048 attention output=9.981 ms
+ds4: V4.1 stage layer=34 pos=0 rows=2048 hc/ffn norm=4.603 ms
+ds4: V4.1 stage layer=34 pos=0 rows=2048 shared/routed ffn=166.188 ms
+ds4: V4.1 stage layer=34 pos=0 rows=2048 hc expand=2.409 ms
+ds4: V4.1 prefill layer=34 pos=0 rows=2048 encoder_resident=0 map=0.338 engram=0.000 encode=341.145 drain=0.849 seed=0.000 ms
+ds4: V4.1 stage layer=34 pos=2048 rows=2048 hc/engram=2.748 ms
+ds4: V4.1 stage layer=34 pos=2048 rows=2048 attention projections=76.863 ms
+ds4: V4.1 stage layer=34 pos=2048 rows=2048 attention core/index=34.624 ms
+ds4: V4.1 stage layer=34 pos=2048 rows=2048 attention output=9.011 ms
+ds4: V4.1 stage layer=34 pos=2048 rows=2048 hc/ffn norm=4.357 ms
+ds4: V4.1 stage layer=34 pos=2048 rows=2048 shared/routed ffn=89.660 ms
+ds4: V4.1 stage layer=34 pos=2048 rows=2048 hc expand=2.429 ms
+ds4: V4.1 prefill layer=34 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=219.713 drain=0.839 seed=15.947 ms
+ds4: V4.1 stage layer=35 pos=0 rows=2048 hc/engram=17.102 ms
+ds4: V4.1 stage layer=35 pos=0 rows=2048 attention projections=103.495 ms
+ds4: V4.1 stage layer=35 pos=0 rows=2048 attention core/index=32.181 ms
+ds4: V4.1 stage layer=35 pos=0 rows=2048 attention output=10.062 ms
+ds4: V4.1 stage layer=35 pos=0 rows=2048 hc/ffn norm=4.628 ms
+ds4: V4.1 stage layer=35 pos=0 rows=2048 shared/routed ffn=157.933 ms
+ds4: V4.1 stage layer=35 pos=0 rows=2048 hc expand=2.323 ms
+ds4: V4.1 prefill layer=35 pos=0 rows=2048 encoder_resident=0 map=0.414 engram=0.000 encode=327.762 drain=0.773 seed=-0.000 ms
+ds4: V4.1 stage layer=35 pos=2048 rows=2048 hc/engram=2.656 ms
+ds4: V4.1 stage layer=35 pos=2048 rows=2048 attention projections=78.102 ms
+ds4: V4.1 stage layer=35 pos=2048 rows=2048 attention core/index=35.184 ms
+ds4: V4.1 stage layer=35 pos=2048 rows=2048 attention output=9.147 ms
+ds4: V4.1 stage layer=35 pos=2048 rows=2048 hc/ffn norm=4.497 ms
+ds4: V4.1 stage layer=35 pos=2048 rows=2048 shared/routed ffn=89.188 ms
+ds4: V4.1 stage layer=35 pos=2048 rows=2048 hc expand=2.586 ms
+ds4: V4.1 prefill layer=35 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=221.390 drain=0.756 seed=15.793 ms
+ds4: V4.1 stage layer=36 pos=0 rows=2048 hc/engram=16.317 ms
+ds4: V4.1 stage layer=36 pos=0 rows=2048 attention projections=100.783 ms
+ds4: V4.1 stage layer=36 pos=0 rows=2048 attention core/index=73.872 ms
+ds4: V4.1 stage layer=36 pos=0 rows=2048 attention output=9.768 ms
+ds4: V4.1 stage layer=36 pos=0 rows=2048 hc/ffn norm=4.805 ms
+ds4: V4.1 stage layer=36 pos=0 rows=2048 shared/routed ffn=166.004 ms
+ds4: V4.1 stage layer=36 pos=0 rows=2048 hc expand=2.489 ms
+ds4: V4.1 prefill layer=36 pos=0 rows=2048 encoder_resident=0 map=0.392 engram=0.000 encode=374.089 drain=0.809 seed=0.000 ms
+ds4: V4.1 stage layer=36 pos=2048 rows=2048 hc/engram=2.815 ms
+ds4: V4.1 stage layer=36 pos=2048 rows=2048 attention projections=78.601 ms
+ds4: V4.1 stage layer=36 pos=2048 rows=2048 attention core/index=74.753 ms
+ds4: V4.1 stage layer=36 pos=2048 rows=2048 attention output=9.369 ms
+ds4: V4.1 stage layer=36 pos=2048 rows=2048 hc/ffn norm=4.612 ms
+ds4: V4.1 stage layer=36 pos=2048 rows=2048 shared/routed ffn=84.414 ms
+ds4: V4.1 stage layer=36 pos=2048 rows=2048 hc expand=2.355 ms
+ds4: V4.1 prefill layer=36 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=256.948 drain=0.710 seed=13.340 ms
+ds4: V4.1 stage layer=37 pos=0 rows=2048 hc/engram=17.014 ms
+ds4: V4.1 stage layer=37 pos=0 rows=2048 attention projections=106.531 ms
+ds4: V4.1 stage layer=37 pos=0 rows=2048 attention core/index=31.649 ms
+ds4: V4.1 stage layer=37 pos=0 rows=2048 attention output=10.162 ms
+ds4: V4.1 stage layer=37 pos=0 rows=2048 hc/ffn norm=4.583 ms
+ds4: V4.1 stage layer=37 pos=0 rows=2048 shared/routed ffn=167.299 ms
+ds4: V4.1 stage layer=37 pos=0 rows=2048 hc expand=2.336 ms
+ds4: V4.1 prefill layer=37 pos=0 rows=2048 encoder_resident=0 map=0.362 engram=0.001 encode=339.623 drain=0.832 seed=-0.000 ms
+ds4: V4.1 stage layer=37 pos=2048 rows=2048 hc/engram=2.601 ms
+ds4: V4.1 stage layer=37 pos=2048 rows=2048 attention projections=78.127 ms
+ds4: V4.1 stage layer=37 pos=2048 rows=2048 attention core/index=34.000 ms
+ds4: V4.1 stage layer=37 pos=2048 rows=2048 attention output=9.091 ms
+ds4: V4.1 stage layer=37 pos=2048 rows=2048 hc/ffn norm=4.323 ms
+ds4: V4.1 stage layer=37 pos=2048 rows=2048 shared/routed ffn=82.580 ms
+ds4: V4.1 stage layer=37 pos=2048 rows=2048 hc expand=2.332 ms
+ds4: V4.1 prefill layer=37 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=213.076 drain=0.774 seed=12.881 ms
+ds4: V4.1 stage layer=38 pos=0 rows=2048 hc/engram=19.780 ms
+ds4: V4.1 stage layer=38 pos=0 rows=2048 attention projections=117.759 ms
+ds4: V4.1 stage layer=38 pos=0 rows=2048 attention core/index=32.310 ms
+ds4: V4.1 stage layer=38 pos=0 rows=2048 attention output=9.975 ms
+ds4: V4.1 stage layer=38 pos=0 rows=2048 hc/ffn norm=4.611 ms
+ds4: V4.1 stage layer=38 pos=0 rows=2048 shared/routed ffn=185.459 ms
+ds4: V4.1 stage layer=38 pos=0 rows=2048 hc expand=2.353 ms
+ds4: V4.1 prefill layer=38 pos=0 rows=2048 encoder_resident=0 map=0.433 engram=0.000 encode=372.304 drain=0.803 seed=-0.000 ms
+ds4: V4.1 stage layer=38 pos=2048 rows=2048 hc/engram=2.631 ms
+ds4: V4.1 stage layer=38 pos=2048 rows=2048 attention projections=75.572 ms
+ds4: V4.1 stage layer=38 pos=2048 rows=2048 attention core/index=33.974 ms
+ds4: V4.1 stage layer=38 pos=2048 rows=2048 attention output=9.179 ms
+ds4: V4.1 stage layer=38 pos=2048 rows=2048 hc/ffn norm=4.401 ms
+ds4: V4.1 stage layer=38 pos=2048 rows=2048 shared/routed ffn=83.968 ms
+ds4: V4.1 stage layer=38 pos=2048 rows=2048 hc expand=2.513 ms
+ds4: V4.1 prefill layer=38 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=212.260 drain=0.812 seed=15.933 ms
+ds4: V4.1 stage layer=39 pos=0 rows=2048 hc/engram=16.763 ms
+ds4: V4.1 stage layer=39 pos=0 rows=2048 attention projections=104.345 ms
+ds4: V4.1 stage layer=39 pos=0 rows=2048 attention core/index=31.811 ms
+ds4: V4.1 stage layer=39 pos=0 rows=2048 attention output=9.517 ms
+ds4: V4.1 stage layer=39 pos=0 rows=2048 hc/ffn norm=4.538 ms
+ds4: V4.1 stage layer=39 pos=0 rows=2048 shared/routed ffn=144.569 ms
+ds4: V4.1 stage layer=39 pos=0 rows=2048 hc expand=2.348 ms
+ds4: V4.1 prefill layer=39 pos=0 rows=2048 encoder_resident=0 map=0.289 engram=0.000 encode=313.903 drain=0.002 seed=-0.000 ms
+ds4: V4.1 stage layer=39 pos=2048 rows=2048 hc/engram=2.545 ms
+ds4: V4.1 stage layer=39 pos=2048 rows=2048 attention projections=77.345 ms
+ds4: V4.1 stage layer=39 pos=2048 rows=2048 attention core/index=34.758 ms
+ds4: V4.1 stage layer=39 pos=2048 rows=2048 attention output=9.302 ms
+ds4: V4.1 stage layer=39 pos=2048 rows=2048 hc/ffn norm=4.363 ms
+ds4: V4.1 stage layer=39 pos=2048 rows=2048 shared/routed ffn=82.734 ms
+ds4: V4.1 stage layer=39 pos=2048 rows=2048 hc expand=2.293 ms
+ds4: V4.1 prefill layer=39 pos=2048 rows=2048 encoder_resident=0 map=0.000 engram=0.000 encode=213.351 drain=0.001 seed=15.006 ms
+ds4: V4.1 batch step rows=685 pre 0.0 ms, per-row attention 0.0 ms, moe 0.0 ms, head 0.0 ms, setup 0.0 ms, publish 0.0 ms
+ds4: V4.1 prefill of 4096 rows interleaved layer by layer with the 685-row tail after it; the prefix waited 12.948 s on the tail's layers
+1007 11:41:29 ds4-server: chat ctx=0..4781:4781 prefill chunk 4781/4781 (100.0%) chunk=0.00 t/s avg=131.07 t/s 36.477s
+ds4: V4.1 prefill tail at position 4096 ran 685 rows as 1 batch steps
+ds4: expert cache lent the prefill headroom for decode: 6266 -> 7034 experts
+1007 11:41:29 ds4-server: chat ctx=0..4781:4781 prompt done 36.518s
+ds4: shared/routed FFN overlap ran, mode 1
+ds4: memory budget reached: a cache slab of 1.91 GiB refused with 80.00 GiB allocated and a 0.00 GiB prefill reserve, of a 80.00 GiB budget; the expert cache now evicts to make room
+1007 11:41:33 ds4-server: chat ctx=4781..4831:50 gen=50 decoding chunk=13.48 t/s avg=13.48 t/s 3.711s
+ds4:   decode path so far: 64 single-row steps (68.7 ms each inside the graph over the last 64), 1 K-row verification steps over 685 positions, 0 batch-fusion sites taken; candidate K 32:1
+ds4:   host row loop: 1370 nodes attended one at a time
+ds4: gate over tokens 1-64: 26.25 command buffers, 18.36 aborts, 240.0 expert ids accounted, 250.21 MiB loaded a token; 0 the gate failed to switch off, 0 it could not gate
+ds4:   one token, exclusive, same window: entry 0.00 + encode 1.95 + commit-to-done 33.28 + repair-load 26.77 + accounting 0.05 + tail 1.45 = 63.51 of a 68.94 ms wall, residual 5.43
+ds4:   GPU busy 463.51 ms of the token's wall (the union of its buffers' spans), idle -394.58 ms
+ds4:   1384.8 gated dispatches a token, 20.2 of them behind an abort; 587.4 sent plain ahead of a buffer's first validate
+ds4:   encode-ahead: 6.89 segments used, 17.36 dropped, 4.89 ms a token spent encoding under the GPU
+ds4:   concurrent sections: 248.81 attempted, 248.81 opened a token
+ds4:   speculation: 0.00 layers a token, 0.00 lanes computed, 0.00 matched, 0.00 GEMVs actually saved, 0.00 left to compute; compared 0.00 lanes, 0.00 floats differ, 0.00 by more than an ulp
+ds4:   Metal 4: 58.38 command buffers sent, 8732.8 dispatches a token; 0 pieces of Metal 3 work so far
+ds4:   Metal 4 a token: 58.38 contexts in 60.44 command buffers (0.69 split); 9899.4 nodes = 8732.8 dispatches + 1166.7 copies; barriers 5650.8 from the graph, 120.9 queue; engine asked for 135.3 barriers and 537.0 section ends, neither encoded; 24784.8 buffer and 9386.5 constant bindings (762735 B), 0.0 with no stated length; 58.38 blocking waits, 468.89 ms
+ds4:   expert cache over the last 64 tokens: 2715.03 hits, 193.80 misses, 87.11 evictions a token; 6828 of 7034 entries live (97.1%)
+ds4:   of the address-table holes repaired a token: 0.00 already resident, 124.23 genuinely absent
+ds4:   of the repair a token: readahead 29.00 ms, slot preparation 34.92 ms, reads 57.04 ms, install 0.24 ms, over 193.80 loads
+ds4:   Engram rows written at step start in 64 steps; layer-13 drains 0
+ds4:   residency a token: 0.00 adds, 0.00 removes, 0.00 commits
+1007 11:41:33 ds4-server: chat ctx=4831..4845:14 gen=64 decoding chunk=18.33 t/s avg=14.30 t/s 4.474s
+1007 11:41:33 ds4-server: token ids: 64, hash 0d7fb78ed9b7a4a1, stop output limit token -1, every 64: 0d7fb78e
+ds4: backend request Metal 4 encoder batch                  encoder=575162
+ds4: backend request Metal 4 segment                        commit=3736
+ds4: backend request Metal 4 wait                           wait=3736
+ds4: backend request Metal 4 tensor_copy                    blit=48832
+ds4: backend request Metal 4 expert_cache_fill              blit=4452
+ds4: backend request Metal 4 tensor_read                    readback=105
+ds4: backend request totals over 64 tokens (selected Metal 4): M3 commit=0 wait=0 signal=0 evwait=0 blit=0 encoder=0 readback=0 M4 commit=3736 wait=3736 signal=0 evwait=0 blit=53284 encoder=575162 readback=105; Metal 3 fallback 0; site table overflow 0
+ds4: backend request boundary end            pc 0x1001dc9a4 80
+ds4: backend request boundary end            pc 0x1001dceb4 80
+ds4: backend request boundary end            pc 0x1001dd1dc 80
+ds4: backend request boundary end            pc 0x1001dd8f4 80
+ds4: backend request boundary end            pc 0x1001ddaa4 80
+ds4: backend request boundary end            pc 0x1001de0c0 80
+ds4: backend request boundary end            pc 0x1001dd2c8 80
+ds4: backend request boundary end            pc 0x1001ddc28 80
+ds4: backend request boundary end            pc 0x1001dce08 80
+ds4: backend request boundary end            pc 0x1001de614 40
+ds4: backend request boundary end            pc 0x1002c6b3c 40
+ds4: backend request boundary end            pc 0x1002ca55c 40
+ds4: backend request boundary end            pc 0x100179fc4 40
+ds4: backend request boundary end            pc 0x100175bfc 1
+ds4: backend request boundary end            pc 0x1001e03f8 1
+ds4: backend request boundary end            pc 0x1001cd61c 1
+ds4: backend request boundary end            pc 0x1000cda90 65
+ds4: backend request boundary flush          pc 0x1000c6bfc 1680
+ds4: backend request boundary flush          pc 0x1000c6fe8 1552
+ds4: backend request boundary wait mark      pc 0x1000c6fc8 1552
+ds4: backend request boundary wait           pc 0x1000c70d0 1111
+ds4: backend request boundary wait           pc 0x1000c7024 128
+ds4: backend request boundary end            pc 0x1000c8174 64
+ds4: Metal 4 bindings with no stated length: 0 at 0 call sites
+ds4: Metal 4 parts: contexts in 1/2/3/4 parts 3692/0/0/44, 633563 nodes; 44 commit:count: calls with more than one buffer, 3868 command buffers in all; 0 contexts cut short of their parts, 0 empty or mismatched parts
+ds4: backend request Metal 4 feedback after completion: 3065 waits, 50.121 ms
+ds4: backend request Metal 3 command execution after Metal 4 selection: 0 (refused 0); Metal 3 queues created before selection 0, after 0; full expert address table uses 0
+ds4: backend request background: keepalive M3 0 M4 43, pacer M3 0 M4 0 (cumulative)
+1007 11:41:33 ds4-server: token trace: 0 128803 0 3476 477 260 16372 22896 16 5453 270 4093 14 6360 270 31605 14 305 3287 270 4087 7231 9045 16 128803 3476 477 5081 260 1606 4093 538 270 58523 6949 294 15143 89 14158 16 455 4093 344 201 75950 377 6425 28 1482 7065 14 4961 14 6360 14 15292 2924 14 17972 943 201 50219 14 305 7097 7306 260 3729 18538 1167 4866 798 295 201 10595 16 5375 4125 509 270 1522 344 304 13272 270 18538 3737 339 83227 7498 1901 5081 28 1353 31605 10844 412 582 14428 14037 270 201 14360 4588 4 1895 16 6241 16922 14 9572 14 18571 14 26190 14 4772 3737 14 65962 989 272 111855 696 554 1895 16 455 18538 3737 295 270 4093 477 4866 295 201 10595 14 554 56003 339 4690 1257 2900 270 58523 86456 294 38398 14 9641 14 305 110251 20928 16 71595 26577 201 1805 645 386 418 260 44056 6403 62339 1202 834 7931 14 30308 20408 336 75800 1960 260 201 113004 294 270 64383 15844 4851 270 7536 93324 16 33926 601 936 23865 304 11284 270 201 85 2960 14742 1936 69832 14 790 270 91731 47475 832 59143 396 6660 201 6452 3195 554 304 7746 1066 16 660 270 95042 8667 14 3330 4853 51489 21537 53900 201 8848 260 1888 34011 41151 295 260 26166 19900 16 3011 834 515 295 260 53582 14 1754 201 45182 89 14158 8599 513 41949 305 10180 14 554 513 270 71293 377 270 19951 28757 339 671 5613 51141 110278 8398 9575 295 13769 28428 14 3214 5159 14 1754 5159 28428 1960 201 1129 6192 15294 1747 1277 5476 99651 273 16 2566 16818 71595 305 33926 601 2281 270 201 72 39360 14 1539 5144 260 2562 943 270 7469 33935 16 5334 9575 2915 77603 1055 201 26758 6744 28 270 3605 294 260 92683 14 270 537 10592 32820 294 260 9778 14 270 1722 260 5823 201 2438 529 10083 1561 436 936 1047 31691 16056 339 4546 45366 270 3194 936 11300 418 82362 294 280 7002 14 32032 6103 14 49766 69943 14 305 201 39020 14692 16 47643 31004 3659 362 3853 560 1901 82146 34226 304 260 104614 201 50095 260 14560 396 8743 304 2334 59125 1750 1014 468 1094 1129 436 16 455 6949 201 27747 936 12852 1820 14 790 29780 12141 377 1082 14 832 1750 15391 53140 16789 260 201 59206 6857 305 53733 436 418 11198 339 47 3444 3825 5854 270 3799 11162 69 699 305 43697 270 2173 734 17229 2818 1055 270 201 61403 3578 86508 16 2566 18428 17229 2818 2455 16 45836 75950 2818 4127 201 6135 45386 14 58792 14 305 1482 995 37344 1060 969 16884 16 87986 201 60037 13721 30278 14 3825 1910 14 305 5750 3980 1936 7918 16243 339 1124 270 16232 14 260 93437 362 270 113450 50565 1946 31744 270 15106 6337 603 43 2638 9023 260 71040 294 80005 9220 1407 270 18544 1901 27170 1733 201 12678 538 260 27640 11314 16 45789 936 28035 270 17408 2727 8295 377 270 52312 989 458 2038 1482 18288 943 3920 260 65326 17408 515 7837 304 366 7139 603 671 9517 40107 5827 1099 270 11219 339 671 86508 3997 2526 377 260 18496 16 110278 9026 436 37205 418 1234 11316 23441 201 5356 270 18992 16 2566 11516 995 48112 270 31363 44183 14 995 10274 270 201 94786 109871 14 305 995 16026 270 12070 4332 56295 16 455 58941 515 18715 201 25287 1082 270 6949 515 554 339 16422 288 7068 260 12426 4213 305 270 5706 294 16056 8513 1902 6059 3234 834 1561 201 58264 16 31065 10082 7457 38271 1055 270 14677 14085 14 1479 270 9319 936 201 64583 15518 50093 3514 436 86456 39375 367 294 11128 16 38798 2006 260 6644 10549 201 84037 270 5823 305 83119 436 304 270 8806 6791 418 260 7155 396 1359 14 5880 989 4 23299 891 4331 47 3444 13577 270 39317 294 270 14085 418 270 86508 27546 304 969 15142 16 2566 201 18988 8838 396 2239 9616 25342 2455 6352 111461 3137 16 334 12070 201 10911 14 260 7956 12240 14 260 37370 2329 14 260 1167 14037 2503 27566 1137 47484 881 270 2924 396 3859 1960 4880 294 5675 3006 339 47 3444 7431 5524 6731 411 3072 110658 943 260 50645 3077 14 790 1225 26577 436 798 1754 436 515 554 411 18538 305 1687 554 9028 295 270 4087 2310 339 72829 13721 1561 44844 305 78756 1750 5706 295 15143 89 14158 16 33926 601 201 11475 21537 270 6326 1188 294 270 38398 114646 734 15391 14 11602 362 58252 14 995 936 201 42774 1559 362 260 26339 3825 45555 16 455 12505 56574 87934 295 280 22469 1154 1277 30525 201 9336 29780 1494 10965 16 5795 270 25131 14 270 115921 75496 418 5828 201 20850 481 339 47 3444 12652 42313 295 270 41273 4772 16 2566 15965 4371 260 41815 14 23047 436 989 458 10274 304 13769 28428 16 455 25550 86508 936 14376 9754 418 270 3469 1137 50219 9575 14 37266 14 1843 97989 14 110088 14 305 260 2767 9616 1225 79213 1353 201 32568 832 851 1114 554 1747 2727 2239 339 4690 1257 2900 270 58523 86456 294 38398 14 9641 14 305 110251 20928 16 57715 26577 201 1805 645 386 418 260 44056 6403 62339 1202 834 7931 14 30308 20408 336 75800 1960 260 201 113004 294 270 64383 15844 4851 270 7536 93324 16 31065 936 23865 304 11284 270 201 85 2960 14742 1936 69832 14 790 270 91731 47475 832 59143 396 6660 201 6452 3195 554 304 7746 1066 16 660 270 95042 8667 14 3330 4853 51489 21537 53900 201 8848 260 1888 34011 41151 295 260 26166 19900 16 3011 834 515 295 260 53582 14 1754 201 45182 89 14158 8599 513 41949 305 10180 14 554 513 270 71293 377 270 19951 28757 339 671 5613 51141 110278 8398 9575 295 13769 28428 14 3214 5159 14 1754 5159 28428 1960 201 1129 6192 15294 1747 1277 5476 99651 273 16 2566 16818 57715 305 31065 2281 270 201 72 39360 14 1539 5144 260 2562 943 270 7469 33935 16 5334 9575 2915 77603 1055 201 26758 6744 28 270 3605 294 260 92683 14 270 537 10592 32820 294 260 9778 14 270 1722 260 5823 201 2438 529 10083 1561 436 936 1047 31691 16056 339 4546 45366 270 3194 936 11300 418 82362 294 280 7002 14 32032 6103 14 49766 69943 14 305 201 39020 14692 16 58252 31004 3659 362 3853 560 1901 57715 34226 304 260 104614 201 50095 260 14560 396 8743 304 2334 59125 1750 1014 468 1094 1129 436 16 455 6949 201 27747 936 12852 1820 14 790 29780 12141 377 1082 14 832 1750 15391 53140 16789 260 201 59206 6857 305 53733 436 418 11198 339 47 3444 3825 5854 270 3799 11162 69 699 305 43697 270 2173 734 17229 2818 1055 270 201 61403 3578 86508 16 2566 18428 17229 2818 2455 16 45836 75950 2818 4127 201 6135 45386 14 58792 14 305 1482 995 37344 1060 969 16884 16 87986 201 60037 13721 30278 14 3825 1910 14 305 5750 3980 1936 7918 16243 339 35 15391 1520 77289 260 16110 295 16372 3345 14 790 9572 305 55288 881 554 18538 3737 14 832 110278 21168 1066 339 1124 270 16232 14 260 93437 362 270 113450 50565 1946 31744 270 15106 6337 603 42 97683 9023 260 71040 294 80005 9220 1407 270 18544 1901 16358 1733 201 12678 538 260 27640 11314 16 45789 936 28035 270 17408 2727 8295 377 270 52312 989 458 2038 1482 18288 943 3920 260 65326 17408 515 7837 304 366 7139 603 671 9517 40107 5827 1099 270 11219 339 671 86508 3997 2526 377 260 18496 16 110278 9026 436 37205 418 1234 11316 23441 201 5356 270 18992 16 2566 11516 995 48112 270 31363 44183 14 995 10274 270 201 94786 109871 14 305 995 16026 270 12070 4332 56295 16 455 58941 515 18715 201 25287 1082 270 6949 515 554 339 47 3444 1687 554 82406 270 10175 29 1225 5829 436 304 366 5418 304 1783 3859 16 10272 396 1975 11219 14 16358 515 14037 270 1167 10577 15311 16 110278 8398 270 18538 295 3345 14 9101 270 86508 362 260 4712 14 305 1539 10274 304 270 8577 73845 294 270 58523 339 16422 288 7068 260 12426 4213 305 270 5706 294 16056 8513 1902 6059 3234 834 1561 201 58264 16 657 5287 10082 7457 38271 1055 270 14677 14085 14 1479 270 9319 936 201 64583 15518 50093 3514 436 86456 39375 367 294 11128 16 489 59209 2006 260 6644 10549 201 84037 270 5823 305 83119 436 304 270 8806 6791 418 260 7155 396 1359 14 5880 989 4 23299 891 4331 47 3444 13577 270 39317 294 270 14085 418 270 86508 27546 304 969 15142 16 2566 201 18988 8838 396 2239 9616 25342 2455 6352 111461 3137 16 334 12070 201 10911 14 260 7956 12240 14 260 37370 2329 14 260 1167 14037 2503 27566 1137 47484 881 270 2924 396 3859 1960 4880 294 5675 3006 339 72829 13721 1561 44844 305 78756 1750 5706 295 15143 89 14158 16 27170 201 11475 21537 270 6326 1188 294 270 38398 114646 734 15391 14 11602 362 33926 601 14 995 936 201 42774 1559 362 260 26339 3825 45555 16 455 12505 56574 87934 295 280 22469 1154 1277 30525 201 9336 29780 1494 10965 16 5795 270 25131 14 270 115921 75496 418 5828 201 20850 481 339 47 3444 12652 42313 295 270 41273 4772 16 2566 15965 4371 260 41815 14 23047 436 989 458 10274 304 13769 28428 16 455 25550 86508 936 14376 9754 418 270 3469 1137 50219 9575 14 37266 14 1843 97989 14 110088 14 305 260 2767 9616 1225 79213 1353 201 32568 832 851 1114 554 1747 2727 2239 339 4690 1257 2900 270 58523 86456 294 38398 14 9641 14 305 110251 20928 16 58252 26577 201 1805 645 386 418 260 44056 6403 62339 1202 834 7931 14 30308 20408 336 75800 1960 260 201 113004 294 270 64383 15844 4851 270 7536 93324 16 71595 936 23865 304 11284 270 201 85 2960 14742 1936 69832 14 790 270 91731 47475 832 59143 396 6660 201 6452 3195 554 304 7746 1066 16 660 270 95042 8667 14 3330 4853 51489 21537 53900 201 8848 260 1888 34011 41151 295 260 26166 19900 16 3011 834 515 295 260 53582 14 1754 201 45182 89 14158 8599 513 41949 305 10180 14 554 513 270 71293 377 270 19951 28757 339 671 5613 51141 110278 8398 9575 295 13769 28428 14 3214 5159 14 1754 5159 28428 1960 201 1129 6192 15294 1747 1277 5476 99651 273 16 2566 16818 58252 305 71595 2281 270 201 72 39360 14 1539 5144 260 2562 943 270 7469 33935 16 5334 9575 2915 77603 1055 201 26758 6744 28 270 3605 294 260 92683 14 270 537 10592 32820 294 260 9778 14 270 1722 260 5823 201 2438 529 10083 1561 436 936 1047 31691 16056 339 4546 45366 270 3194 936 11300 418 82362 294 280 7002 14 32032 6103 14 49766 69943 14 305 201 39020 14692 16 55394 31004 3659 362 3853 560 1901 16358 34226 304 260 104614 201 50095 260 14560 396 8743 304 2334 59125 1750 1014 468 1094 1129 436 16 455 6949 201 27747 936 12852 1820 14 790 29780 12141 377 1082 14 832 1750 15391 53140 16789 260 201 59206 6857 305 53733 436 418 11198 339 47 3444 3825 5854 270 3799 11162 69 699 305 43697 270 2173 734 17229 2818 1055 270 201 61403 3578 86508 16 2566 18428 17229 2818 2455 16 45836 75950 2818 4127 201 6135 45386 14 58792 14 305 1482 995 37344 1060 969 16884 16 87986 201 60037 13721 30278 14 3825 1910 14 305 5750 3980 1936 7918 16243 339 1124 270 16232 14 260 93437 362 270 113450 50565 1946 31744 270 15106 6337 603 16874 2710 9023 260 71040 294 80005 9220 1407 270 18544 1901 79780 1733 201 12678 538 260 27640 11314 16 45789 936 28035 270 17408 2727 8295 377 270 52312 989 458 2038 1482 18288 943 3920 260 65326 17408 515 7837 304 366 7139 603 671 9517 40107 5827 1099 270 11219 339 671 86508 3997 2526 377 260 18496 16 110278 9026 436 37205 418 1234 11316 23441 201 5356 270 18992 16 2566 11516 995 48112 270 31363 44183 14 995 10274 270 201 94786 109871 14 305 995 16026 270 12070 4332 56295 16 455 58941 515 18715 201 25287 1082 270 6949 515 554 339 47 3444 7431 5524 6731 411 3072 110658 943 260 50645 3077 14 790 1225 26577 436 798 1754 436 515 554 411 18538 305 1687 554 9028 295 270 4087 2310 339 16422 288 7068 260 12426 4213 305 270 5706 294 16056 8513 1902 6059 3234 834 1561 201 58264 16 657 5287 10082 7457 38271 1055 270 14677 14085 14 1479 270 9319 936 201 64583 15518 50093 3514 436 86456 39375 367 294 11128 16 71595 2006 260 6644 10549 201 84037 270 5823 305 83119 436 304 270 8806 6791 418 260 7155 396 1359 14 5880 989 4 23299 891 4331 47 3444 13577 270 39317 294 270 14085 418 270 86508 27546 304 969 15142 16 2566 201 18988 8838 396 2239 9616 25342 2455 6352 111461 3137 16 334 12070 201 10911 14 260 7956 12240 14 260 37370 2329 14 260 1167 14037 2503 27566 1137 47484 881 270 2924 396 3859 1960 4880 294 5675 3006 339 72829 13721 1561 44844 305 78756 1750 5706 295 15143 89 14158 16 33926 601 201 11475 21537 270 6326 1188 294 270 38398 114646 734 15391 14 11602 362 57715 14 995 936 201 42774 1559 362 260 26339 3825 45555 16 455 12505 56574 87934 295 280 22469 1154 1277 30525 201 9336 29780 1494 10965 16 5795 270 25131 14 270 115921 75496 418 5828 201 20850 481 339 47 3444 12652 42313 295 270 41273 4772 16 2566 15965 4371 260 41815 14 23047 436 989 458 10274 304 13769 28428 16 455 25550 86508 936 14376 9754 418 270 3469 1137 50219 9575 14 37266 14 1843 97989 14 110088 14 305 260 2767 9616 1225 79213 1353 201 32568 832 851 1114 554 1747 2727 2239 339 4690 1257 2900 270 58523 86456 294 38398 14 9641 14 305 110251 20928 16 106044 26577 201 1805 645 386 418 260 44056 6403 62339 1202 834 7931 14 30308 20408 336 75800 1960 260 201 113004 294 270 64383 15844 4851 270 7536 93324 16 12741 4789 936 23865 304 11284 270 201 85 2960 14742 1936 69832 14 790 270 91731 47475 832 59143 396 6660 201 6452 3195 554 304 7746 1066 16 660 270 95042 8667 14 3330 4853 51489 21537 53900 201 8848 260 1888 34011 41151 295 260 26166 19900 16 3011 834 515 295 260 53582 14 1754 201 45182 89 14158 8599 513 41949 305 10180 14 554 513 270 71293 377 270 19951 28757 339 671 5613 51141 110278 8398 9575 295 13769 28428 14 3214 5159 14 1754 5159 28428 1960 201 1129 6192 15294 1747 1277 5476 99651 273 16 2566 16818 106044 305 12741 4789 2281 270 201 72 39360 14 1539 5144 260 2562 943 270 7469 33935 16 5334 9575 2915 77603 1055 201 26758 6744 28 270 3605 294 260 92683 14 270 537 10592 32820 294 260 9778 14 270 1722 260 5823 201 2438 529 10083 1561 436 936 1047 31691 16056 339 4546 45366 270 3194 936 11300 418 82362 294 280 7002 14 32032 6103 14 49766 69943 14 305 201 39020 14692 16 57715 31004 3659 362 3853 560 1901 106044 34226 304 260 104614 201 50095 260 14560 396 8743 304 2334 59125 1750 1014 468 1094 1129 436 16 455 6949 201 27747 936 12852 1820 14 790 29780 12141 377 1082 14 832 1750 15391 53140 16789 260 201 59206 6857 305 53733 436 418 11198 339 47 3444 3825 5854 270 3799 11162 69 699 305 43697 270 2173 734 17229 2818 1055 270 201 61403 3578 86508 16 2566 18428 17229 2818 2455 16 45836 75950 2818 4127 201 6135 45386 14 58792 14 305 1482 995 37344 1060 969 16884 16 87986 201 60037 13721 30278 14 3825 1910 14 305 5750 3980 1936 7918 16243 339 1124 270 16232 14 260 93437 362 270 113450 50565 1946 31744 270 15106 6337 603 100950 4789 9023 260 71040 294 80005 9220 1407 270 18544 1901 27170 1733 201 12678 538 260 27640 11314 16 45789 936 28035 270 17408 2727 8295 377 270 52312 989 458 2038 1482 18288 943 3920 260 65326 17408 515 7837 304 366 7139 603 671 9517 40107 5827 1099 270 11219 339 671 86508 3997 2526 377 260 18496 16 110278 9026 436 37205 418 1234 11316 23441 201 5356 270 18992 16 2566 11516 995 48112 270 31363 44183 14 995 10274 270 201 94786 109871 14 305 995 16026 270 12070 4332 56295 16 455 58941 515 18715 201 25287 1082 270 6949 515 554 339 35 15391 1520 77289 260 16110 295 16372 3345 14 790 9572 305 55288 881 554 18538 3737 14 832 110278 21168 1066 339 16422 288 7068 260 12426 4213 305 270 5706 294 16056 8513 1902 6059 3234 834 1561 201 58264 16 16358 10082 7457 38271 1055 270 14677 14085 14 1479 270 9319 936 201 64583 15518 50093 3514 436 86456 39375 367 294 11128 16 82146 2006 260 6644 10549 201 84037 270 5823 305 83119 436 304 270 8806 6791 418 260 7155 396 1359 14 5880 989 4 23299 891 4331 47 3444 13577 270 39317 294 270 14085 418 270 86508 27546 304 969 15142 16 2566 201 18988 8838 396 2239 9616 25342 2455 6352 111461 3137 16 334 12070 201 10911 14 260 7956 12240 14 260 37370 2329 14 260 1167 14037 2503 27566 1137 47484 881 270 2924 396 3859 1960 4880 294 5675 3006 339 671 17132 515 19441 4387 14 1539 44056 1055 270 2591 294 270 2173 734 2818 16 10272 396 1975 11219 14 31065 515 14037 270 1167 12099 15171 16 110278 8398 270 18538 295 3345 14 9101 270 86508 362 260 4712 14 305 1539 10274 304 270 8577 73845 294 270 58523 339 72829 13721 1561 44844 305 78756 1750 5706 295 15143 89 14158 16 71595 201 11475 21537 270 6326 1188 294 270 38398 114646 734 15391 14 11602 362 38798 14 995 936 201 42774 1559 362 260 26339 3825 45555 16 455 12505 56574 87934 295 280 22469 1154 1277 30525 201 9336 29780 1494 10965 16 5795 270 25131 14 270 115921 75496 418 5828 201 20850 481 339 47 3444 12652 42313 295 270 41273 4772 16 2566 15965 4371 260 41815 14 23047 436 989 458 10274 304 13769 28428 16 455 25550 86508 936 14376 9754 418 270 3469 1137 50219 9575 14 37266 14 1843 97989 14 110088 14 305 260 2767 9616 1225 79213 1353 201 32568 832 851 1114 554 1747 2727 2239 339 4690 1257 2900 270 58523 86456 294 38398 14 9641 14 305 110251 20928 16 71595 26577 201 1805 645 386 418 260 44056 6403 62339 1202 834 7931 14 30308 20408 336 75800 1960 260 201 113004 294 270 64383 15844 4851 270 7536 93324 16 106044 936 23865 304 11284 270 201 85 2960 14742 1936 69832 14 790 270 91731 47475 832 59143 396 6660 201 6452 3195 554 304 7746 1066 16 660 270 95042 8667 14 3330 4853 51489 21537 53900 201 8848 260 1888 34011 41151 295 260 26166 19900 16 3011 834 515 295 260 53582 14 1754 201 45182 89 14158 8599 513 41949 305 10180 14 554 513 270 71293 377 270 19951 28757 339 671 5613 51141 110278 8398 9575 295 13769 28428 14 3214 5159 14 1754 5159 28428 1960 201 1129 6192 15294 1747 1277 5476 99651 273 16 2566 16818 71595 305 106044 2281 270 201 72 39360 14 1539 5144 260 2562 943 270 7469 33935 16 5334 9575 2915 77603 1055 201 26758 6744 28 270 3605 294 260 92683 14 270 537 10592 32820 294 260 9778 14 270 1722 260 5823 201 2438 529 10083 1561 436 936 1047 31691 16056 339 4546 45366 270 3194 936 11300 418 82362 294 280 7002 14 32032 6103 14 49766 69943 14 305 201 39020 14692 16 82146 31004 3659 362 3853 560 1901 657 5287 34226 304 260 104614 201 50095 260 14560 396 8743 304 2334 59125 1750 1014 468 1094 1129 436 16 455 6949 201 27747 936 12852 1820 14 790 29780 12141 377 1082 14 832 1750 15391 53140 16789 260 201 59206 6857 305 53733 436 418 11198 339 47 3444 3825 5854 270 3799 11162 69 699 305 43697 270 2173 734 17229 2818 1055 270 201 61403 3578 86508 16 2566 18428 17229 2818 2455 16 45836 75950 2818 4127 201 6135 45386 14 58792 14 305 1482 995 37344 1060 969 16884 16 87986 201 60037 13721 30278 14 3825 1910 14 305 5750 3980 1936 7918 16243 339 47 3444 7431 5524 6731 411 3072 110658 943 260 50645 3077 14 790 1225 26577 436 798 1754 436 515 554 411 18538 305 1687 554 9028 295 270 4087 2310 339 1124 270 16232 14 260 93437 362 270 113450 50565 1946 31744 270 15106 6337 603 45 5287 9023 260 71040 294 80005 9220 1407 270 18544 1901 33926 601 1733 201 12678 538 260 27640 11314 16 45789 936 28035 270 17408 2727 8295 377 270 52312 989 458 2038 1482 18288 943 3920 260 65326 17408 515 7837 304 366 7139 603 671 9517 40107 5827 1099 270 11219 339 671 86508 3997 2526 377 260 18496 16 110278 9026 436 37205 418 1234 11316 23441 201 5356 270 18992 16 2566 11516 995 48112 270 31363 44183 14 995 10274 270 201 94786 109871 14 305 995 16026 270 12070 4332 56295 16 455 58941 515 18715 201 25287 1082 270 6949 515 554 339 16422 288 7068 260 12426 4213 305 270 5706 294 16056 8513 1902 6059 3234 834 1561 201 58264 16 71595 10082 7457 38271 1055 270 14677 14085 14 1479 270 9319 936 201 64583 15518 50093 3514 436 86456 39375 367 294 11128 16 657 5287 2006 260 6644 10549 201 84037 270 5823 305 83119 436 304 270 8806 6791 418 260 7155 396 1359 14 5880 989 4 23299 891 4331 47 3444 13577 270 39317 294 270 14085 418 270 86508 27546 304 969 15142 16 2566 201 18988 8838 396 2239 9616 25342 2455 6352 111461 3137 16 334 12070 201 10911 14 260 7956 12240 14 260 37370 2329 14 260 1167 14037 2503 27566 1137 47484 881 270 2924 396 3859 1960 4880 294 5675 3006 339 72829 13721 1561 44844 305 78756 1750 5706 295 15143 89 14158 16 12741 4789 201 11475 21537 270 6326 1188 294 270 38398 114646 734 15391 14 11602 362 57715 14 995 936 201 42774 1559 362 260 26339 3825 45555 16 455 12505 56574 87934 295 280 22469 1154 1277 30525 201 9336 29780 1494 10965 16 5795 270 25131 14 270 115921 75496 418 5828 201 20850 481 339 47 3444 12652 42313 295 270 41273 4772 16 2566 15965 4371 260 41815 14 23047 436 989 458 10274 304 13769 28428 16 455 25550 86508 936 14376 9754 418 270 3469 1137 50219 9575 14 37266 14 1843 97989 14 110088 14 305 260 2767 9616 1225 79213 1353 201 32568 832 851 1114 554 1747 2727 2239 339 4690 1257 2900 270 58523 86456 294 38398 14 9641 14 305 110251 20928 16 58252 26577 201 1805 645 386 418 260 44056 6403 62339 1202 834 7931 14 30308 20408 336 75800 1960 260 201 113004 294 270 64383 15844 4851 270 7536 93324 16 57715 936 23865 304 11284 270 201 85 2960 14742 1936 69832 14 790 270 91731 47475 832 59143 396 6660 201 6452 3195 554 304 7746 1066 16 660 270 95042 8667 14 3330 4853 51489 21537 53900 201 8848 260 1888 34011 41151 295 260 26166 19900 16 3011 834 515 295 260 53582 14 1754 201 45182 89 14158 8599 513 41949 305 10180 14 554 513 270 71293 377 270 19951 28757 339 671 5613 51141 110278 8398 9575 295 13769 28428 14 3214 5159 14 1754 5159 28428 1960 201 1129 6192 15294 1747 1277 5476 99651 273 16 2566 16818 58252 305 57715 2281 270 201 72 39360 14 1539 5144 260 2562 943 270 7469 33935 16 5334 9575 2915 77603 1055 201 26758 6744 28 270 3605 294 260 92683 14 270 537 10592 32820 294 260 9778 14 270 1722 260 5823 201 2438 529 10083 1561 436 936 1047 31691 16056 339 4546 45366 270 3194 936 11300 418 82362 294 280 7002 14 32032 6103 14 49766 69943 14 305 201 39020 14692 16 58252 31004 3659 362 3853 560 1901 27170 34226 304 260 104614 201 50095 260 14560 396 8743 304 2334 59125 1750 1014 468 1094 1129 436 16 455 6949 201 27747 936 12852 1820 14 790 29780 12141 377 1082 14 832 1750 15391 53140 16789 260 201 59206 6857 305 53733 436 418 11198 339 47 3444 3825 5854 270 3799 11162 69 699 305 43697 270 2173 734 17229 2818 1055 270 201 61403 3578 86508 16 2566 18428 17229 2818 2455 16 45836 75950 2818 4127 201 6135 45386 14 58792 14 305 1482 995 37344 1060 969 16884 16 87986 201 60037 13721 30278 14 3825 1910 14 305 5750 3980 1936 7918 16243 339 1124 270 16232 14 260 93437 362 270 113450 50565 1946 31744 270 15106 6337 603 3346 3444 9023 260 71040 294 80005 9220 1407 270 18544 1901 57715 1733 201 12678 538 260 27640 11314 16 45789 936 28035 270 17408 2727 8295 377 270 52312 989 458 2038 1482 18288 943 3920 260 65326 17408 515 7837 304 366 7139 603 671 9517 40107 5827 1099 270 11219 339 671 86508 3997 2526 377 260 18496 16 110278 9026 436 37205 418 1234 11316 23441 201 5356 270 18992 16 2566 11516 995 48112 270 31363 44183 14 995 10274 270 201 94786 109871 14 305 995 16026 270 12070 4332 56295 16 455 58941 515 18715 201 25287 1082 270 6949 515 554 339 16422 288 7068 260 12426 4213 305 270 5706 294 16056 8513 1902 6059 3234 834 1561 201 58264 16 106044 10082 7457 38271 1055 270 14677 14085 14 1479 270 9319 936 201 64583 15518 50093 3514 436 86456 39375 367 294 11128 16 27170 2006 260 6644 10549 201 84037 270 5823 305 83119 436 304 270 8806 6791 418 260 7155 396 1359 14 5880 989 4 23299 891 4331 47 3444 13577 270 39317 294 270 14085 418 270 86508 27546 304 969 15142 16 2566 201 18988 8838 396 2239 9616 25342 2455 6352 111461 3137 16 334 12070 201 10911 14 260 7956 12240 14 260 37370 2329 14 260 1167 14037 2503 27566 1137 47484 881 270 2924 396 3859 1960 4880 294 5675 3006 339 35 15391 1520 77289 260 16110 295 16372 3345 14 790 9572 305 55288 881 554 18538 3737 14 832 110278 21168 1066 339 44953 271 101859 1387 270 4093 832 3706 16 128804 128822 | 5328 3706 14 270 4093 7226 270 17229 44258 294 15143 89 14158 1407 12529 3137 28 58523 28483 14 3194 51150 14 37266 14 1946 56573 1290 14 86508 9575 14 305 13044 77693 16 110278 14 270 5613 51141 14 10087 15699 5516 295 13769 28428 305 39342 12426 6744 412 2239 3980 339 671 3077 18538 3737 10844 832 3706 477
+1007 11:41:33 ds4-server: metal 4 at request end: 3736 commits, 3736 feedback, 0 errors, residency 0 entries 0.0 MiB
+1007 11:41:33 ds4-server: router finalize so far: 6768 fused, 120 generic, 120 fallback; compare 0 calls, mismatches 0 probs 0 ids 0 weights
+1007 11:41:33 ds4-server: transition compare words differing so far: mix 0 split 0 sum 0 norm 0 residual 0 pre 0 kv 0 window 0 low 0 rows 0 expand 0 expand-sum 0 expand-norm 0 route-proj 0 route-select 0, over 0 comparisons
+1007 11:41:33 ds4-server: chat ctx=0..4781:4781 gen=64 finish=length 40.992s
+1007 11:41:33 ds4-server: shutdown requested, draining requests
+ds4: Metal cleanup discarded 1 live tensor handles
+ds4: memory budget: peak 80.00 GiB allocated of 80.00 GiB; 0 slab(s) given back, 0 allocation(s) refused, cache growth stopped 1125 time(s)
+ds4: expert directory: 0 pinned hits, 0 cache hits, 12403 loads; 0 address mismatches, 0 missing with a non-zero slot, 0 selected and missing; 0 pinned experts given back to the budget

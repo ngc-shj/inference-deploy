@@ -44,3 +44,33 @@ At equal thermal state d34264a's exact long prefill is within 1.1 s (3%) of
 main's inexact one; its answer is the frozen oracle's (d8f1a29302), main's is
 not (dae9d97ebf). The difference that remains under load is the prefix's
 SIMD Q8_0 projections running hotter and throttling more.
+
+## Sustained runs and where the exact path's extra GPU work is (2026-10-07)
+
+Three cold long prompts back to back after five minutes idle: main 34.64,
+33.28, 34.41 s; d34264a 34.87, 40.88, 54.36 s. From the earlier back-to-back
+pair's profile (36.2 then 51.1 s) the growth is GPU-side: prefix encode +4.9 s,
+drain +4.4 s, the tail's later layers +52%, while the host-heavy first tail
+layer (3.03 -> 3.09 s), the page-in (map 0.35 -> 0.30 s) and the pread joins
+(0.22 s both) do not move. The Metal 4 encoder timeline's durations are not
+usable for a per-kernel comparison.
+
+Stage profile, each after five minutes idle, cold (cmp-cs-*; the superbatch is
+off under the stage profile):
+
+| stage | main prefix | d34264a prefix |
+|---|---|---|
+| attention projections (q_a/q_b/kv, Q8_0) | 0.83 s | 6.86 s |
+| shared/routed ffn (shared Q8_0 + routed) | 5.67 s | 9.76 s |
+| attention core/index | 3.59 s | 3.53 s |
+| hc/engram | 0.85 s | 1.10 s |
+| attention output | 0.69 s | 0.75 s |
+| hc/ffn norm + hc expand | 0.52 s | 0.54 s |
+| tail (685 rows) | 7.4 s layer-major | 12.9 s exact rows (wait) |
+| prompt done | 34.7 s | 36.5 s |
+
+The extra GPU work is the oracle's arithmetic itself - the SIMD Q8_0
+projections, the shared expert's Q8_0 and the tail's per-row kernels, exactly
+where main's output departs from the oracle. The other stages match main.
+main stays I/O-bound (~19.5 s of compute) and cool; the exact path is
+compute-bound (~32 s) and throttles under back-to-back load.
