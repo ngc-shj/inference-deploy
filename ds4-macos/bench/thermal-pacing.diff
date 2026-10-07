@@ -1,0 +1,71 @@
+diff --git a/ds4.c b/ds4.c
+index f8d8eb2..7fe8c2e 100644
+--- a/ds4.c
++++ b/ds4.c
+@@ -47013,6 +47013,17 @@ static bool ds41_carry_copy(ds41_gpu_graph *g, uint32_t offset, uint32_t count,
+  * at any row count, and the kernels chosen by row count choose the same past
+  * DS4_TP_BATCH_MAX_ROWS. The routed experts gain most: each expert's weights
+  * are dequantised once a layer for about 64 rows rather than twice for 32. */
++/* Test hook: a 4096-row-or-wider prefill's GPU rests this long in total, spread
++ * evenly over the layers - the host sleeps after each layer's prefix and
++ * interleaved tail have run, before the next layer is encoded. Nothing
++ * computed changes; it trades wall for heat. */
++static uint32_t g_ds41_pace_ms;
++static double g_ds41_paced_s;
++void ds4_test_v41_pace_ms(uint32_t total_ms);
++void ds4_test_v41_pace_ms(uint32_t total_ms) { g_ds41_pace_ms = total_ms; }
++double ds4_test_v41_paced_s(void);
++double ds4_test_v41_paced_s(void) { return g_ds41_paced_s; }
++
+ static uint64_t g_ds41_superbatch_layers;
+ static int g_ds41_superbatch_off;
+ void ds4_test_v41_superbatch(int on);
+@@ -47566,6 +47577,12 @@ static bool ds41_graph_prefill_sweep(ds41_gpu_graph *g, const ds4_model *m,
+         if (ok && g_ds41_il && !g_ds41_il_tail && g_ds41_il->g == g)
+             ok = ds41_il_prefix_turn(g_ds41_il, il + 1u);
+ #endif
++        if (ok && g_ds41_pace_ms && wide && il + 1u < DS4_N_LAYER) {
++            const double rest = (double)g_ds41_pace_ms / 1000.0 / DS4_N_LAYER;
++            const struct timespec ts = { (time_t)rest, (long)((rest - (double)(time_t)rest) * 1e9) };
++            nanosleep(&ts, NULL);
++            g_ds41_paced_s += rest;
++        }
+     }
+     if (!ds41_engram_prefetch_join(&engram_prefetch, !ok)) ok = false;
+ #if !defined(__APPLE__) && !defined(DS4_ROCM_BUILD)
+diff --git a/tests/test_deepseek41_tailab.c b/tests/test_deepseek41_tailab.c
+index b40a0cf..d0406b5 100644
+--- a/tests/test_deepseek41_tailab.c
++++ b/tests/test_deepseek41_tailab.c
+@@ -151,6 +151,11 @@ static int g_mt;
+  * superbatch (every row-independent step once over both, attention a chunk at
+  * a time), B a chunk at a time; both print the layers run so. */
+ void ds4_test_v41_superbatch(int on) __attribute__((weak));
++/* "pace:MS": every prefill of the run - the setup's and every arm's - rests its
++ * GPU MS in total, spread over the layers. */
++void ds4_test_v41_pace_ms(uint32_t total_ms) __attribute__((weak));
++double ds4_test_v41_paced_s(void) __attribute__((weak));
++static int g_pace;
+ unsigned long long ds4_test_v41_superbatch_layers(void) __attribute__((weak));
+ static int g_mp;
+ /* "drop:<pagecache tool>": arm B starts with the model file dropped from the
+@@ -249,7 +254,7 @@ static int run_arm(ds4_session **sp, const ds4_session_snapshot *snap, const ds4
+     }
+     if (g_benv_name[0]) { if (b) setenv(g_benv_name, g_benv_value, 1); else unsetenv(g_benv_name); }
+     if (g_rows[0] && ds4_test_v41_tail_rows) ds4_test_v41_tail_rows(g_rows[b]);
+-    else if (!g_em && !g_prev && !g_q8 && !g_gu2 && !g_drop_tool && !g_il && !g_f32 && !g_pabl && !g_topk1 && !g_eb && !g_attn && !g_pkg && !g_mt && !g_preps && !g_mp && ds4_test_v41_token_major_tail) ds4_test_v41_token_major_tail(b);
++    else if (!g_em && !g_prev && !g_q8 && !g_gu2 && !g_drop_tool && !g_il && !g_f32 && !g_pabl && !g_topk1 && !g_eb && !g_attn && !g_pkg && !g_mt && !g_preps && !g_mp && !g_pace && ds4_test_v41_token_major_tail) ds4_test_v41_token_major_tail(b);
+     ds4_session *s = *sp;
+     uint64_t h0, m0, e0, h1, m1, e1;
+     const uint64_t em0 = ds4_gpu_moe_expert_major_dispatches ? ds4_gpu_moe_expert_major_dispatches() : 0;
+@@ -382,6 +387,10 @@ int main(int argc, char **argv) {
+             if (!ds4_test_v41_attn_rows || !ds4_test_v41_attn_rows_check ||
+                 !ds4_test_v41_attn_rows_counts || !ds4_gpu_dsv41_compare_counts) return 2;
+             g_attn = argv[a][4] == 'c' ? 2 : 1;
++        } else if (strncmp(argv[a], "pace:", 5) == 0) {
++            if (!ds4_test_v41_pace_ms) return 2;
++            ds4_test_v41_pace_ms((uint32_t)atoi(argv[a] + 5));
++            g_pace = 1;
+         } else if (strcmp(argv[a], "mp") == 0) {
+             if (!ds4_test_v41_superbatch || !ds4_test_v41_superbatch_layers) return 2;
+             g_mp = 1;
