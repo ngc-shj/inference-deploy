@@ -1,0 +1,4 @@
+d34 1: prompt 35.8s | drain(GPU wait) 12.1s encode(host+in-encode waits) 9.9s map 0.25s seed 0.43s | pread join-wait 0.23s (threads 15.9s) | tail-wait 12.973s | unaccounted 0.2s
+d34 2: prompt 38.7s | drain(GPU wait) 13.1s encode(host+in-encode waits) 10.3s map 0.32s seed 0.47s | pread join-wait 0.22s (threads 15.9s) | tail-wait 14.229s | unaccounted 0.2s
+d34 3: prompt 53.8s | drain(GPU wait) 17.4s encode(host+in-encode waits) 15.6s map 0.27s seed 0.68s | pread join-wait 0.23s (threads 15.4s) | tail-wait 19.661s | unaccounted 0.2s
+ALL-DONE

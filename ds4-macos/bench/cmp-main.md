@@ -74,3 +74,23 @@ projections, the shared expert's Q8_0 and the tail's per-row kernels, exactly
 where main's output departs from the oracle. The other stages match main.
 main stays I/O-bound (~19.5 s of compute) and cool; the exact path is
 compute-bound (~32 s) and throttles under back-to-back load.
+
+## Decision test: what grows under back-to-back load (2026-10-07)
+
+Five minutes idle, then three cold long prompts back to back, with the
+per-layer and pread profiles (decide.out):
+
+| run | main prompt / GPU wait / I/O wait | d34264a prompt / drain / encode / tail / I/O wait |
+|---|---|---|
+| 1 | 34.9 / 16.8 / 8.8 s | 35.1 / 11.5 / 9.6 / 13.0 / 0.26 s |
+| 2 | 34.1 / 17.9 / 7.8 s | 38.3 / 13.1 / 10.0 / 14.1 / 0.33 s |
+| 3 | 34.4 / 17.4 / 8.1 s | 55.1 / 17.7 / 16.0 / 20.2 / 0.24 s |
+
+Only the exact path's GPU time grows; its I/O waits and host time do not, and
+main - I/O-bound, ~8 s of read waits - holds 34 s. The one scheduling lever
+in the prefill, the shared/routed FFN overlap, makes no difference serial
+(DS4_METAL_V41_FFN_OVERLAP=2: 35.8 / 38.7 / 53.8 s, output the oracle's;
+decide-ov2.out). Less concurrency does not lower the heat of a fixed amount
+of exact work; every exact way of doing less of it (Q8_0 tiles, reduction,
+layouts, the tail's expert-major forms) has been measured and is slower.
+d34264a stays the production checkpoint.
