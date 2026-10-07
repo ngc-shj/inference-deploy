@@ -213,3 +213,12 @@ under sustained load is the oracle's arithmetic itself (SIMD Q8_0 projections,
 the shared expert's Q8_0, the tail's per-row kernels); an inexact MPP build is
 out of scope. The engine branch's later diagnostic commit d767aa9 is not part
 of production.
+
+## One tag (2026-10-07)
+
+The production is tagged once: `ds4-v41-metal4-superbatch-exact-production-documented`
+(object dccad3a, on ce22870 = d34264a's engine plus the README's run
+instructions, which were run as written: bench/doctest2.server.log). The
+earlier tag `ds4-v41-metal4-superbatch-router-barrier-exact-production`
+(object db430f7, on d34264a) was deleted from fork and local at the user's
+request, as a duplicate of the same engine.
