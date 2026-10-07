@@ -217,8 +217,10 @@ of production.
 ## One tag (2026-10-07)
 
 The production is tagged once: `ds4-v41-metal4-superbatch-exact-production-documented`
-(object dccad3a, on ce22870 = d34264a's engine plus the README's run
+(object cef884e, on ce22870 = d34264a's engine plus the README's run
 instructions, which were run as written: bench/doctest2.server.log). The
 earlier tag `ds4-v41-metal4-superbatch-router-barrier-exact-production`
 (object db430f7, on d34264a) was deleted from fork and local at the user's
-request, as a duplicate of the same engine.
+request, as a duplicate of the same engine. The documented tag was then
+recreated in place with the user's authorization to remove that deleted tag's
+name from its annotation; its target commit did not change.
