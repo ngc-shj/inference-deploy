@@ -670,8 +670,8 @@ these numbers say to re-measure rather than assume it is free.
 
 Question: should the resident model change now that the ds4 V4.1 Metal 4 build
 is fixed as an exact production (tag
-`ds4-v41-metal4-superbatch-exact-production-documented`; see
-[../ds4-macos/V4.1-METAL4-NATIVE.md](../ds4-macos/V4.1-METAL4-NATIVE.md))?
+[`ds4-v41-metal4-superbatch-exact-production-documented`](https://github.com/ngc-shj/ds4/tree/ds4-v41-metal4-superbatch-exact-production-documented)
+on the `ngc-shj/ds4` fork; its README has the build and launch steps)?
 Until now V4.1 had passed only a five-prompt smoke test; nothing had put it and
 Flash-Next on the same tasks.
 
