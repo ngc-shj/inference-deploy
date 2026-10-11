@@ -665,3 +665,80 @@ executed.
 **Verdict**: leave the default alone. `reasoning_effort` is worth reaching for on
 a hard task, not as a standing setting — and if it is ever turned on by default,
 these numbers say to re-measure rather than assume it is free.
+
+## 2026-10-10 — Flash-Next vs DeepSeek V4.1 Flash Q2: the bigger model is more accurate, and Flash-Next stays
+
+Question: should the resident model change now that the ds4 V4.1 Metal 4 build
+is fixed as an exact production (tag
+[`ds4-v41-metal4-superbatch-exact-production-documented`](https://github.com/ngc-shj/ds4/tree/ds4-v41-metal4-superbatch-exact-production-documented)
+on the `ngc-shj/ds4` fork; its README has the build and launch steps)?
+Until now V4.1 had passed only a five-prompt smoke test; nothing had put it and
+Flash-Next on the same tasks.
+
+Setup: one engine at a time, same 49 prompts, temperature 0, one run each.
+Flash-Next on mlx-serve 26.8.11 `--mtp` (thinking via `reasoning_effort:
+medium`); V4.1 on ds4 `ce22870` with the README's launch command, `--ctx 8192`,
+7034 cached experts (thinking via `think: true`). `max_tokens` 2048, or 6144
+with thinking — the same cap for both.
+
+- **keigo (8)** — the honorific conversions, accepting every correct form
+  (「お読みになります」, 「ご来社になりました」 counted).
+- **Japanese (7 scored + 3 judged)** — readings (相殺, 凡例, 漸次), 頼朝's year,
+  the largest river basin, a comparative, a keigo correction; plus the original
+  meanings of 役不足, 確信犯 and 情けは人のためならず.
+- **reasoning (6, with and without thinking)** — inclusion-exclusion, a
+  tribonacci count, a 20-step modular recurrence, a seating puzzle checked unique
+  by brute force, a dice probability, a day count with weekday.
+- **coding (8, with and without thinking)** — merge_intervals, LRU, expression
+  evaluator with unary minus, longest valid parentheses, `.`/`*` regex, minimum
+  window, course order, sliding median at n = 10^5. Hidden tests, executed;
+  reference solutions score full marks and deliberately broken ones lose points
+  on every task.
+- **free-form (3)** — B-tree vs LSM-tree for write-heavy loads, a 3-bullet
+  summary of a passage, a thread-safe token bucket with tests. Judged by a
+  separate agent that saw the answers shuffled and unlabelled.
+
+Prompts, tests, harness and raw responses:
+[eval-macos/2026-10-10-flashnext-vs-v41/](eval-macos/2026-10-10-flashnext-vs-v41/).
+
+| | Flash-Next | V4.1 Flash Q2 |
+| --- | --- | --- |
+| keigo | 8/8 | 8/8 |
+| Japanese | 6/7 | **7/7** |
+| reasoning, no thinking | 4/6 | **5/6** |
+| reasoning, thinking | 6/6 | 6/6 |
+| coding, no thinking (fully passed) | 5/8 | **7/8** |
+| coding, thinking (fully passed) | **7/8** | 6/8 |
+| original word meanings | 3/3 | 3/3 |
+| free-form, blind preference | 0/3 | **3/3** |
+| wall time, 49 prompts | **15.4 min** | 69.7 min |
+| output rate over the whole run | **47.2 tok/s** | 9.0 tok/s |
+
+**Findings**
+
+- **V4.1 is ahead on accuracy: 39 of 43 machine-scored items against 36**, and
+  all three blind free-form judgements. The margin is one to three items per
+  group from a single temperature-0 run; it is a direction, not a measured gap.
+- **Where Flash-Next lost, it lost on facts and details.** 信濃川 for the
+  largest basin (it is the longest river; 利根川 has the largest basin). Without
+  thinking: division with a negative operand in the evaluator (`7/-2` gives 1,
+  `-7/2` gives -1), prerequisite edges reversed in
+  course order, the sliding median failing every test. In the free-form set:
+  B-tree space amplification stated as "about 1x"; a summary asserting the cause
+  the passage explicitly does not assert; a rate limiter that sleeps while
+  holding its lock, whose own test suite fails.
+- **Thinking evens it out, and the cap decides the rest.** With thinking both
+  score 6/6 on reasoning. On coding V4.1 ran two problems (evaluator, regex) and
+  Flash-Next one (sliding median) into the 6144-token cap without a final answer.
+  V4.1's thinking-off weekday error, shared with Flash-Next, was fixed by
+  thinking in both.
+- **The cost is five times the wall clock.** The difference is the decode rate
+  (101–104 tok/s with MTP against ~24 for V4.1) and V4.1's prefill, plus its
+  thermal slowdown on long runs (see
+  [../ds4-macos/EVALUATIONS.md](../ds4-macos/EVALUATIONS.md)). V4.1 also takes
+  the 80 GiB budget, so it cannot sit beside anything.
+
+**Verdict**: **Flash-Next stays resident.** For interactive and agent use the
+4–5x speed difference outweighs a few items of accuracy. V4.1 is the on-demand
+choice for one-shot work where correctness of explanation or code matters more
+than latency — started with the README command after stopping mlx-serve.
