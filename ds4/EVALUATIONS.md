@@ -10,7 +10,9 @@ follows.
 Every model here takes most of the pool — V4 Flash as a ~81 GiB resident model,
 V4.1 Flash as an 81–104 GiB SSD-streaming plan — so none can share it with the
 llama.cpp router or vLLM, and every number below was taken with `ds4-server`
-alone (the unit's `Conflicts=` evicts the others).
+alone (the unit's `Conflicts=` evicts the others). The exception is the
+2026-10-16 co-residency section. Qwen3.8-Flash-Next is the first ds4 model
+small enough to share the pool, and it was measured beside the router.
 
 ## Method
 
@@ -203,6 +205,145 @@ the resident models: 7–8 tok/s and a 12–26 s first token rule that out. Roll
 back to 0731 means re-downloading 81 GiB; the old engine is kept at
 `/opt/ds4/ds4-server.e34a808`. Revisit if upstream speeds up short CUDA SSD
 prefills, or if a second Spark makes resident TP possible.
+
+---
+
+## 2026-10-16 — GLM-5.3-Flash and Qwen3.8-Flash-Next Q2, resident on one Spark
+
+Two more ds4-only GGUFs from antirez. Both fit resident, so neither needs SSD
+streaming:
+
+- [`antirez/glm-5.3-flash-gguf`](https://huggingface.co/antirez/glm-5.3-flash-gguf)
+  is the Q2 build of `zai-org/GLM-5.3-Flash` (2026-08-26, MIT). That model is
+  320B total with 18B active. Its layers mix KDA linear attention with DSA
+  sparse attention, and it carries an embedded MTP block and vision.
+- [`antirez/qwen3.8-flash-next-gguf`](https://huggingface.co/antirez/qwen3.8-flash-next-gguf)
+  is the Q2 build of Qwen3.8-Flash-Next. It packs the original 95.37 GiB BF16
+  n-gram table into the GGUF, and ds4 reads that table from disk instead of
+  holding it in memory. The same model's llama.cpp numbers are in
+  [../llama.cpp/EVALUATIONS.md](../llama.cpp/EVALUATIONS.md) (2026-08-28).
+
+**Setup.** Engine fc80bd6 was built with `make cuda-spark` in a detached
+worktree (`~/ghq/github.com/antirez/ds4-main`) and run from there as the
+login user on `127.0.0.1:8001`, so `/opt/ds4` (6e4c285) and the unit were not
+touched. Each run used `--ctx 32768`, with no disk KV cache and the router
+stopped. The exceptions are the max-effort row (`--ctx 393216`, see below) and
+the co-residency section.
+
+**Prompts.** The prompts are not this file's five-prompt matrix:
+
+- `merge_intervals`, with its doctests executed.
+- An LRU cache plus a unittest, executed.
+- The 8-item keigo probe from the llama.cpp files.
+- A four-paragraph prose answer.
+- A ~27–32k-token record lookup.
+
+Every row ran 3 times at `temperature=0` and `seed=1234`, with thinking off
+unless a row says otherwise. TTFT was keyed off either token kind. The keigo
+items were re-typed for this run, so they are not byte-identical to earlier
+entries. The resident Qwen3.6-35B-A3B took the same prompts in the same
+session and scored 6/8, the figure recorded before.
+
+| Median of 3 | GLM-5.3-Flash Q2 | Qwen3.8-Flash-Next Q2 | 35B-A3B *(router)* |
+| --- | --- | --- | --- |
+| file / resident weights | 89.88 / 89.87 GiB | 137.10 / **41.72 GiB** | 21.3 GiB |
+| planned resident (ds4 log) | 93.21 GiB | **50.50 GiB** | — |
+| decode, plain (code / prose) | 17.0 / 16.8 | 23.4 / 23.5 | — |
+| decode, `--mtp` (code / prose) | 17.6 / **12.2** | **36.3 / 31.1** | 102–108 / 57–60 |
+| prefill, long prompt | ~460 tok/s (26 754 tok) | ~755 tok/s (31 811 tok) | — |
+| keigo, thinking off | **8/8** | 7/8 | 6/8 |
+| keigo, thinking on | 7.5/8 (High) | 8/8 (3 of 4 runs; see below) | — |
+| `merge_intervals` doctests | 6/6 | 5/5 | 5/5 |
+| LRU unittest, thinking off | **fails 3/3** (`import unittest` missing; 10/10 with it) | 9/9 | 8/8 |
+| long-context lookup | correct | **wrong** (answers 0, misses 1009) | — |
+
+**Findings**
+
+- **Neither model is a speed candidate.** Plain decode is 17 and 23 tok/s
+  against the router's 102–108. The ds4 GLM figure matches upstream's 14.35
+  tok/s Spark QA number. The Flash-Next figure is above the 17.3 / 19.9 tok/s
+  that upstream's Spark guide reports.
+- **GLM's MTP is a loss on this box, and it changes greedy output.**
+  `--mtp-timing` over 841 cycles shows 66% acceptance. A two-row verify costs
+  95 ms against ~60 ms for one plain step, and each rejection adds a further
+  69 ms of head+draft, so the net is 13.2 tok/s. Output also stops being
+  identical at temperature 0. Keigo item 8 became 「社長が**おいえに**なりました」,
+  which is not a word, in all three runs. Upstream's docs warn that
+  verifier reduction order can make greedy output differ from plain decoding.
+  On this model that difference corrupts the answer.
+- **Flash-Next's MTP is free.** It gives 1.3–1.6× and byte-identical
+  content on every prompt.
+- **ds4 rewrites GLM's reasoning effort without saying so.** `low`, `medium`
+  and `high` all render `Reasoning Effort: High`
+  (`ds4_glm_reasoning_effort_text`). The vendor template does have `Low`. The
+  vendor default, `max`, is also downgraded to High unless `--ctx` ≥ 393 216
+  (`DS4_THINK_MAX_MIN_CONTEXT`). At `--ctx 32768` the "max" run was
+  token-for-token the High run. A real max run at `--ctx 393216` (97.42 GiB
+  planned) scored the same as High (keigo 7.5/8, doctests 6/6, LRU 12/12) but
+  spent **16 756 tokens and 19 minutes** on the LRU prompt, against 1 526
+  tokens and 96 s at High.
+- **GLM leads on Japanese with thinking off.** It scored 8/8 in all three
+  runs, including 「拝見いたします」 and 「いらっしゃいました」, the two items the
+  router's models miss. With thinking on it dropped to 「見られましたか」 on
+  item 1. That is a valid but weaker honorific, scored ½.
+- **Flash-Next with thinking on lost its answer once.** In 1 of 4 runs it
+  finished inside `<think>` and returned an empty `content`, with the correct
+  list sitting in `reasoning_content`. The other three runs scored 8/8. A
+  client that reads only `content` will see this.
+- **Scoring note.** The first pass marked 「ご覧いただけますか」 and
+  「いらっしゃった」 wrong; both are correct honorifics. The table above uses
+  the rescored figures.
+
+### Co-residency with the llama.cpp router
+
+The `Conflicts=` in `ds4-server.service` was written for models that took the
+whole pool (see the top of this file). It is a policy, not something ds4
+enforces. ds4 refuses only a second ds4 process. With 41.72 GiB resident,
+Flash-Next is the first ds4 model that could share the pool.
+
+The test set the router to its startup set only: the 35B-A3B at `ctx-size
+262144`, ~47 GiB used. ds4 Flash-Next `--mtp` ran alongside it from the
+worktree.
+
+| tok/s (code / prose) | alone | co-tenant idle | both generating |
+| --- | --- | --- | --- |
+| 35B-A3B | 107 / 58 | 107 / 60 | **27 / 15** |
+| Flash-Next | 37 / 31 | 37 / 31 | **23 / 20** |
+
+- **It fits.** The pair used 98 GiB with 26 GiB available, and swap did not
+  move.
+- **NVRM lines appear only at startup on a tight pool.** Seven
+  `NV_ERR_NO_MEMORY` lines came while ds4 was loading, and none came during
+  generation. The solo GLM starts (93–97 GiB) logged them too. The solo
+  Flash-Next start did not.
+- **An idle co-tenant costs nothing; a busy one costs a lot.** While both
+  generate, the 35B-A3B falls to a quarter of its speed and Flash-Next to
+  ~60%. The two together make ~50 tok/s, which is less than the 35B-A3B alone.
+  Why the router loses more was not investigated.
+- **The router's on-demand models break the budget.** Loading the 27B adds
+  ~15 GiB and would not fit. ds4 sets `oom_score_adj=1000`, so ds4 is the
+  process that dies.
+
+**Verdict**: neither model is adopted as resident.
+
+- GLM-5.3-Flash Q2 is a candidate for the on-demand slot. It is the best
+  Japanese result on these boxes with thinking off, but at 17 tok/s and
+  90 GiB it is not interactive. Run it without `--mtp`, at High effort.
+  Max effort needs `--ctx 393216` and costs 10× the tokens for no measured
+  gain.
+- Flash-Next Q2 on ds4 roughly matches llama.cpp's IQ1_S on speed (36 vs 33
+  tok/s, now with MTP) and uses 17 GiB less memory.
+- Co-hosting Flash-Next with the router works for occasional use. Doing it
+  would mean dropping `Conflicts=` and capping the router to its startup set.
+  That is not done here.
+
+Not measured: GLM through llama.cpp (its support merged on 2026-09-30, and a
+third party reports 17.7 tok/s at Q2_K_XL), batched serving, and long-horizon
+agent use.
+
+**Where the files live**: both GGUFs are in `~/ghq/github.com/antirez/ds4/gguf`,
+not `/var/lib/ds4/models`, and both are SHA256-checked against the HF LFS oids.
+Together they take 227 GiB.
 
 ---
 
