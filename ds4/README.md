@@ -108,4 +108,7 @@ Upstream validates `--ctx` up to 65536 under SSD streaming.
 The server thinks at high effort by default; send `think:false` (or
 `model=deepseek-chat`) for direct answers. Measurements, and what replaced
 Flash 0731, are in [EVALUATIONS.md](EVALUATIONS.md). 0731 is no longer on disk;
-the previous engine is kept as `/opt/ds4/ds4-server.e34a808`.
+the previous engine is kept as `/opt/ds4/ds4-server.e34a808`. GLM-5.3-Flash
+and Qwen3.8-Flash-Next Q2 were measured on a newer engine (fc80bd6) and not
+deployed. Flash-Next can share the pool with the router; see the 2026-10-16
+entry.
