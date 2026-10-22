@@ -10,8 +10,8 @@ Builds DwarfStar with `make` and runs `ds4-server` as a per-user
 | --- | --- |
 | `<checkout>/ds4-server` | the binary (built in place, run from the checkout) |
 | `<checkout>/*.gguf`, `<checkout>/gguf/` | models, read directly from the checkout |
-| `$XDG_CONFIG_HOME/ds4/ds4-server.env` | runtime flags (`$DS4_SERVER_ARGS`) |
-| `$XDG_CACHE_HOME/ds4/server-kv` | `--kv-disk-dir` on-disk KV cache |
+| `$XDG_CONFIG_HOME/ds4/ds4-server.env` | runtime flags (`$DS4_SERVER_ARGS`) and engine switches (`$DS4_SERVER_ENV`) |
+| `$XDG_CACHE_HOME/ds4/server-kv` | `--kv-disk-dir` on-disk KV cache (optional; not in the default flags) |
 | `$XDG_STATE_HOME/ds4/logs/` | stdout / stderr of the agent |
 | `~/Library/LaunchAgents/com.antirez.ds4-server.plist` | the agent |
 
@@ -26,22 +26,29 @@ directory with `CONFDIR=`, `KVDIR=`, or `LOGDIR=`.
 ./install.sh                 # build (make) -> render plist -> load agent
 $EDITOR "${XDG_CONFIG_HOME:-$HOME/.config}/ds4/ds4-server.env"
 NO_BUILD=1 ./install.sh      # re-render plist + reload after editing the env
+NO_START=1 ./install.sh      # render + load, but leave it stopped
 ```
 
 Run as your normal user (NOT root, NO sudo) — a LaunchAgent lives in your login
 session. Re-running rebuilds (incremental), re-renders the plist, and reloads the
 agent, then waits for the server to log its `listening on` line before reporting
 done. The installer starts it explicitly; `RunAtLoad` is **false**, so it does
-NOT come back at the next login — start it when you want it (see below).
+NOT come back at the next login — start it when you want it (see below). It
+refuses to start while `com.mlx-serve.flashnext` or `com.vllm-mlx.server` is
+running: V4.1's 80 GiB budget assumes it has the machine to itself. Stop the
+other engine first; the installer does not evict it for you.
 
 Directory overrides (`KVDIR=`, `CONFDIR=`, `LOGDIR=`) only take effect on the
 first install — an existing env file is left untouched, so its `--kv-disk-dir` is
 frozen at first seed. To move the KV path later, edit the env file directly.
 
 The ds4 source is cloned from `REPO` (default
-`https://github.com/antirez/ds4.git`) into `SRC` when the checkout is absent; an
-existing `SRC` is reused untouched. Override defaults via env:
-`SRC=/path MAKE_TARGET=cpu ./install.sh`; `NO_BUILD=1` skips the build.
+`https://github.com/ngc-shj/ds4.git`, the fork that carries the V4.1 Metal 4
+production) into `SRC` and checked out at `REF` (default
+`ds4-v41-metal4-superbatch-exact-production-documented`) when the checkout is
+absent; an existing `SRC` is reused untouched, with a warning if it is not at
+`REF`. Override defaults via env: `SRC=/path MAKE_TARGET=cpu ./install.sh`;
+`NO_BUILD=1` skips the build.
 
 ## Managing the agent
 
@@ -71,21 +78,27 @@ option for the Metal backend.
 - **Flags are baked into the plist, not read at launch.** systemd word-splits
   `$DS4_SERVER_ARGS` in `ExecStart`; launchd does not split env vars into
   `ProgramArguments`. So `install.sh` expands each flag from
-  `ds4-server.env` into its own `<string>` when it renders the plist. Editing the
-  env file therefore requires re-running `install.sh` (use `NO_BUILD=1`).
+  `ds4-server.env` into its own `<string>` when it renders the plist, and each
+  `KEY=VALUE` of `$DS4_SERVER_ENV` into the plist's `EnvironmentVariables`. V4.1
+  production is defined by fifteen of those switches as much as by its flags, so
+  an env file without them runs a different engine. Editing the env file
+  therefore requires re-running `install.sh` (use `NO_BUILD=1`).
 - **No service account, no model relocation.** The agent runs as you, so it can
   already read GGUFs inside your `$HOME` checkout. The Linux unit needs a
   dedicated `ds4` user and moves models out of a `0750` home; none of that
   applies here.
-- **`KeepAlive` only on failure.** `SuccessfulExit=false` means a crash is
-  relaunched (after `ThrottleInterval` seconds) but a clean stop or a
-  `launchctl bootout` stays down. `ExitTimeOut=120` gives the slow model unload a
-  graceful window before SIGKILL.
+- **No `KeepAlive`, so no restart on crash.** launchd.plist(5): any
+  `KeepAlive` "implicitly implies RunAtLoad". The agent used to carry
+  `KeepAlive{SuccessfulExit=false}` beside `RunAtLoad=false`, and launchd started
+  it at every login and every `bootstrap` regardless. With V4.1 prewarming ~58
+  GiB of experts at startup that is no longer a ~5 MB idle process, so the key is
+  gone: a crash leaves it down until you start it. `ExitTimeOut=120` gives the
+  model unload a graceful window before SIGKILL.
 - **No mutual-exclusion, and nothing enforces the convention.** The Linux box
   time-shares one 128GB pool between llama.cpp / vLLM / ds4 via systemd
-  `Conflicts=`; launchd has no equivalent. Both agents tracked here are now
-  `RunAtLoad=false`, so the standing cost is zero and co-tenancy is a decision —
-  but that is a convention, not a guarantee, and the failure is silent: ~90 GB
+  `Conflicts=`; launchd has no equivalent. Both agents tracked here are
+  `RunAtLoad=false` with no `KeepAlive` (see above), so neither starts on its
+  own and co-tenancy is a decision — but that is a convention, not a guarantee, and the failure is silent: ~90 GB
   for ds4 plus ~19 GB for vllm-mlx was the actual state through a day of
   benchmarking, undetected because free memory looks the same whether the pool
   is committed or not. It costs streamed models ~14% and residency nothing (see
@@ -93,8 +106,10 @@ option for the Metal backend.
   The live risk is no longer vllm-mlx: this Mac's resident engine is **mlx-serve**
   (`com.mlx-serve.flashnext`, ~70 GB for Qwen3.8-Flash-Next, not packaged in this
   repo), and an idle `ds4-server` holds only ~5 MB, so a stopped-looking ds4 that
-  is merely *loaded* wires ~90 GB the moment one request arrives. Before
-  measuring anything, check all three:
+  is merely *loaded* wires tens of GB the moment one request arrives. The
+  installer now refuses to *start* ds4 beside a running mlx-serve or vllm-mlx,
+  but a manual `kickstart` is not checked. Before measuring anything, check all
+  three:
 
   ```bash
   launchctl print gui/$(id -u)/com.antirez.ds4-server
@@ -107,34 +122,29 @@ option for the Metal backend.
 
 ## Current model
 
-DeepSeek V4 Flash **0731**, q2 quant
-(`IQ2XXS-w2Q2K-AProjQ8-SExpQ8-OutQ8-chat-v2-imatrix-0731`, 86.7 GB), with the
-MTP draft head for speculative decoding (`--mtp <file> --mtp-draft 2`). ds4's
-guidance is that MTP helps predictable output (code, structured lists) and can
-be marginally slower on divergent text, but an A/B over three alternated reps
-measured no difference either way on a coding workload — 16.1 against 16.6
-tok/s, inside the run-to-run spread. It stays on. See
-[EVALUATIONS.md](EVALUATIONS.md) and `ds4-server.env.example`.
+DeepSeek V4.1 Flash, calibrated **Q2** (`DeepSeek-V4.1-Flash-Q2.gguf`, 341 GiB
+on disk: 152 GiB of main weights plus 189 GiB of Engram tables), run with
+`--ssd-streaming` — on 128 GB it cannot be resident. The engine is the Metal 4
+build fixed as the exact production on the `ngc-shj/ds4` fork, tag
+[`ds4-v41-metal4-superbatch-exact-production-documented`](https://github.com/ngc-shj/ds4/tree/ds4-v41-metal4-superbatch-exact-production-documented):
+its outputs are bit-identical to a frozen reference build. The tag's README has
+the download, the launch command and what each switch does;
+`ds4-server.env.example` is that command split into `DS4_SERVER_ENV` and
+`DS4_SERVER_ARGS`, with the port moved to 8000.
 
-`download_model.sh` in the ds4 checkout has no `-0731` target as of `54b36ed`;
-its filenames are hardcoded and not env-overridable, so the 0731 GGUFs have to
-be pulled directly from
-[antirez/deepseek-v4-gguf](https://huggingface.co/antirez/deepseek-v4-gguf) and
-the `ds4flash.gguf` symlink repointed by hand. Use `curl -C -` with
-`--speed-limit 1024 --speed-time 60`: without the stall timeout a network change
-mid-transfer leaves a half-open connection that `--retry` never notices, and the
-download hangs silently.
+The startup log should say the cache was fitted from 10268 to 7034 experts, the
+backend is Metal 4, and 77.99 GiB is planned.
 
 ## Measured throughput
 
-Numbers and protocol are in [EVALUATIONS.md](EVALUATIONS.md). The short version:
-decode runs at ~30 tok/s with memory to spare and falls to 4–15 tok/s when the
-rest of the desktop crowds it out, and a server restart does not clear it —
-**quitting Docker took the same prompt from 4.2 back to 30.7 tok/s.**
+From the tag's README, on this machine: a 4795-token prompt's first prefill
+takes about 35 s on a cool machine and slows under back-to-back long prompts as
+the GPU heats (about 35, 38 and 55 s for three in a row); decode is about 45 ms
+a token once the expert cache is warm. Earlier measurements of upstream builds
+are in [EVALUATIONS.md](EVALUATIONS.md).
 
-The model wires ~90 GB, leaving ~35 GB for everything else. Keep heavy
-applications closed while serving. When throughput drops, read `vm_stat` free
-pages and compressor size — *not* `vm.swapusage`, which reports a file macOS
-resizes on its own and stays flat through a collapse. Activity Monitor's
-`ds4-server` row is misleading for the same reason: the model is counted under
-wired memory, not against the process.
+It is not the resident engine. On the same 49 prompts it was somewhat more
+accurate than Qwen3.8-Flash-Next and took 69.7 minutes against 15.4 (see
+[../llama.cpp/EVALUATIONS-macos.md](../llama.cpp/EVALUATIONS-macos.md),
+2026-10-10), so it is started on demand for work where accuracy matters more
+than latency.

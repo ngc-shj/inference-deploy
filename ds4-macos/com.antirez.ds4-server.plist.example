@@ -4,11 +4,12 @@
   LaunchAgent for ds4-server (DwarfStar local inference HTTP API) on macOS/Metal.
 
   install.sh substitutes the __UPPERCASE__ tokens (__PREFIX__, __WORKDIR__,
-  __LOGDIR__, and the __DS4_SERVER_ARGS__ line) and writes the result to
-  ~/Library/LaunchAgents/com.antirez.ds4-server.plist. Runtime flags live in
-  ds4-server.env (DS4_SERVER_ARGS); install.sh expands them into the
+  __LOGDIR__, and the __DS4_SERVER_ARGS__ and __DS4_SERVER_ENV__ lines) and
+  writes the result to ~/Library/LaunchAgents/com.antirez.ds4-server.plist.
+  Runtime settings live in ds4-server.env: DS4_SERVER_ARGS is expanded into the
   ProgramArguments array below, because launchd does NOT word-split env vars the
-  way systemd's ExecStart does.
+  way systemd's ExecStart does, and each KEY=VALUE of DS4_SERVER_ENV becomes an
+  entry of EnvironmentVariables.
 
   This is a LaunchAgent (per-user, login session), not a LaunchDaemon: ds4-server
   uses Metal, which requires a logged-in GUI session. A boot-time daemon cannot
@@ -25,32 +26,32 @@
 __DS4_SERVER_ARGS__
     </array>
 
+    <!-- The engine's switches (DS4_SERVER_ENV). V4.1 production is defined by
+         these as much as by its flags. -->
+    <key>EnvironmentVariables</key>
+    <dict>
+__DS4_SERVER_ENV__
+    </dict>
+
     <!-- Resolve relative model/MTP paths against the model directory. -->
     <key>WorkingDirectory</key>
     <string>__WORKDIR__</string>
 
-    <!-- On-demand, NOT at login — the other half of the fix that made
-         com.vllm-mlx.server on-demand. This agent wires ~90 GB for DeepSeek V4
+    <!-- On-demand, NOT at login. This agent plans ~78 GiB for DeepSeek V4.1
          Flash and launchd has no systemd `Conflicts=`, so starting it at login
          reserves most of a 128 GB machine against whatever else is resident.
-         Left at `true` it ran for eight days beside a 70 GB mlx-serve without
-         being noticed: an idle ds4-server holds ~5 MB, so nothing surfaces
-         until a single request wires the pool. Start it when you want it:
-             launchctl kickstart gui/$(id -u)/com.antirez.ds4-server -->
+         Start it when you want it:
+             launchctl kickstart gui/$(id -u)/com.antirez.ds4-server
+
+         RunAtLoad=false alone is not enough: launchd.plist(5) says any
+         KeepAlive "implicitly implies RunAtLoad", and SuccessfulExit in
+         particular "implies that RunAtLoad is set to true". With
+         KeepAlive{SuccessfulExit=false} this agent was started at every load
+         (login, or install.sh's bootstrap) despite the false below. V4.1 prewarms ~58 GiB of experts at startup, so it no
+         longer idles at ~5 MB. Hence no KeepAlive (and no ThrottleInterval,
+         which only paces relaunches): a crash leaves it down until started. -->
     <key>RunAtLoad</key>
     <false/>
-
-    <!-- Restart on crash, but not on a clean exit (a manual `launchctl kickstart`
-         stop or SIGINT shutdown stays down until asked to start again). -->
-    <key>KeepAlive</key>
-    <dict>
-        <key>SuccessfulExit</key>
-        <false/>
-    </dict>
-
-    <!-- Back off before relaunch so a crash-loop does not thrash the GPU. -->
-    <key>ThrottleInterval</key>
-    <integer>30</integer>
 
     <!-- Model load is slow; give a generous graceful-shutdown window (SIGTERM
          then SIGKILL after this many seconds). -->

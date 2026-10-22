@@ -9,16 +9,20 @@
 #   - Models stay in the checkout: the agent runs as you and can already read them,
 #     so there is no relocation out of $HOME.
 #   - launchd does not word-split env vars, so DS4_SERVER_ARGS is expanded into the
-#     plist's ProgramArguments at install time instead of at launch.
+#     plist's ProgramArguments, and DS4_SERVER_ENV into its EnvironmentVariables,
+#     at install time instead of at launch.
 #
-# The ds4 source is cloned from REPO into SRC if absent; an existing checkout is
-# reused as-is. Override any setting via environment, e.g.
+# The ds4 source is cloned from REPO into SRC and checked out at REF if absent; an
+# existing checkout is reused as-is. Override any setting via environment, e.g.
 #   SRC=/path/to/ds4 MAKE_TARGET=all ./install.sh
+# NO_START=1 renders and loads the agent without starting it.
 set -euo pipefail
 
 # --- configuration ------------------------------------------------------------
-REPO="${REPO:-https://github.com/antirez/ds4.git}"       # upstream source of truth
-SRC="${SRC:-$HOME/ghq/github.com/antirez/ds4}"           # local checkout (cloned if absent)
+# V4.1 production lives on the ngc-shj/ds4 fork, not upstream; REF is its tag.
+REPO="${REPO:-https://github.com/ngc-shj/ds4.git}"
+REF="${REF:-ds4-v41-metal4-superbatch-exact-production-documented}"
+SRC="${SRC:-$HOME/ghq/github.com/ngc-shj/ds4}"           # local checkout (cloned if absent)
 # On Darwin the Metal build IS the default target; there is no `metal` target.
 # A `metal/` directory exists in the checkout, so `make metal` matches that
 # directory and silently succeeds without building anything.
@@ -50,10 +54,17 @@ die() { printf '\033[1;31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 # Clone the upstream source of truth if the checkout is missing. An existing $SRC
 # is left untouched (pull/update is the user's call, not the installer's).
 if [[ ! -d "$SRC" ]]; then
-    say "Cloning $REPO -> $SRC"
+    say "Cloning $REPO -> $SRC at $REF"
     git clone "$REPO" "$SRC"
+    git -C "$SRC" checkout -q --detach "$REF"
 fi
 [[ -f "$SRC/Makefile" ]] || die "ds4 source not found at SRC=$SRC (clone of $REPO failed?)"
+# An existing checkout at another commit would run a different engine under the
+# production's settings; say so rather than move it.
+if want="$(git -C "$SRC" rev-parse -q --verify "$REF^{commit}" 2>/dev/null)" \
+    && [[ "$(git -C "$SRC" rev-parse HEAD)" != "$want" ]]; then
+    printf '\033[1;33mWARNING:\033[0m %s is not at %s; the env file was measured on that tag.\n' "$SRC" "$REF" >&2
+fi
 
 # --- 1. build -----------------------------------------------------------------
 if [[ -z "${NO_BUILD:-}" ]]; then
@@ -80,10 +91,14 @@ else
     say "$ENVFILE already exists; leaving it untouched"
 fi
 
-# Load DS4_SERVER_ARGS from the (possibly user-edited) env file.
+# Load DS4_SERVER_ARGS and DS4_SERVER_ENV from the (possibly user-edited) env file.
 # shellcheck disable=SC1090
 source "$ENVFILE"
 [[ -n "${DS4_SERVER_ARGS:-}" ]] || die "DS4_SERVER_ARGS is empty in $ENVFILE"
+DS4_SERVER_ENV="${DS4_SERVER_ENV:-}"
+for kv in $DS4_SERVER_ENV; do
+    [[ "$kv" =~ ^[A-Za-z_][A-Za-z0-9_]*=.*$ ]] || die "'$kv' in DS4_SERVER_ENV is not KEY=VALUE; fix $ENVFILE"
+done
 
 # Validate model paths before rendering. ds4-server resolves -m/--mtp relative to
 # WORKDIR (the checkout), so a wrong path (a bare MTP filename that actually lives
@@ -108,27 +123,38 @@ while [[ $# -gt 0 ]]; do
 done
 
 # --- 4. render plist ----------------------------------------------------------
-# Expand each whitespace-separated flag into its own <string> element, indented
-# to match the template's ProgramArguments block. Written to a file (not an awk
+# Expand each whitespace-separated flag into its own <string> element, and each
+# KEY=VALUE of DS4_SERVER_ENV into a <key>/<string> pair, indented to match the
+# template's ProgramArguments and EnvironmentVariables blocks. Written to files (not an awk
 # -v var, whose backslash/newline handling would mangle a multi-line block) and
 # streamed in when the placeholder line is reached.
 args_file="$(mktemp)"
+env_file="$(mktemp)"
 tmp_plist="$(mktemp)"
 # Clean up temp files on any exit path (die, plutil failure, awk/sed error).
-trap 'rm -f "${args_file:-}" "${tmp_plist:-}"' EXIT
+trap 'rm -f "${args_file:-}" "${env_file:-}" "${tmp_plist:-}"' EXIT
+xml_escape() { local v="${1//&/&amp;}"; v="${v//</&lt;}"; printf '%s' "${v//>/&gt;}"; }
 for tok in $DS4_SERVER_ARGS; do
-    esc="${tok//&/&amp;}"; esc="${esc//</&lt;}"; esc="${esc//>/&gt;}"
-    printf '        <string>%s</string>\n' "$esc" >> "$args_file"
+    printf '        <string>%s</string>\n' "$(xml_escape "$tok")" >> "$args_file"
+done
+for kv in $DS4_SERVER_ENV; do
+    printf '        <key>%s</key>\n        <string>%s</string>\n' \
+        "${kv%%=*}" "$(xml_escape "${kv#*=}")" >> "$env_file"
 done
 
 say "Rendering $PLIST"
 # tmp_plist gives us a staging file so a failed render never truncates an
 # existing $PLIST; mv into place only after plutil validates it.
-# __DS4_SERVER_ARGS__ sits alone on a line; swap that whole line for the block.
-awk -v argsfile="$args_file" '
+# Each placeholder sits alone on a line; swap that whole line for its block.
+awk -v argsfile="$args_file" -v envfile="$env_file" '
     /__DS4_SERVER_ARGS__/ {
         while ((getline line < argsfile) > 0) print line
         close(argsfile)
+        next
+    }
+    /__DS4_SERVER_ENV__/ {
+        while ((getline line < envfile) > 0) print line
+        close(envfile)
         next
     }
     { print }
@@ -146,8 +172,8 @@ mv "$tmp_plist" "$PLIST"
 # bootout is idempotent-ish: ignore "not loaded", then bootstrap.
 domain="gui/$UID_NUM"
 say "Reloading LaunchAgent in $domain"
-# bootout is asynchronous: it returns before the old service (which has ~93GB of
-# model mmapped) finishes tearing down. Bootstrapping while it is still attached
+# bootout is asynchronous: it returns before the old service (which has tens of
+# GB of model and expert cache mapped) finishes tearing down. Bootstrapping while it is still attached
 # to the domain fails with "Bootstrap failed: 5: Input/output error". Wait for the
 # label to actually disappear before re-bootstrapping.
 if launchctl print "$domain/$LABEL" >/dev/null 2>&1; then
@@ -162,18 +188,30 @@ fi
 # Truncate the log first so the readiness poll below matches THIS boot's
 # "listening on" line, not a stale one from a previous run.
 : > "$LOGDIR/ds4-server.err.log" 2>/dev/null || true
-# bootstrap loads the plist. RunAtLoad is false — the agent is on-demand so it
-# does not coexist with the other engines by default — so nothing is running yet
-# and kickstart has to start it explicitly. Plain `kickstart`, not `-k`: the
-# latter would kill and respawn, reloading the ~93GB model a second time.
+# bootstrap loads the plist. The agent has RunAtLoad=false and no KeepAlive (any
+# KeepAlive implies RunAtLoad; see the plist), so nothing is running yet and
+# kickstart has to start it explicitly. Plain `kickstart`, not `-k`: the
+# latter would kill and respawn, reloading the model a second time.
 launchctl bootstrap "$domain" "$PLIST"
+if [[ -n "${NO_START:-}" ]]; then
+    say "Loaded, not started (NO_START). Start it with: launchctl kickstart $domain/$LABEL"
+    exit 0
+fi
+# V4.1 plans ~78 GiB of a 128 GB pool, so a second resident engine leaves macOS
+# too little; the 80 GiB budget assumes it is alone. Refuse to start rather than
+# evict — stopping the resident engine is the user's call.
+for other in com.mlx-serve.flashnext com.vllm-mlx.server; do
+    if launchctl print "$domain/$other" 2>/dev/null | grep -q 'pid = '; then
+        die "$other is running; stop it first (launchctl bootout $domain/$other), then: launchctl kickstart $domain/$LABEL"
+    fi
+done
 launchctl kickstart "$domain/$LABEL"
 
 # --- 6. wait for readiness ----------------------------------------------------
 # kickstart/bootstrap return once launchd has SPAWNED the process, not when the
 # server is serving. Without this gate a crash-on-boot (missing model, port in
-# use, Metal init failure) is invisible: KeepAlive + ThrottleInterval respawn it
-# every 30s and the installer would still print "Done.". Poll the server's own
+# use, Metal init failure) is invisible: the process exits and the installer
+# would still print "Done.". Poll the server's own
 # "listening on" ready line in the log, bounded, and die with the log path on
 # timeout. Model load can take minutes, so the window is generous.
 ready_log="$LOGDIR/ds4-server.err.log"
@@ -181,10 +219,9 @@ say "Waiting for ds4-server to report ready (model load can take minutes)"
 ready=""
 for _ in $(seq 1 300); do
     if grep -q 'listening on' "$ready_log" 2>/dev/null; then ready=1; break; fi
-    # If launchd gave up (no pid) the process is crash-looping, not still loading.
-    if ! launchctl print "$domain/$LABEL" 2>/dev/null | grep -q 'pid = '; then
-        sleep 1; continue   # between respawns; keep waiting within the budget
-    fi
+    # No KeepAlive, so no respawn: a process that is gone has died during startup.
+    launchctl print "$domain/$LABEL" 2>/dev/null | grep -q 'pid = ' \
+        || die "ds4-server exited during startup; check $ready_log and: launchctl print $domain/$LABEL"
     sleep 1
 done
 [[ -n "$ready" ]] || die "ds4-server did not report ready within 300s; check $ready_log and: launchctl print $domain/$LABEL"
