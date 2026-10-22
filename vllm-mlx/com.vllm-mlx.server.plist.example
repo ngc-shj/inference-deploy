@@ -34,21 +34,15 @@ __VLLM_MLX_ARGS__
          128 GB machine and leaves ~26 GB for the OS and the desktop — enough
          until it isn't, and crossing that line costs ds4 7x. Start this when
          you want it:
-             launchctl kickstart gui/$(id -u)/com.vllm-mlx.server -->
+             launchctl kickstart gui/$(id -u)/com.vllm-mlx.server
+
+         RunAtLoad=false alone is not enough: launchd.plist(5) says any
+         KeepAlive "implicitly implies RunAtLoad". This agent used to carry
+         KeepAlive{SuccessfulExit=false} and was started at every login despite
+         the false below, so it has no KeepAlive (and no ThrottleInterval, which
+         only paces relaunches): a crash leaves it down until started. -->
     <key>RunAtLoad</key>
     <false/>
-
-    <!-- Restart on crash, but not on a clean exit (a manual `launchctl kickstart`
-         stop or SIGINT shutdown stays down until asked to start again). -->
-    <key>KeepAlive</key>
-    <dict>
-        <key>SuccessfulExit</key>
-        <false/>
-    </dict>
-
-    <!-- Back off before relaunch so a crash-loop does not thrash the GPU. -->
-    <key>ThrottleInterval</key>
-    <integer>30</integer>
 
     <!-- Model load is slow; give a generous graceful-shutdown window (SIGTERM
          then SIGKILL after this many seconds). -->
