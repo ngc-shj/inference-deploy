@@ -71,8 +71,8 @@ launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.vllm-mlx.server.plis
 launchctl kickstart gui/$(id -u)/com.vllm-mlx.server
 ```
 
-Use `bootout` when freeing the pool for another engine — it is the clean stop that
-`KeepAlive` will not undo (see below) — and keep the pair above with it.
+Use `bootout` when freeing the pool for another engine, and keep the pair above
+with it.
 
 **If a *new* engine binary answers on `127.0.0.1` but times out from the LAN**,
 suspect the macOS application firewall before the bind address. It drops
@@ -115,9 +115,12 @@ option for the Metal backend.
 - **Model by name, not by path.** Unlike ds4 (local GGUF), the model is an MLX
   checkpoint resolved from the Hugging Face cache and downloaded on first
   launch. The readiness poll's 600s budget covers that first download.
-- **`KeepAlive` only on failure.** `SuccessfulExit=false` relaunches a crash
-  (after `ThrottleInterval` seconds) but a clean stop or a `launchctl bootout`
-  stays down. `ExitTimeOut=120` gives the model unload a graceful window.
+- **No `KeepAlive`, so no restart on crash.** launchd.plist(5): any
+  `KeepAlive` "implicitly implies RunAtLoad". The agent used to carry
+  `KeepAlive{SuccessfulExit=false}` beside `RunAtLoad=false`, and launchd started
+  it at every login regardless — found running beside the resident mlx-serve on
+  2026-10-22. Without the key it stays down after a crash until you start it.
+  `ExitTimeOut=120` gives the model unload a graceful window.
 - **No declarative mutual exclusion, which is why this agent is on-demand.** The
   Linux units time-share one pool via systemd `Conflicts=`; launchd has no
   equivalent, and `install.sh` can only *warn* if the ds4-macos agent is loaded.

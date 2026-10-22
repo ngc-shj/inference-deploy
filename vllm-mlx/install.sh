@@ -146,9 +146,10 @@ fi
 # Truncate the log first so the readiness poll below matches THIS boot's
 # "Uvicorn running" line, not a stale one from a previous run.
 : > "$LOGDIR/vllm-mlx-server.err.log" 2>/dev/null || true
-# bootstrap loads the plist. RunAtLoad is false — the agent is on-demand so it
-# does not sit on the memory pool alongside ds4 at every login — so nothing is
-# running yet and kickstart has to start it explicitly. Plain `kickstart`, not
+# bootstrap loads the plist. RunAtLoad is false and there is no KeepAlive (any
+# KeepAlive implies RunAtLoad; see the plist) — the agent is on-demand so it does
+# not sit on the memory pool at every login — so nothing is running yet and
+# kickstart has to start it explicitly. Plain `kickstart`, not
 # `-k`: there is no process to replace.
 launchctl bootstrap "$domain" "$PLIST"
 launchctl kickstart "$domain/$LABEL"
@@ -156,19 +157,18 @@ launchctl kickstart "$domain/$LABEL"
 # --- 6. wait for readiness ----------------------------------------------------
 # bootstrap returns once launchd has SPAWNED the process, not when the server is
 # serving. Without this gate a crash-on-boot (bad model name, port in use, Metal
-# init failure) is invisible: KeepAlive + ThrottleInterval respawn it every 30s
-# and the installer would still print "Done.". Poll uvicorn's own ready line,
-# bounded, and die with the log path on timeout. First launch also downloads the
+# init failure) is invisible: the process exits and the installer would still
+# print "Done.". Poll uvicorn's own ready line, bounded, and die with the log
+# path on timeout or as soon as the process is gone. First launch also downloads the
 # model, so the window is generous.
 ready_log="$LOGDIR/vllm-mlx-server.err.log"
 say "Waiting for vllm-mlx to report ready (first-run model download can take a while)"
 ready=""
 for _ in $(seq 1 600); do
     if grep -q 'Uvicorn running' "$ready_log" 2>/dev/null; then ready=1; break; fi
-    # If launchd gave up (no pid) the process is crash-looping, not still loading.
-    if ! launchctl print "$domain/$LABEL" 2>/dev/null | grep -q 'pid = '; then
-        sleep 1; continue   # between respawns; keep waiting within the budget
-    fi
+    # No KeepAlive, so no respawn: a process that is gone has died during startup.
+    launchctl print "$domain/$LABEL" 2>/dev/null | grep -q 'pid = ' \
+        || die "vllm-mlx exited during startup; check $ready_log and: launchctl print $domain/$LABEL"
     sleep 1
 done
 [[ -n "$ready" ]] || die "vllm-mlx did not report ready within 600s; check $ready_log and: launchctl print $domain/$LABEL"
