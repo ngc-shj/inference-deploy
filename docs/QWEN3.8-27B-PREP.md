@@ -3,11 +3,14 @@
 > **Superseded by measurement (2026-08-19). Results:
 > [llama.cpp/EVALUATIONS.md](../llama.cpp/EVALUATIONS.md) (GB10) and
 > [llama.cpp/EVALUATIONS-macos.md](../llama.cpp/EVALUATIONS-macos.md) (z1mn).
-> Not adopted.** What this desk study got wrong, up front:
+> Not adopted as a resident; on GB10 it is kept on demand as `UD-Q4_K_XL` +
+> MTP.** What this desk study got wrong, up front:
 >
 > - **Speed**: predicted 50–70 tok/s on z1mn → measured 34.9. Predicted 25–30
->   on GB10 → measured 7.8. §1's arithmetic assumed Q4; the run used FP8, twice
->   the bytes. The bandwidth law was right, the format assumption was not.
+>   on GB10 → measured 7.8 on FP8, twice the bytes §1's arithmetic assumed.
+>   The Q4 + MTP path it did assume measured 26.2, and 33.2 at
+>   `spec-draft-n-max = 6` (2026-08-31). The bandwidth law was right, the
+>   format assumption was not.
 > - **Biggest risk**: "can vllm-mlx read it" (§3.1) was a non-issue. The real
 >   wall was a vllm-mlx 0.4.0 bug that **corrupts output when a model is served
 >   from a local directory** — fixed in 0.4.1, and vision is only reachable on

@@ -49,10 +49,12 @@ distinguishable from their predecessor on single-shot coding tasks, and decode
 falls from ~30 tok/s to 4–15 once the rest of the desktop competes with the
 model's ~90 GB wired working set — quitting Docker alone restored 4.2 → 30.7.
 
-Prep notes for a model not yet measured — which quantization to pick per box and
-what to check before running — are in
-[`docs/QWEN3.8-27B-PREP.md`](docs/QWEN3.8-27B-PREP.md) (desk research, not
-measurements).
+Qwen3.8-27B was desk-studied in
+[`docs/QWEN3.8-27B-PREP.md`](docs/QWEN3.8-27B-PREP.md) and then measured on both
+boxes (2026-08-19). On GB10 it settled on llama.cpp `UD-Q4_K_XL` with
+`draft-mtp` (33.2 tok/s at `spec-draft-n-max = 6`; FP8 on vLLM is 7.8), kept as
+an on-demand vision model rather than a resident — see
+[`llama.cpp/EVALUATIONS.md`](llama.cpp/EVALUATIONS.md).
 
 ## Mutual exclusion — run one engine at a time
 
